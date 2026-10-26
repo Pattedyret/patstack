@@ -1,76 +1,10 @@
-# Build and review
+# Compatibility link
 
-Reuse the task brief, mode and current candidate. Ponytail means the smallest change that fully solves the task: reuse the codebase’s component/helper/pattern, then the standard platform/library or an installed dependency, before adding code or a dependency. Finish affected callers, tests, fixtures and error paths. Add no speculative abstraction, wrapper, option or unrelated feature. Never cut trust-boundary validation, data-loss protection, security, accessibility or requested behavior. Default is full; honor Patrick’s lite (build as asked and mention the smaller option), ultra (challenge unnecessary scope), or off for the session. These style choices never disable required proof or permissions. Human involvement is governed by [mode decisions](decisions.md), not by uncertainty alone.
+The procedure moved to individually callable skills in Patstack 1.1.0. Read only the module needed for the current operation:
 
-## First rule: productive, proportionate execution
+- [ponytail](../../ponytail/SKILL.md)
+- [implement](../../implement/SKILL.md)
+- [review](../../review/SKILL.md)
+- [council](../../council/SKILL.md)
 
-Choose the smallest execution route justified by the actual change. Changing a button's colour or moving a small UI element is ordinarily a quick direct edit, with a focused check, completed in seconds or a few minutes when the environment is ready. It does not need a long spec, subtickets, multiple agent sessions, Council rounds or a full product benchmark matrix. Reuse the existing context/preview and task record where applicable; do not turn every implementation step into a new ticket.
-
-For a tiny UI edit, check the intended appearance and affected responsive/interaction/accessibility states as relevant. Preserve existing product conventions. An explicit requested colour/layout change already provides that direction; it does not automatically trigger the new-visual-direction interview. Keep the closeout/retro proportionate, without another agent or a report for a trivial edit. Existing required repository checks continue to apply, but avoid adding redundant process.
-
-Classify risk by behavior and blast radius, not merely the file or product name. A cosmetic edit in an auth page or customer-facing product does not by itself become a very large sensitive task. Changes to auth/permission behavior, important API contracts or substantial customer-facing behavior still receive the risk scrutiny and Full Stop escalation already defined. If tooling/startup/CI delays dominate a small task, expose that cost and improve the workflow rather than treating a slow process as inevitable.
-
-For deliberate measured optimization, apply Ponytail to experiments too: one grounded hypothesis, the smallest change, measure against the fixed protocol, and retain the change only if the intended result improves beyond noise while required correctness/quality checks pass. Discard an ineffective speculative change safely within owned work; never reset unrelated work. This is a task-relevant discipline inside Ponytail, not another global mode, mandatory optimization loop or minimum iteration quota. Stop at the agreed goal or timebox; preserve Patstack's stagnation/deep-diagnosis rules. Tiny edits do not become performance experiments.
-
-### Agent-selected review levels
-
-BIG TASK chooses the lowest sufficient level from the actual change, uncertainty and blast radius. It owns this routine choice without asking Patrick, subject to project-required review and human gates. State the level and a short reason in the task/PR evidence, without creating another document or ticket. A tiny edit can have **no separate review session**: that is R1's focused author check, not an independent-review claim.
-
-| Level | Who and what | Typical fit |
-|---|---|---|
-| **R1 — Focused** | Author checks the diff and targeted result. No separate reviewer, Council, formal score or review loop. Label this author/self-review. | Trivial cosmetic/layout, copy or mechanical edits with understood local effects and no meaningful behavior/security/data change. |
-| **R2 — Independent** | One fresh opposite-model reviewer: Opus work → Sol; Sol work → Opus. Check acceptance and implementation quality in the same focused review, with relevant risks and proof. | Bounded behavior fixes, ordinary new features and local API/data logic. Minimum for changes to auth/permissions, credentials, shell handling user input, untrusted-file handling, authenticated API calls, production databases, data integrity, destructive operations or important API contracts. Include independent security scrutiny for the relevant boundary. |
-| **R3 — Council** | Fresh Opus and Sol judgments, independently first, then evidence-backed cross-examination and joint assessment. Add narrowly targeted expertise only when warranted. Report actual scores/rounds when supplied. | Broad/high-impact auth or API changes, migrations/irreversible effects, cross-project/shared-system impact, substantial customer-facing changes or unresolved material uncertainty/disagreement. |
-
-No development-review classification is needed for an unticketed research/discussion question. An R1 decision for a tiny UI change still includes the relevant visual/interaction checks. All levels retain the applicable quality standard, required repository checks and delivery proof; review depth does not replace testing.
-
-Select provisionally at intake, confirm against the actual diff and reassess if new risk, scope or evidence appears. Use a higher level when needed. A legitimate scope reduction can justify a lower level with an explicit reason; rejected findings, time pressure or an unavailable reviewer do not justify lowering a required level. Risk depends on changed behavior and blast radius, not an auth-related filename or customer-facing repo name alone.
-
-Critical work uses the same selection rule with focused/parallel execution. A bounded urgent fix can use R2; a broad high-impact incident can require R3 with reviewers working in parallel. Do not duplicate an R2 pass and Council on an unchanged candidate when one correctly scoped R3 assessment covers the requirement. The existing three-cycle/early-diagnosis/timebox rules apply to review repairs; avoid loops for R1.
-
-Example rationale: `R1 — CSS-only button colour change; no behavior, data or auth changes.` Include the reviewed revision and actual reviewer/author distinction where relevant; missing required independent review remains missing.
-
-## Independence and disagreement (R2/R3)
-
-- Two model families can mean several narrowly scoped sessions. The author is not an independent reviewer of its own implementation. For a major integrated result, obtain fresh Opus and Sol judgments; do not label lead self-review independent.
-- Reviewers first receive the task, relevant context, exact candidate and evidence access. They give an initial judgment before seeing the other model's score or the author's persuasive summary.
-- Independence belongs to the actual session and its contribution, not just the model name. A fresh reviewer that wrote none of the candidate can assess it without approving its own work. If Opus and Sol both implemented parts, cross-review their contributed areas and have a fresh non-author session cover integration seams. Reuse those judgments in the selected R2 assessment; do not force two complete reviews of every slice. R3 uses fresh non-author sessions from both model families.
-- Acceptance asks “does the requested behavior work, including counterexamples?” Code review asks “is this implementation correct, maintainable and safe in this system?” They remain distinct verdicts even if one reviewer reports both.
-- Cross-examination records the claim, severity, evidence/reproduction, response and resolution. Changes require fresh non-author assessment of the changed diff. Repeat a full R3 Council only when the repair changes high-impact behavior or leaves a material objection unresolved; retain valid prior judgments.
-- `grilling` interviews Patrick about choices only he can make. Council's technical cross-examination should not trigger another human interview for facts that tools can establish.
-- After three unsuccessful normal repair cycles, switch to deep diagnosis. Rebuild the reproduction, inspect actual runtime/test behavior, challenge the implementation hypothesis and the AI workflow, and change the approach using new evidence. Then fix the root cause, verify it and conduct retrospective root-cause analysis. Do not repeat an identical fourth attempt or abandon the task merely because the counter reached three.
-- Record both the technical root cause and any workflow/detection failure that let it persist. Validate the process improvement against the observed failure; a reproducible counterexample is stronger than adding another general rule. Preserve cumulative attempts/time across recovery; do not disguise stagnation by resetting counters. A genuine missing product decision, authority or unavailable required environment still needs an honest handoff.
-- If a required model or proof method is unavailable, continue independent reversible work. Try a verified alternate host/runtime providing the same required model/proof. No silent family substitution or review-level downgrade is allowed. If no route is available, mark the PR not ready, retain the missing check and set one next-attempt/notification event within the task's announced timebox. Do not poll indefinitely. At timebox expiry or confirmed unavailability, hand off Done / Verified / Unresolved / Next; re-establish native watching only under the designated owner when resumed. No invented agreement and no new user question unless a real choice or authority is missing.
-
-## Implementation speed and the critical fast path
-
-Product performance and implementation speed are separate requirements. Record both. BIG TASK classifies urgency separately from scope/risk and Full Send/Full Stop. A critical task may use the fast path while retaining hands-on Full Stop checkpoints for sensitive decisions.
-
-| Actual change | Execution route | Verification effort |
-|---|---|---|
-| Tiny cosmetic/layout edit | Direct in the current context; no task graph or Council by default | Focused visual check and affected responsive/interaction/accessibility states; use existing required checks |
-| Bounded behavior fix | Tight reproduction, smallest complete fix, focused tests; independent review when risk warrants | Prove the reported case and relevant counterexamples/regressions |
-| New feature or substantial improvement | Planned implementation plus explicit quality work; subtickets/agents only where useful | Functional Y/N plus applicable UI, UX, performance and data standards; improvements also prove their claimed gain |
-
-Critical urgency overlays these routes with immediate recovery, parallel focused work and a tight timebox. It does not turn a tiny edit into a larger process. Full Send/Full Stop continues to determine Patrick's involvement, separately from task size and urgency.
-
-### Critical work
-
-1. **Triage and choose a recovery route immediately.** Use the existing task/incident and a short working contract: impact, affected environment, expected behavior, reproduction, authorized target and success check. Prefer the smallest safe fix or an existing authorized mitigation/rollback when that restores the requested behavior sooner. Do not wait for a long spec, new design exploration or a full task graph for a bounded fix.
-2. **Keep the active team small.** Lead/implementer plus a focused opposite-model reviewer is the normal bounded-fix path. Investigate independently separable facts, run the reproduction/regression checks and assess blast radius in parallel when practical. Mandatory security/target-environment checks still apply. Review scope determines extra expertise; role names alone do not justify additional handoffs.
-3. **Prove the critical behavior.** Reproduce the failure, make the smallest complete fix, and run the focused acceptance, counterexample and affected-regression checks. Use actual browser/endpoint proof when the failure requires it. Reuse already valid project checks and evidence; update only what the new head invalidates. Acceptance and code judgments remain explicit, even when one focused independent review reports both.
-4. **Deliver within the existing grant.** Full Send proceeds through the project's test delivery and live check; Full Stop keeps its human decision checkpoints. An actual production incident uses its explicitly authorized recovery target. Critical urgency does not itself grant production access.
-5. **Run the full retrospective after recovery.** Immediate causal investigation needed for the fix stays on the critical path. The longer workflow retro, preventive improvements and unrelated polish follow the verified restoration. If restoration is only part of a larger feature, retain the parent until the rest of its acceptance is met.
-
-### Time and iteration control
-
-- BIG TASK sets and announces a timebox/next-result target at intake using severity, the known reproduction, project constraints and available tools. It owns this estimate; Patrick need not estimate debugging work. Initial response targets for critical work: a triage/recovery-route decision within 5 minutes, and a first tested fix or safe mitigation candidate within 15 minutes where the problem permits. These are response targets, not claims that every incident can be resolved in that time.
-- These timeboxes are upper response targets, not mandatory waiting periods or a minimum process. A known tiny fix should proceed immediately and use the direct route above.
-- Keep elapsed wall time, time to first safe mitigation/candidate and time to verified delivery visible. Separate active implementation, queue/CI/environment waits and human-decision waits. Use existing task/run/PR timestamps rather than adding manual reporting ceremony.
-- Three unsuccessful normal repair cycles is a **maximum, not a quota**. A repeated finding without new evidence, an exhausted timebox or a clearly refuted approach triggers deeper diagnosis earlier. Do not run another identical pass merely to reach three.
-- Deep recovery continues under the same elapsed clock and cumulative attempt record. It requires a changed hypothesis, a tighter reproduction or new evidence, then a revised fix/check. It is not an unlimited extension or a counter reset. If there is no viable progress, surface the specific blocker and best verified recovery option promptly, and ask Patrick only for the actual missing decision/authority.
-- Limit blocking feedback to failures of agreed acceptance, applicable standards and material safety/regression risks. Record real non-blocking improvements for follow-up. Avoid repeated style debate, unrelated expansion and duplicate review pipelines on the same unchanged candidate.
-- Reassess the approach as a unit rather than stacking small speculative patches. After repeated failures, inspect both the technical cause and the workflow/detection failure; verify the corrective change. The retrospective RCA explains why the loop persisted and how recurrence will be detected or prevented.
-
-The fast path ends in verified recovery/delivery evidence, not a relaxed “works on my machine” claim. The full new-feature path includes its planned quality work. Both routes share the applicable standards while avoiding unnecessary serial steps.
-
+The named skill owns the procedure; this file retains existing 1.0 links during migration.

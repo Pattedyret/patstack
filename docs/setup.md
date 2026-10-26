@@ -33,11 +33,13 @@ ln -s "$PWD/skills/patstack" ~/.claude/skills/patstack
 ln -s "$PWD/skills/create-test-recipes" ~/.claude/skills/create-test-recipes
 ```
 
-For Codex, use the skills directory your Codex version discovers and link the same two folders. The source setup links both clients to **one shared directory**, so Claude and Codex read identical files. Do not keep two edited copies.
+Repeat the link for each of the 19 folders listed in the [skill catalog](../README.md#skills). Inspect existing destinations first and preserve any owner-managed installation rather than overwriting it. For Codex, use the skills directory your Codex version discovers and link the same 19 folders. The source setup links both clients to **one shared directory**, so Claude and Codex read identical files. Do not keep two edited copies.
+
+Chirp/Xirp aliases are optional app-owned dependencies, outside this catalog. They can remain present on Unix when installed by their owner; Windows does not need unavailable aliases. Native frontend-design and Computer Use must be provided by the actual client. This repository does not vendor their managed payloads.
 
 If a client resolves relative links from the symlink location rather than the real path, cross-references can miss. In that case open the referenced file from the repository root. `scripts/check.py` validates the links inside the repository only.
 
-Keep any older overlapping workflow skills out of discovery so two routers do not compete for the same request.
+The 19 modules cooperate under Patstack. Keep retired, overlapping workflow collections out of discovery so an older router does not compete with them. Verify source files, links, fresh native discovery and actual task behavior separately: linking files alone does not establish activation.
 
 ## 3. Add your global instructions
 
@@ -91,4 +93,13 @@ python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup 
 python3 scripts/check.py
 ```
 
-Since the r5 apply, the installed setup at `~/.harnesses-shared/agent-setup` is the canonical source and the default. The pre-activation cutover candidate (`drafts/patstack-cutover/candidate`) held identical bytes for every published file. Refresh fails if a source file appears that is not mapped, or if a sanitized private paragraph changed. A human then reviews the new text before it can be published.
+The default is the installed source tree. Before modular activation, use the complete reviewed candidate explicitly, including its version-aware monitor installer and tests:
+
+```bash
+python3 scripts/refresh_from_source.py \
+  --source ~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate
+python3 scripts/refresh_from_source.py \
+  --source ~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate --check
+```
+
+Candidate refresh is packaging, not installation. The 1.0 baseline's earlier installation proof does not prove modular 1.1 activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.

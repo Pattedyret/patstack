@@ -20,13 +20,16 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
+from refresh_from_source import FILES, SKILLS
+
 ROOT = Path(__file__).resolve().parent.parent
 TEXT = {".md", ".py", ".json", ".svg", ".html", ".txt", ".yml", ".yaml", ""}
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache"}
 FORBIDDEN_NAMES = re.compile(r"(\.sqlite3?|\.db|\.jsonl|\.env|devices\.local\.json|\.pem|\.key)$", re.I)
+FORBIDDEN_PARTS = {"backups", "archives", "transcripts", "project-skills", ".ssh", ".config"}
 
 PATTERNS = {
-    "home path": re.compile(r"/Users/[A-Za-z]|/home/[a-z][a-z0-9_-]+/|[A-Z]:\\\\Users\\\\"),
+    "home path": re.compile(r"/Users/[A-Za-z]|/home/[a-z][a-z0-9_-]+/|[A-Z]:[\\/]+Users[\\/]+", re.I),
     "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]*[a-z]{2,}"),
     "IPv4 address": re.compile(r"\b(?!127\.0\.0\.1\b)(?:\d{1,3}\.){3}\d{1,3}\b"),
     "private key": re.compile(r"BEGIN [A-Z ]*PRIVATE KEY"),
@@ -70,7 +73,7 @@ def fail(message):
 
 def files():
     for path in sorted(ROOT.rglob("*")):
-        if path.is_file() and not SKIP_DIRS & set(path.relative_to(ROOT).parts):
+        if (path.is_file() or path.is_symlink()) and not SKIP_DIRS & set(path.relative_to(ROOT).parts):
             yield path
 
 
@@ -80,12 +83,32 @@ def rel(path):
 
 def check_manifest():
     manifest = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text())
+    paths = [entry["path"] for entry in manifest["files"]]
+    if len(paths) != len(set(paths)) or set(paths) != set(FILES):
+        fail("manifest: paths must match the exact approved source file list")
+    if manifest.get("skills") != list(SKILLS) or manifest.get("workflow_version") != "1.1.0":
+        fail("manifest: expected modular 1.1.0 and all 19 skills")
+    actual = {rel(path) for top in ("skills", "monitoring/patstack")
+              for path in (ROOT / top).rglob("*")
+              if (path.is_file() or path.is_symlink())
+              and not SKIP_DIRS & set(path.relative_to(ROOT).parts)}
+    if actual != set(FILES):
+        fail("manifest: package coverage differs: " + ", ".join(sorted(actual ^ set(FILES))))
     for entry in manifest["files"]:
+        if entry["path"] not in FILES:
+            continue
         path = ROOT / entry["path"]
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             fail(f"manifest: missing {entry['path']}")
         elif hashlib.sha256(path.read_bytes()).hexdigest() != entry["published_sha256"]:
-            fail(f"manifest: {entry['path']} was edited by hand; edit the source and refresh")
+            fail(f"manifest: {entry['path']} differs from its recorded published bytes")
+        for key in ("source_sha256", "published_sha256"):
+            if not re.fullmatch(r"[0-9a-f]{64}", str(entry.get(key, ""))):
+                fail(f"manifest: invalid {key} for {entry['path']}")
+        if not isinstance(entry.get("sanitized"), bool):
+            fail(f"manifest: missing sanitization status for {entry['path']}")
+        if not entry.get("sanitized") and entry.get("source_sha256") != entry.get("published_sha256"):
+            fail(f"manifest: unexplained source/publication difference for {entry['path']}")
 
 
 def slug(heading):
@@ -131,35 +154,46 @@ def check_links():
                 fail(f"link: {rel(path)} -> {target} (missing anchor)")
 
 
-def check_privacy():
+def privacy_issues(name, data):
+    """Return redacted findings for one path; shared by refresh preflight."""
+    problems = []
+    path = Path(name)
+    if FORBIDDEN_NAMES.search(path.name) or FORBIDDEN_PARTS & set(path.parts):
+        return [f"privacy: forbidden path {name}"]
+    if path.suffix not in TEXT:
+        return [f"privacy: unreviewed file type {name}"]
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return [f"privacy: unreadable text {name}"]
     local_terms = []
     if LOCAL_DENYLIST.is_file():
         local_terms = [t.strip().lower() for t in LOCAL_DENYLIST.read_text().splitlines()
                        if t.strip() and not t.startswith("#")]
+    if name == "scripts/check.py":
+        text = text.split("PATTERNS = {", 1)[0] + text.split("failures = []", 1)[1]
+    for label, pattern in PATTERNS.items():
+        if (name, label) in ALLOW:
+            continue
+        for match in pattern.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            problems.append(f"privacy: {label} at {name}:{line}")
+    for number, line in enumerate(text.splitlines(), 1):
+        for word in re.findall(r"[a-z0-9]+", line.lower()):
+            if hashlib.sha256(word.encode()).hexdigest() in PRIVATE_WORD_HASHES:
+                problems.append(f"privacy: private name at {name}:{number}")
+        for term in local_terms:
+            if term in line.lower():
+                problems.append(f"privacy: local denylist term at {name}:{number}")
+    return problems
+
+
+def check_privacy():
     for path in files():
-        name = rel(path)
-        if FORBIDDEN_NAMES.search(path.name):
-            fail(f"privacy: forbidden file type {name}")
+        if path.is_symlink():
+            fail(f"privacy: linked package resource {rel(path)}")
             continue
-        if path.suffix not in TEXT:
-            continue
-        text = path.read_text(encoding="utf-8")
-        if name == "scripts/check.py":
-            text = text.split("PATTERNS = {", 1)[0] + text.split("failures = []", 1)[1]
-        for label, pattern in PATTERNS.items():
-            if (name, label) in ALLOW:
-                continue
-            for match in pattern.finditer(text):
-                line = text.count("\n", 0, match.start()) + 1
-                fail(f"privacy: {label} at {name}:{line}")
-        for number, line in enumerate(text.splitlines(), 1):
-            for word in re.findall(r"[a-z0-9]+", line.lower()):
-                if hashlib.sha256(word.encode()).hexdigest() in PRIVATE_WORD_HASHES:
-                    fail(f"privacy: private name at {name}:{number}")
-            lowered = line.lower()
-            for term in local_terms:
-                if term in lowered:
-                    fail(f"privacy: local denylist term at {name}:{number}")
+        failures.extend(privacy_issues(rel(path), path.read_bytes()))
 
 
 def check_formats():
@@ -188,11 +222,48 @@ def check_formats():
 
 
 def check_skills():
+    actual = {path.name for path in (ROOT / "skills").iterdir() if path.is_dir()}
+    if actual != set(SKILLS):
+        fail("skills: expected exactly 19 callable folders: " + ", ".join(sorted(actual ^ set(SKILLS))))
+    for name in SKILLS:
+        if not (ROOT / "skills" / name / "SKILL.md").is_file():
+            fail(f"skill: missing actual entrypoint {name}/SKILL.md")
     for skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
         head = skill.read_text().split("---")
         meta = dict(re.findall(r"^(\w+):\s*(.+)$", head[1], re.M)) if len(head) > 2 else {}
-        if meta.get("name") != skill.parent.name or not meta.get("description", "").startswith("Use when"):
-            fail(f"skill: {rel(skill)} frontmatter needs name={skill.parent.name} and a 'Use when' description")
+        if meta.get("name") != skill.parent.name or not meta.get("description", "").strip():
+            fail(f"skill: {rel(skill)} frontmatter needs name={skill.parent.name} and a description")
+        body = "---".join(head[2:]) if len(head) > 2 else ""
+        if len(body.split()) < 120 or len(re.findall(r"^##? ", body, re.M)) < 2:
+            fail(f"skill: {rel(skill)} must contain an actionable workflow, not a thin reference wrapper")
+
+
+def check_provenance():
+    for name, license_name, provenance_name in (
+            ("create-test-recipes", "LICENSE", "PROVENANCE.md"),
+            ("ponytail", "LICENSE.txt", "PROVENANCE.json")):
+        directory = ROOT / "skills" / name
+        for required in (license_name, provenance_name):
+            if not (directory / required).is_file():
+                fail(f"provenance: {name} missing {required}")
+        license_file = directory / license_name
+        if license_file.is_file():
+            text = license_file.read_text()
+            if "MIT License" not in text or "Copyright" not in text:
+                fail(f"provenance: {name} missing retained MIT notice")
+            provenance_file = directory / ("source.json" if name == "create-test-recipes"
+                                            else provenance_name)
+            if provenance_file.is_file():
+                provenance = json.loads(provenance_file.read_text())
+                expected = (next(entry["sha256"] for entry in provenance["files"]
+                                 if entry["path"] == "pstack/LICENSE")
+                            if name == "create-test-recipes"
+                            else provenance["upstream_files"]["LICENSE"])
+                if hashlib.sha256(license_file.read_bytes()).hexdigest() != expected:
+                    fail(f"provenance: {name} license differs from recorded upstream notice")
+    rea = ROOT / "skills/reverse-engineer-anything"
+    if len([path for path in rea.rglob("*") if path.is_file()]) != 7:
+        fail("provenance: expected all seven existing REA files; review any additions deliberately")
 
 
 def check_kpi_example():
@@ -218,15 +289,26 @@ def check_tests():
     return " ".join(line for line in summary if line.startswith("Ran"))
 
 
+def check_package_tests():
+    result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_package"],
+                            cwd=ROOT / "scripts", capture_output=True, text=True,
+                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+    if result.returncode:
+        fail("package negative controls: " + result.stderr.strip())
+    return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
+
+
 def main():
-    for step in (check_manifest, check_links, check_privacy, check_formats, check_skills, check_kpi_example):
+    for step in (check_manifest, check_links, check_privacy, check_formats, check_skills,
+                 check_provenance, check_kpi_example):
         step()
     ran = check_tests()
+    package_ran = check_package_tests()
     if failures:
         print("\n".join(failures))
         print(f"\nFAILED: {len(failures)} problem(s)")
         return 1
-    print(f"OK: manifest, links, privacy, formats, skills, KPI example; unit tests: {ran}")
+    print(f"OK: exact manifest, links, privacy, formats, {len(SKILLS)} skills, KPI example; KPI tests: {ran}; package controls: {package_ran}")
     return 0
 
 

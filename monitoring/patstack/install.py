@@ -99,7 +99,7 @@ def install(source, home, host, skip_codex_hook=False):
     overlay = root / "vendor/mattpocock-skills/overlay.json"
     retro = root / "skills/retro"
     if active_stack.get("name") == "patstack":
-        point(root / "skills/patstack/references/retro.md")
+        point(root / ("skills/retro/SKILL.md" if "retro" in active_stack.get("global_skills", []) else "skills/patstack/references/retro.md"))
     elif overlay.exists():
         data = json.loads(overlay.read_text())
         prefix = data["expose"]["retro"]["body_prefix"]

@@ -8,13 +8,10 @@ Three layers are kept apart. **Installed** means files and links are in place an
 
 | Layer | Claim | Status |
 |---|---|---|
-| Installed | r5 snapshots applied: Mac 118 targets, devbox 139, Windows 48 | **REPORTED** |
-| Installed | Setup checker passes on Mac and devbox (5 global skills, 25 roles); task-registry integrity check OK on both | **REPORTED** |
-| Installed | Devbox checker found a duplicate same-path pack label and an alias-name mismatch. Both were corrected in a separate reversible transaction; 25 migration tests pass and the checker is green. | **REPORTED** |
-| Installed | Private host profile: on Windows the ACL is limited to the owner account, SYSTEM and Administrators; POSIX hosts use mode 0600 | **REPORTED** |
-| Discovered | Fresh Codex and Claude Code initialize catalogs received on all three hosts without model turns (catalog sizes as reported: Mac 52/116, devbox 42/115, Windows 30/94) | **REPORTED** |
-| Discovered | Mac and devbox catalogs list all 5 global skills and no retired or project-scoped skills | **REPORTED** |
-| Discovered | Windows native catalogs list the 3 core global skills and no retired or project-scoped globals; app-managed Chirp/Xirp is unavailable on this host | **REPORTED** |
+| Baseline 1.0 | Installed on Mac, devbox and Windows; fresh Claude Code and Codex catalogs received on all three | **REPORTED** historical baseline evidence. Does not prove the modular candidate is active. |
+| Candidate 1.1.0 | Exactly 19 required callable skills; Chirp/Xirp remain optional external app aliases | **CANDIDATE.** Local package validation is separate from installed or discovered status. |
+| Candidate 1.1.0 | Installation and fresh native discovery on Mac, devbox and Windows | **NOT YET REPORTED.** Await the root lead's actual per-host proof before claiming activation. |
+| Private host profile | Windows ACL restricted to owner, SYSTEM and Administrators; POSIX hosts use mode 0600 | **REPORTED** baseline host evidence; actual profiles are excluded. |
 | Runtime | Devbox isolated headless Chromium DOM smoke test passes | **REPORTED.** Proves browser infrastructure readiness only, not any feature or auth behavior. |
 | Runtime | A full development task run end to end under Patstack on each host | **NOT CLAIMED** |
 | Runtime | Native task registry on Windows | **NOT SUPPORTED.** No adapter and no Unix registry port. |
@@ -29,8 +26,9 @@ Three layers are kept apart. **Installed** means files and links are in place an
 | KPI recorder unit tests (`monitoring/patstack/test_kpi_monitor.py`) | **EXECUTED** by `scripts/check.py` |
 | Example KPI snapshot records and reports through the real recorder | **EXECUTED** by `scripts/check.py` |
 | Relative links and anchors, privacy scan, JSON/SVG parsing, skill frontmatter | **EXECUTED** by `scripts/check.py` |
-| Published files match the recorded source hashes | **EXECUTED** by `scripts/check.py`. See [SOURCE-MANIFEST.json](../SOURCE-MANIFEST.json). |
-| Published skill and KPI bytes are unchanged by the r5 apply | **EXECUTED**: `refresh_from_source.py --check` reports no drift against both the cutover candidate and the installed Mac setup |
+| All 19 skills/resources match the recorded published hashes with exact coverage | **EXECUTED** by `scripts/check.py`. See [SOURCE-MANIFEST.json](../SOURCE-MANIFEST.json). |
+| Full source/publication parity | `refresh_from_source.py --check` recomputes source and transformed hashes, exact coverage and actual published bytes. Candidate parity is distinct from installed-source parity. |
+| Mutation and privacy negative controls | **EXECUTED** by `scripts/check.py`: omitted/extra resources, changed source/output, stale manifests, privacy anchors/values and broken links fail as expected. |
 | Workflow SVG renders as intended | **OBSERVED** in a headless browser, light and dark themes, at 1200 px |
 | Walkthrough HTML: autoplay advances, Pause stops, reduced motion starts paused, no horizontal overflow at 390 px in dark mode | **OBSERVED** in a headless browser |
 | Mermaid diagram in the README renders on GitHub | **Not verified locally.** No Mermaid renderer was available offline. |
@@ -39,6 +37,7 @@ Three layers are kept apart. **Installed** means files and links are in place an
 ## Monitoring reality
 
 - **Configured-hook smoke:** all six client/host configurations contain the KPI handler; isolated-database receipt assertions pass for each. This is source-owner **REPORTED** command/config evidence, separate from native client loading.
+- **Native Claude Stop:** real native Stop receipts on Mac and devbox are **REPORTED** by the root lead. This does not establish native Windows or Codex hook loading.
 - **Hooks:** lifecycle hooks record audit receipts (hashed session identity, host, runtime, event counts). They do not record outcomes, prompts or transcripts. Earlier installs on three hosts are **REPORTED**. Hook loading must be verified in each client: native Codex hook trust is not verified on every host.
 - **Discovery:** registry discovery (`collect`) is supported on macOS and Linux hosts only. Retro refreshes it when reading the report.
 - **Outcomes:** semantic KPIs (verified success, interventions, response or tool errors) stay **unmeasured** until an agent or auditor records labelled snapshots with evidence.

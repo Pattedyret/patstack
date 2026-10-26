@@ -2,21 +2,9 @@
 
 Resolve the workspace, project pack, environment, applicable permissions and host capabilities. Preserve project procedures; load detailed host routing only when host/tool choice matters.
 
-## Spec storage, GitHub and cleanup
+## Specs, issues and PRs
 
-The speccing agent is the author; GitHub is a place to retain and share its output. Patrick delegated the distribution choice to the agents and requires no routine per-task spec clutter in the application codebase. For GitHub-backed work, put the canonical task spec directly in the parent Issue body. An Issue is not a repository file, so this requires neither a Git commit nor a `.gitignore` entry. Keep drafts and working caches outside the application repository.
-
-BIG TASK owns distribution: give each worker/reviewer the Issue reference and exact spec version/snapshot. If that agent/host cannot read the canonical location, send the actual spec content in the task brief or transfer an accessible document, with the version attached. A local path that the recipient cannot open is not a successful handoff. On changes, distribute the new version to affected agents and obtain their acknowledgment; avoid independently editable spec forks. A full spec need not be pasted repeatedly when the shared reference is verifiably accessible.
-
-After completion, close the Issue and retain its spec, PR links, benchmark evidence and retro as history. Temporary local drafts/caches can be cleaned after the canonical version and required evidence are safely retained. For a deliberately local-only task, use a shared artifact outside the codebase and the same handoff/version rules. Project-required intake records, ADRs or intentionally requested documentation remain actual deliverables; Patstack adds no extra tracked spec file for every task.
-
-Use a parent Issue for the goal/spec, [native sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues) for independently verifiable delivery slices, and [native blocking relationships](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-issue-dependencies) for dependencies. Reuse each repo's issue types/labels; API work can be an area label rather than assuming a special native type exists everywhere.
-
-Use Projects for delivery visibility where useful; keep session ownership/leases and app-native orchestration in the runtime layer. Assign one authority per field and surface sync failures, rather than keeping two editable product-status registries. Keep reviewers and QA as checks on the existing work, not a new development issue for every review pass.
-
-Link the PR to the issue and T3 thread, record the exact reviewed head, use the existing required checks/[branch protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches), and use native PR wakeups. Model review reports are not GitHub human approvals. Do not bypass protections or impersonate a human approver.
-
-Avoid auto-closing a parent on merge when its acceptance includes later release/live verification. An intermediate implementation issue may close while the parent remains open for its full outcome.
+Spec storage and distribution follow [to-spec](../../to-spec/SKILL.md); sub-issues, blocking links and Projects follow [to-tickets](../../to-tickets/SKILL.md); PR linking and branch protection follow [file-pr](../../file-pr/SKILL.md). Patstack adds no per-task spec file to the application repository.
 
 ## Project workflows are part of the task contract
 

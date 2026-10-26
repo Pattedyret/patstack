@@ -195,15 +195,17 @@ class MetricsTests(unittest.TestCase):
             self.assertEqual(installer.install(Path(__file__).parent, home, "windows")["changed"], [])
 
     def test_patstack_installer_only_updates_new_retro_and_preserves_old_overlay(self):
-        for expose in ({}, {"retro": {"body_prefix": "historical retro"}}):
-            with self.subTest(expose=expose), tempfile.TemporaryDirectory() as directory:
+        for version in ["1.0.0", "1.1.0"]:
+          for expose in ({}, {"retro": {"body_prefix": "historical retro"}}):
+            with self.subTest(version=version, expose=expose), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
                 root = home / ".harnesses-shared/agent-setup"
-                retro = root / "skills/patstack/references/retro.md"
+                relative = "skills/retro/SKILL.md" if version == "1.1.0" else "skills/patstack/references/retro.md"
+                retro = root / relative
                 retro.parent.mkdir(parents=True)
                 retro.write_text("# Patstack Retro\nKeep this guidance.\n")
                 (root / "AGENTS.md").write_text("Keep global guidance.\n")
-                (root / "manifest.json").write_text(json.dumps({"active_stack": {"name": "patstack", "version": "1.0.0"}}))
+                (root / "manifest.json").write_text(json.dumps({"active_stack": {"name": "patstack", "version": version, "global_skills": ["patstack", "retro"] if version == "1.1.0" else ["patstack"]}}))
                 overlay = root / "vendor/mattpocock-skills/overlay.json"
                 overlay.parent.mkdir(parents=True)
                 overlay.write_text(json.dumps({"expose": expose}))
@@ -212,7 +214,8 @@ class MetricsTests(unittest.TestCase):
                 self.assertEqual(overlay.read_bytes(), before)
                 self.assertIn(installer.POINTER.rstrip(), retro.read_text())
                 self.assertIn("Keep this guidance.", retro.read_text())
-                self.assertFalse((root / "skills/retro").exists())
+                other = "skills/patstack/references/retro.md" if version == "1.1.0" else "skills/retro/SKILL.md"
+                self.assertFalse((root / other).exists())
                 self.assertEqual(installer.install(Path(__file__).parent, home, "mac")["changed"], [])
 
     def test_legacy_installer_keeps_existing_overlay_render_path(self):
