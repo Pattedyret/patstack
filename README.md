@@ -14,7 +14,7 @@ It ships as two skills plus a small private KPI recorder:
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** reviewable publication of the agreed design. Patstack is **not yet activated** as the live workflow on the owner's hosts. See [Status and limits](docs/status-and-limits.md) for what is and is not verified.
+> **Status:** Patstack r5 is **installed** on the owner's Mac, Linux devbox and Windows hosts and **discovered** by fresh Claude Code and Codex sessions there, as reported by the owner. Installed and discoverable is not the same as proven end to end: Windows has no native task registry, Codex hook trust is unproven, and there is no unattended overnight guarantee. See [Status and limits](docs/status-and-limits.md) for what the owner reports and what this package verifies itself.
 
 ---
 

@@ -91,4 +91,4 @@ python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup 
 python3 scripts/check.py
 ```
 
-Before activation the source is the cutover candidate: `--source ~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate` (the default). Refresh fails if a source file appears that is not mapped, or if a sanitized private paragraph changed. A human then reviews the new text before it can be published.
+Since the r5 apply, the installed setup at `~/.harnesses-shared/agent-setup` is the canonical source and the default. The pre-activation cutover candidate (`drafts/patstack-cutover/candidate`) held identical bytes for every published file. Refresh fails if a source file appears that is not mapped, or if a sanitized private paragraph changed. A human then reviews the new text before it can be published.

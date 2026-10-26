@@ -1,7 +1,7 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate",
-  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate",
+  "source_label": "~/.harnesses-shared/agent-setup",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup",
   "files": [
     {
       "path": "skills/patstack/SKILL.md",

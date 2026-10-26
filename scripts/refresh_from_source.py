@@ -19,7 +19,7 @@ from pathlib import Path
 import sys
 
 PACKAGE = Path(__file__).resolve().parent.parent
-DEFAULT_SOURCE = "~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate"
+DEFAULT_SOURCE = "~/.harnesses-shared/agent-setup"
 
 # Directories mirrored from the source. Every regular file inside them must be
 # listed in FILES or EXCLUDED, so a new source file cannot be skipped silently.
