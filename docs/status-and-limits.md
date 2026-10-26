@@ -14,7 +14,7 @@ Three layers are kept apart. **Installed** means files and links are in place an
 | Installed | Private host profile: on Windows the ACL is limited to the owner account, SYSTEM and Administrators; POSIX hosts use mode 0600 | **REPORTED** |
 | Discovered | Fresh Codex and Claude Code initialize catalogs received on all three hosts without model turns (catalog sizes as reported: Mac 52/116, devbox 42/115, Windows 30/94) | **REPORTED** |
 | Discovered | Mac and devbox catalogs list all 5 global skills and no retired or project-scoped skills | **REPORTED** |
-| Discovered | Windows lists the 3 core global skills; one optional global skill is unavailable; final name verification is in progress | **REPORTED, incomplete** |
+| Discovered | Windows native catalogs list the 3 core global skills and no retired or project-scoped globals; app-managed Chirp/Xirp is unavailable on this host | **REPORTED** |
 | Runtime | Devbox isolated headless Chromium DOM smoke test passes | **REPORTED.** Proves browser infrastructure readiness only, not any feature or auth behavior. |
 | Runtime | A full development task run end to end under Patstack on each host | **NOT CLAIMED** |
 | Runtime | Native task registry on Windows | **NOT SUPPORTED.** No adapter and no Unix registry port. |
@@ -38,6 +38,7 @@ Three layers are kept apart. **Installed** means files and links are in place an
 
 ## Monitoring reality
 
+- **Configured-hook smoke:** all six client/host configurations contain the KPI handler; isolated-database receipt assertions pass for each. This is source-owner **REPORTED** command/config evidence, separate from native client loading.
 - **Hooks:** lifecycle hooks record audit receipts (hashed session identity, host, runtime, event counts). They do not record outcomes, prompts or transcripts. Earlier installs on three hosts are **REPORTED**. Hook loading must be verified in each client: native Codex hook trust is not verified on every host.
 - **Discovery:** registry discovery (`collect`) is supported on macOS and Linux hosts only. Retro refreshes it when reading the report.
 - **Outcomes:** semantic KPIs (verified success, interventions, response or tool errors) stay **unmeasured** until an agent or auditor records labelled snapshots with evidence.
