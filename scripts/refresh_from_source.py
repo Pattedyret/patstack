@@ -56,6 +56,7 @@ FILES = (
     "skills/ponytail/LICENSE.txt",
     "skills/ponytail/PROVENANCE.json",
     "skills/implement/references/critical-path.md",
+    "skills/grilling/references/approval-scenarios.md",
     "skills/workflow-eval/references/scenarios.md",
     "skills/reverse-engineer-anything/references/android-applications.md",
     "skills/reverse-engineer-anything/references/connection-and-recovery.md",

@@ -93,13 +93,4 @@ python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup 
 python3 scripts/check.py
 ```
 
-The default is the installed source tree. Before modular activation, use the complete reviewed candidate explicitly, including its version-aware monitor installer and tests:
-
-```bash
-python3 scripts/refresh_from_source.py \
-  --source ~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate
-python3 scripts/refresh_from_source.py \
-  --source ~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate --check
-```
-
-Candidate refresh is packaging, not installation. The 1.0 baseline's earlier installation proof does not prove modular 1.1 activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.
+The default is the installed source tree. The root lead verified modular 1.1 installation and fresh native discovery on all three hosts; the publication refresh now uses that installed source. Packaging a later candidate alone does not establish its activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.

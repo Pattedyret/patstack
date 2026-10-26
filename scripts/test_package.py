@@ -98,7 +98,10 @@ class PublicationControls(unittest.TestCase):
         values = ["/Users/" + "fixture/private", "C:" + "\\Users\\fixture",
                   "fixture@" + "example.net", "100." + "110.120.130",
                   "ghp_" + "a" * 24, "node." + "ts.net",
-                  "t-" + "0" * 12, "12345678-" + "1234-1234-1234-123456789abc"]
+                  "t-" + "0" * 12, "12345678-" + "1234-1234-1234-123456789abc",
+                  "1B4E28BA-" + "2FA1-11D2-883F-0016D3CCA427",
+                  "session_12345678-" + "1234-1234-1234-123456789ABC",
+                  "x12345678-" + "1234-1234-1234-123456789ABCsuffix"]
         for value in values:
             with self.subTest(category=value[:3]):
                 issues = check.privacy_issues("fixture.md", value.encode())

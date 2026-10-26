@@ -1,6 +1,6 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate",
+  "source_label": "<custom --source>",
   "workflow_version": "1.1.0",
   "skills": [
     "patstack",
@@ -26,7 +26,7 @@
   "excluded_private_runtime_trees": [
     "monitoring/patstack/backups"
   ],
-  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup/drafts/patstack-modular/candidate",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source <custom --source>",
   "files": [
     {
       "path": "skills/ponytail/SKILL.md",
@@ -114,8 +114,8 @@
     },
     {
       "path": "skills/grilling/SKILL.md",
-      "source_sha256": "f45e90c9686a4d3f9b61faf67413c9ebeb9e2be59813423c58f06fde5ab3a599",
-      "published_sha256": "f45e90c9686a4d3f9b61faf67413c9ebeb9e2be59813423c58f06fde5ab3a599",
+      "source_sha256": "f01fe43dbc624c5703894c403d548deab2f9632fd2bb418cc53c3405f6805bc8",
+      "published_sha256": "f01fe43dbc624c5703894c403d548deab2f9632fd2bb418cc53c3405f6805bc8",
       "sanitized": false
     },
     {
@@ -218,6 +218,12 @@
       "path": "skills/implement/references/critical-path.md",
       "source_sha256": "7e8114967490971671e3bea371ebecd5f9e945394695dfa877649a29a13a9305",
       "published_sha256": "7e8114967490971671e3bea371ebecd5f9e945394695dfa877649a29a13a9305",
+      "sanitized": false
+    },
+    {
+      "path": "skills/grilling/references/approval-scenarios.md",
+      "source_sha256": "1de707a30cd12bb8383081e3462affcf7a8f2b77ce5921537be4778e0398a634",
+      "published_sha256": "1de707a30cd12bb8383081e3462affcf7a8f2b77ce5921537be4778e0398a634",
       "sanitized": false
     },
     {

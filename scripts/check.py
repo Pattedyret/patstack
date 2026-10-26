@@ -37,7 +37,7 @@ PATTERNS = {
     "ssh public key": re.compile(r"\bssh-(?:ed25519|rsa) AAAA"),
     "tailnet host": re.compile(r"\.ts\.net\b"),
     "registry id": re.compile(r"\b[ta]-[0-9a-f]{12}\b|\b(?:TKT|INT)-\d{3,}\b"),
-    "session uuid": re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b"),
+    "session uuid": re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I),
 }
 # Fictional fixtures that intentionally look like a private value.
 ALLOW = {

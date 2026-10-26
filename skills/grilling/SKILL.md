@@ -38,8 +38,8 @@ State the approach in a short paragraph, the questions that matter, and what you
 
 ## Read the answer
 
-- "1", "go ahead", "yes" are full approval; do not re-confirm.
-- Silence on an item with a recommendation means the recommendation stands.
+- Interpret an explicit reply within its clear scope. A numbered answer settles that item; clear approval of the entire described batch settles that batch. Do not re-confirm a decision already made.
+- Unanswered human-gated product, permission or visual choices remain pending. Silence creates no approval. Ordinary implementation defaults may proceed under existing authority; state the assumption and keep independent work moving.
 - A scope redirect is a decision, not an objection to argue with.
 - If he contradicts what you believe, his environment statement outranks your inference. Verify against the live system; if you were right, show the evidence.
 
@@ -50,3 +50,5 @@ Record the open question, recommendation and next action on the task as a block,
 ## Stop
 
 The interview ends when nothing is both unsettled and his to settle. Say so and start work.
+
+When changing approval interpretation, replay the [approval scenarios](references/approval-scenarios.md).

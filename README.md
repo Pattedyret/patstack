@@ -34,7 +34,7 @@ The [private KPI recorder](monitoring/patstack/README.md) is a separate standard
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** This is the modular **1.1.0 candidate**. The earlier **1.0 baseline** was installed and discovered on Mac, devbox and Windows. That evidence does not establish activation of these 19 modules. Windows has no native task registry, native Codex hook trust remains a prerequisite, and unattended overnight execution is not guaranteed. See [Status and limits](docs/status-and-limits.md).
+> **Status:** Modular **1.1.0** is installed on Mac, devbox and Windows. Fresh Claude Code and Codex initialization catalogs on all three hosts contain the **19 skills**; 49 source files match across hosts and this privacy-safe package. That proves installation and discovery, not an end-to-end development run. Windows has no native task registry, native Codex hook trust remains unproven, and unattended overnight execution is not guaranteed. See [Status and limits](docs/status-and-limits.md).
 
 ---
 

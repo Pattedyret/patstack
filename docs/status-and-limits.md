@@ -9,8 +9,11 @@ Three layers are kept apart. **Installed** means files and links are in place an
 | Layer | Claim | Status |
 |---|---|---|
 | Baseline 1.0 | Installed on Mac, devbox and Windows; fresh Claude Code and Codex catalogs received on all three | **REPORTED** historical baseline evidence. Does not prove the modular candidate is active. |
-| Candidate 1.1.0 | Exactly 19 required callable skills; Chirp/Xirp remain optional external app aliases | **CANDIDATE.** Local package validation is separate from installed or discovered status. |
-| Candidate 1.1.0 | Installation and fresh native discovery on Mac, devbox and Windows | **NOT YET REPORTED.** Await the root lead's actual per-host proof before claiming activation. |
+| Modular 1.1.0 | Exactly 19 required callable skills; Chirp/Xirp remain optional external app aliases | **EXECUTED** package validation; **REPORTED** installed on all three hosts by the root lead. |
+| Modular 1.1.0 | Fresh Claude Code and Codex initialization catalogs on Mac, devbox and Windows each contain all 19 | **REPORTED** actual native discovery; no model turn or application task was sent. Codex entries are enabled, without discovery errors. |
+| Modular 1.1.0 | All 49 source files match across the three hosts; all migration targets match their installed journals | **REPORTED** exact byte-hash and journal checks. Only the three documented private paragraphs are sanitized for publication. |
+| Modular 1.1.0 | Mac and devbox setup checks, catalog/context/KPI/PR-to-Retro tests | **REPORTED**: 21 globals including two optional aliases, 25 roles; 19/11/25/21 focused tests pass on each. |
+| Modular migration | Reversible additive installation and rollback, preservation of native/project/client state, concurrent edits and name collisions | **REPORTED**: six local tests pass with host subcases; five selected tests pass on native Windows, including its dangling-link case. |
 | Private host profile | Windows ACL restricted to owner, SYSTEM and Administrators; POSIX hosts use mode 0600 | **REPORTED** baseline host evidence; actual profiles are excluded. |
 | Runtime | Devbox isolated headless Chromium DOM smoke test passes | **REPORTED.** Proves browser infrastructure readiness only, not any feature or auth behavior. |
 | Runtime | A full development task run end to end under Patstack on each host | **NOT CLAIMED** |
@@ -27,12 +30,12 @@ Three layers are kept apart. **Installed** means files and links are in place an
 | Example KPI snapshot records and reports through the real recorder | **EXECUTED** by `scripts/check.py` |
 | Relative links and anchors, privacy scan, JSON/SVG parsing, skill frontmatter | **EXECUTED** by `scripts/check.py` |
 | All 19 skills/resources match the recorded published hashes with exact coverage | **EXECUTED** by `scripts/check.py`. See [SOURCE-MANIFEST.json](../SOURCE-MANIFEST.json). |
-| Full source/publication parity | `refresh_from_source.py --check` recomputes source and transformed hashes, exact coverage and actual published bytes. Candidate parity is distinct from installed-source parity. |
+| Full source/publication parity | `refresh_from_source.py --check` recomputes source and transformed hashes, exact coverage and actual published bytes. The root lead verified installed-source parity after activation; consumers can repeat the same check against their accessible source. |
 | Mutation and privacy negative controls | **EXECUTED** by `scripts/check.py`: omitted/extra resources, changed source/output, stale manifests, privacy anchors/values and broken links fail as expected. |
 | Workflow SVG renders as intended | **OBSERVED** in a headless browser, light and dark themes, at 1200 px |
 | Walkthrough HTML: autoplay advances, Pause stops, reduced motion starts paused, no horizontal overflow at 390 px in dark mode | **OBSERVED** in a headless browser |
 | Mermaid diagram in the README renders on GitHub | **Not verified locally.** No Mermaid renderer was available offline. |
-| The source candidate's full test suite (registry, migration, hosts) | **REPORTED** passing by the source owner; those tests and the registry are not part of this package |
+| The source setup's broader test suite (registry, migration, hosts) | **REPORTED** passing by the source owner; those tests and the registry are not part of this package |
 
 ## Monitoring reality
 
