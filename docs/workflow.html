@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patstack workflow walkthrough</title>
+<style>
+  :root{
+    --paper:#fbfaf7;--ink:#1d2329;--muted:#5b6670;--line:#d5d9dd;--card:#fff;--soft:#f2f0ea;
+    --send:#b4400c;--stop:#2856a3;--rep:#b42318;--ok:#1f7a4d;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--paper:#0f1317;--ink:#e8eaed;--muted:#9aa4ad;--line:#2e363e;--card:#161b21;--soft:#1b2128;
+      --send:#f08a4b;--stop:#7aa7ef;--rep:#f2776c;--ok:#5cc28c}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}
+  main{max-width:980px;margin:0 auto;padding:28px 20px 40px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  .lede{color:var(--muted);margin:0 0 22px;max-width:62ch}
+  .label{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  button{font:inherit;color:inherit;cursor:pointer}
+  button:focus-visible{outline:2px solid var(--stop);outline-offset:2px}
+
+  .scenarios{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}
+  .scenarios button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;min-height:36px}
+  .scenarios button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+  .stage{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:18px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+  .chip{font:600 12px/1 var(--mono);padding:6px 9px;border-radius:6px;border:1.5px solid currentColor}
+  .chip.send{color:var(--send)}.chip.stop{color:var(--stop)}.chip.rev{color:var(--muted)}
+
+  .rail{list-style:none;margin:0 0 6px;padding:0;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;position:relative}
+  .rail li{border:1.5px solid var(--line);border-radius:8px;padding:10px 8px;text-align:center;background:var(--soft);
+    transition:border-color .35s,background-color .35s,transform .35s}
+  .rail li .n{display:block;font:600 11px/1 var(--mono);color:var(--muted);margin-bottom:4px}
+  .rail li .p{font-weight:650}
+  .rail li.done{border-color:var(--ink);background:var(--card)}
+  .rail li.now{border-color:var(--accent);background:var(--card);transform:translateY(-3px);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+  .rail li.now.repairing{border-color:var(--rep);box-shadow:0 0 0 3px color-mix(in srgb,var(--rep) 22%,transparent)}
+  .track{height:4px;border-radius:2px;background:var(--line);margin:12px 0 4px;overflow:hidden}
+  .track i{display:block;height:100%;width:0;background:var(--accent);transition:width .5s ease}
+  .loop{font:600 12px/1.4 var(--mono);color:var(--rep);min-height:1.4em;margin:6px 0 0}
+
+  .caption{margin-top:16px;display:grid;grid-template-columns:1fr;gap:12px}
+  .caption h2{font-size:19px;margin:0}
+  .caption p{margin:0;max-width:68ch}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  .fact{border-left:3px solid var(--accent);padding:6px 10px;background:var(--soft);border-radius:0 6px 6px 0}
+  .fact.gate{border-left-color:var(--stop)}
+  .fact.rep{border-left-color:var(--rep)}
+  .fact .label{display:block;margin-bottom:4px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:18px}
+  .controls button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;min-height:40px;min-width:44px}
+  .controls .count{font:600 12px/1 var(--mono);color:var(--muted);margin-left:auto}
+  .dots{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .dots span{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .dots span.on{background:var(--accent)}
+
+  .legend{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}
+  .legend div{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--card)}
+  .legend h3{font-size:14px;margin:0 0 4px}.legend p{margin:0;color:var(--muted);font-size:14px}
+  footer{margin-top:24px;color:var(--muted);font-size:13px}
+
+  @media (max-width:620px){
+    main{padding:20px 14px 32px}
+    .rail{grid-template-columns:repeat(3,1fr)}
+    .controls .count{margin-left:0;width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition:none!important;animation:none!important}
+    .rail li.now{transform:none}
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Patstack, step by step</h1>
+  <p class="lede">Pick a route and watch one lead carry it from intake to its proof. Each step names what the agent does, the evidence it leaves behind and any gate a human keeps. This walkthrough illustrates the rules; it contains no measured results.</p>
+
+  <span class="label" id="scLabel">Route</span>
+  <div class="scenarios" role="group" aria-labelledby="scLabel" id="scenarios"></div>
+
+  <section class="stage" aria-label="Workflow walkthrough">
+    <div class="meta" id="meta"></div>
+    <ol class="rail" id="rail" aria-label="Phases"></ol>
+    <div class="track" aria-hidden="true"><i id="bar"></i></div>
+    <p class="loop" id="loop"></p>
+
+    <div class="caption" id="caption" aria-live="off">
+      <h2 id="stepTitle"></h2>
+      <p id="stepBody"></p>
+      <div class="facts" id="facts"></div>
+    </div>
+
+    <div class="controls">
+      <button id="prev" type="button" aria-label="Previous step">← Prev</button>
+      <button id="play" type="button" aria-pressed="false">Pause</button>
+      <button id="next" type="button" aria-label="Next step">Next →</button>
+      <span class="count" id="count" aria-live="off"></span>
+    </div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+  </section>
+
+  <div class="legend">
+    <div><h3>Full Send (default)</h3><p>The lead researches, makes routine choices and records them, then continues through PR, CI, the established test target and a live check.</p></div>
+    <div><h3>Full Stop</h3><p>For high-impact work the owner joins meaningful product and approach decisions. Work ends at an evidenced, ready, unmerged PR.</p></div>
+    <div><h3>R1 · R2 · R3</h3><p>Focused author check, one fresh opposite-model reviewer, or an independent Opus + Sol council. Chosen by behavior and blast radius.</p></div>
+    <div><h3>One repair flow</h3><p>PR and live failures return to the same task with a cumulative attempt count and clock. At most three normal cycles, then deep diagnosis.</p></div>
+  </div>
+  <footer>Keys: ← → step, space pauses. Under reduced-motion settings the walkthrough starts paused with no animation.</footer>
+</main>
+
+<script>
+const PHASES = ["Bind", "Plan", "Build", "Check", "Deliver", "Learn"];
+const S = {
+  tiny: {name: "Tiny edit", mode: "send", review: "R1", steps: [
+    {p: 0, t: "Bind the request", b: "“Make the save button use the brand colour” designates a task. The lead binds the workspace, project pack and the existing ticket. No spec file, no task graph, no interview.", e: "Ticket claimed with the exact write scope."},
+    {p: 2, t: "Edit directly", b: "Smallest complete change with the existing design token. Hover, focus and disabled states move with it. No new abstraction.", e: "Diff limited to the style."},
+    {p: 3, t: "R1 focused check", b: "The author checks the diff and the rendered result: requested colour, contrast, focus and hover, supported widths. This is labelled author review, never independent review.", e: "“R1 — CSS-only colour change; no behavior, data or auth change.”"},
+    {p: 4, t: "PR, required CI, test target", b: "A short problem-first PR, babysat until required checks pass, then the established test target and a look at the live page.", e: "Release identity verified before and after the live look."},
+    {p: 5, t: "One-line retro", b: "Proportionate close-out. No extra agent or report for a trivial edit; slow tooling is flagged as workflow friction.", e: "Done / Verified on the ticket."}
+  ]},
+  feature: {name: "New feature", mode: "send", review: "R2", steps: [
+    {p: 0, t: "Bind and reuse", b: "The accepted spec lives in the parent GitHub Issue. The lead reuses it rather than restarting discovery. Full Send is the default mode.", e: "Issue reference and spec version recorded on the task."},
+    {p: 1, t: "Brief and quality contract", b: "Goal, non-goals and acceptance. Missing quality targets are derived by the agent from project budgets, healthy comparable flows and primary guidance, then frozen before implementation. A new feature's baseline is the missing behavior; no invented speedup.", e: "Targets with source, method and pass condition."},
+    {p: 2, t: "Owned slices", b: "Only independently verifiable slices run in parallel. Each child gets an owned worktree, spec version, model, acceptance and stop conditions. One child layer; the lead integrates.", e: "Child run IDs and scopes on the same ticket."},
+    {p: 3, t: "R2 independent review", b: "A fresh opposite-model reviewer judges acceptance and implementation. Two verdicts stay separate: “Feature works? Y/N” and “Meets the quality standard? Y/N”.", e: "Reviewed head SHA with both verdicts."},
+    {p: 4, t: "PR → babysit → test target", b: "The native PR watcher wakes the lead on CI or review events. The shared test target is reserved only for the deploy-to-proof window.", e: "Reservation event with owner, expiry and expected release."},
+    {p: 4, r: true, t: "Live check fails", b: "Completion stops. The failure records its layer, criterion, exact release and evidence. The target is released before code repair. Attempts and clock carry over.", e: "Failure record: live · criterion · release · next action."},
+    {p: 2, r: true, t: "Smallest repair", b: "Fix on the same open PR, or a new linked PR if the first was merged. A fresh non-author reviews the incremental diff.", e: "Repair attempt 1 of at most 3 normal cycles."},
+    {p: 4, t: "Retest on the verified release", b: "Live proof is bound to the release actually deployed, checked for drift across the run. The Full Send endpoint is reached.", e: "Release SHA, steps, expected vs actual."},
+    {p: 5, t: "Retro with evidence", b: "Read the KPI report, then check the underlying evidence. Only causal, tested improvements are promoted, with a rollback record.", e: "Lessons on the ticket; workflow version pinned."}
+  ]},
+  critical: {name: "Critical", mode: "send", review: "R2", steps: [
+    {p: 0, t: "Short recovery contract", b: "Impact, affected environment, expected behavior, reproduction, authorized target and success check. No long spec. The response target is a route decision within about five minutes, not a promise of resolution.", e: "Incident contract on the existing task."},
+    {p: 2, t: "Smallest safe fix or mitigation", b: "An existing authorized rollback or mitigation wins if it restores behavior sooner. Separable facts are investigated in parallel; the team stays small.", e: "Time to first safe candidate kept visible."},
+    {p: 3, t: "Focused independent review", b: "Reproduction, counterexample and affected regressions. Mandatory security and target-environment checks still apply under pressure.", e: "R2 verdict on the exact candidate."},
+    {p: 4, t: "Deliver within the existing grant", b: "Test delivery and a live check. A real production incident uses its explicitly authorized recovery target. Urgency alone never grants production access.", e: "Verified release identity."},
+    {p: 5, t: "Full retro after recovery", b: "The longer RCA covers both the technical cause and the workflow or detection gap that let it persist.", e: "Root cause and prevention check."}
+  ]},
+  stop: {name: "High-impact (Full Stop)", mode: "stop", review: "R3", steps: [
+    {p: 0, t: "Classify at intake", b: "Shared auth or permission behavior, an important API contract or broad customer-facing impact makes this Full Stop. A cosmetic change in the same repo would not qualify by filename alone.", e: "Mode and reason recorded."},
+    {p: 1, h: true, t: "Human checkpoint", b: "One focused decision: the question, evidence, recommendation, consequences and the work that continues meanwhile. Facts and routine details are still resolved by the agent.", e: "Owner's decision quoted on the task."},
+    {p: 2, t: "Build to the agreed approach", b: "Same build discipline: smallest complete change, tests, owned scopes.", e: "Candidate head."},
+    {p: 3, t: "R3 council", b: "Fresh Opus and Sol sessions judge independently first, then cross-examine with claim, severity, evidence and resolution.", e: "Both judgments and resolved objections."},
+    {p: 4, h: true, t: "Ready, unmerged PR", b: "Handover states Done / Verified / Unresolved / Next. The owner reviews and merges.", e: "Evidenced PR, required checks green on its head."},
+    {p: 5, t: "Proportionate retro", b: "Lessons recorded once the endpoint is actually reached.", e: "Retro note."}
+  ]},
+  takeover: {name: "Takeover / Modernize", mode: "send", review: "R2", steps: [
+    {p: 0, t: "Read what exists", b: "Spec or Issue, PR or branch, the handoff, later user corrections, current head and review findings. Check ownership and uncommitted work before writing anything.", e: "Prior owner confirmed stopped or handed off."},
+    {p: 3, t: "Verify, don't trust", b: "A handoff describes context, not correctness. For an old PR, first check that the problem still exists: a conflict-free rebase is not proof of relevance.", e: "Independent re-check of claimed behavior."},
+    {p: 2, t: "Rejoin at the earliest valid phase", b: "Settled decisions and original credit are kept. Completed valid work is not redone because the lead changed.", e: "Co-author credit and link to the original work."},
+    {p: 4, t: "Same PR lifecycle", b: "Babysit to the endpoint of the task's mode. No automatic force-push, merge, close or deploy.", e: "Endpoint evidence by mode."},
+    {p: 5, t: "Retro", b: "Includes what the handoff got wrong, if anything.", e: "Retro note."}
+  ]}
+};
+
+const $ = id => document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+let key = "feature", i = 0, playing = !reduce.matches, timer = null;
+
+function buildScenarioButtons(){
+  for (const [k, s] of Object.entries(S)) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = s.name; b.dataset.k = k;
+    b.addEventListener("click", () => { key = k; i = 0; render(true); restart(); });
+    $("scenarios").append(b);
+  }
+  PHASES.forEach((p, n) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="n">${String(n + 1).padStart(2, "0")}</span><span class="p">${p}</span>`;
+    $("rail").append(li);
+  });
+}
+
+function render(userAction){
+  const s = S[key], step = s.steps[i];
+  document.documentElement.style.setProperty("--accent", s.mode === "stop" ? "var(--stop)" : "var(--send)");
+  for (const b of $("scenarios").children) b.setAttribute("aria-pressed", String(b.dataset.k === key));
+  $("meta").innerHTML =
+    `<span class="chip ${s.mode}">${s.mode === "stop" ? "FULL STOP" : "FULL SEND"}</span>` +
+    `<span class="chip rev">${s.review}</span>`;
+  const visited = new Set(s.steps.slice(0, i).map(x => x.p));
+  [...$("rail").children].forEach((li, n) => {
+    li.className = (n === step.p ? "now" : visited.has(n) ? "done" : "") + (n === step.p && step.r ? " repairing" : "");
+    li.setAttribute("aria-current", n === step.p ? "step" : "false");
+  });
+  $("bar").style.width = ((i + 1) / s.steps.length * 100) + "%";
+  $("loop").textContent = step.r ? "↺ Repair loop · same task · cumulative attempts and clock" : "";
+  $("stepTitle").textContent = step.t;
+  $("stepBody").textContent = step.b;
+  $("facts").innerHTML = "";
+  const add = (cls, label, text) => {
+    const d = document.createElement("div"); d.className = "fact " + cls;
+    d.innerHTML = `<span class="label">${label}</span>`; d.append(text); $("facts").append(d);
+  };
+  add(step.r ? "rep" : "", "Evidence left behind", step.e);
+  if (step.h) add("gate", "Human gate", "Owner decision required here");
+  $("count").textContent = `${s.name} · step ${i + 1} of ${s.steps.length} · ${PHASES[step.p]}`;
+  $("dots").innerHTML = s.steps.map((_, n) => `<span class="${n <= i ? "on" : ""}"></span>`).join("");
+  $("caption").setAttribute("aria-live", userAction && !playing ? "polite" : "off");
+  $("play").textContent = playing ? "Pause" : "Play";
+  $("play").setAttribute("aria-pressed", String(!playing));
+  $("play").setAttribute("aria-label", playing ? "Pause walkthrough" : "Play walkthrough");
+}
+
+function go(delta, userAction){
+  const n = S[key].steps.length;
+  i = (i + delta + n) % n;
+  render(userAction);
+}
+function restart(){
+  clearInterval(timer);
+  if (playing) timer = setInterval(() => go(1, false), 4200);
+}
+function toggle(){ playing = !playing; render(true); restart(); }
+
+buildScenarioButtons();
+$("prev").addEventListener("click", () => { go(-1, true); restart(); });
+$("next").addEventListener("click", () => { go(1, true); restart(); });
+$("play").addEventListener("click", toggle);
+document.addEventListener("keydown", e => {
+  if (e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+  if (e.key === "ArrowRight") { go(1, true); restart(); }
+  else if (e.key === "ArrowLeft") { go(-1, true); restart(); }
+  else if (e.key === " ") { e.preventDefault(); toggle(); }
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) clearInterval(timer); else restart(); });
+reduce.addEventListener?.("change", e => { if (e.matches) { playing = false; render(false); restart(); } });
+render(false);
+restart();
+</script>
+</body>
+</html>

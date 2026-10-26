@@ -1,0 +1,59 @@
+{
+  "_comment": "Shape of the private host capability profile. Copy to ~/.config/patstack/devices.local.json, chmod 600, and fill it locally. Never commit the real file. Values below are placeholders, not an inventory.",
+  "schema": 1,
+  "hosts": [
+    {
+      "alias": "mac",
+      "declared_by_owner": {"role": "primary workstation"},
+      "configured": {
+        "os": "macos",
+        "arch": "arm64",
+        "tools": ["xcode", "playwright", "computer-use"],
+        "transport": "local",
+        "project_roots": {"example-app": "~/src/example-app"},
+        "runtimes": ["claude", "codex"]
+      },
+      "observed": {
+        "checked_at": "2026-10-26T08:00:00+00:00",
+        "reachable": true,
+        "verified_capabilities": ["playwright"],
+        "unverified_capabilities": ["computer-use"]
+      }
+    },
+    {
+      "alias": "devbox",
+      "declared_by_owner": {"role": "linux build and browser automation host"},
+      "configured": {
+        "os": "linux",
+        "arch": "x86_64",
+        "gpu": {"present": false},
+        "tools": ["docker", "playwright-chromium"],
+        "transport": "ssh-config-alias:devbox",
+        "runtimes": ["claude", "codex"]
+      },
+      "observed": {
+        "checked_at": null,
+        "reachable": null,
+        "verified_capabilities": [],
+        "unverified_capabilities": ["docker-daemon", "playwright-chromium"]
+      }
+    },
+    {
+      "alias": "windows",
+      "declared_by_owner": {"role": "native Windows tests"},
+      "configured": {
+        "os": "windows",
+        "arch": "x86_64",
+        "tools": ["computer-use"],
+        "transport": "ssh-config-alias:windows",
+        "registry_adapter": false
+      },
+      "observed": {
+        "checked_at": null,
+        "reachable": null,
+        "verified_capabilities": [],
+        "unverified_capabilities": ["computer-use"]
+      }
+    }
+  ]
+}

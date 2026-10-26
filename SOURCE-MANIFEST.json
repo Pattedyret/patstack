@@ -1,0 +1,133 @@
+{
+  "description": "Published Patstack files and the private source revision they were refreshed from.",
+  "source_label": "~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup/drafts/patstack-cutover/candidate",
+  "files": [
+    {
+      "path": "skills/patstack/SKILL.md",
+      "source_sha256": "8665232b4cafb57f401f057ec0cb6af084690cb824501b98aeaeac16c36c6937",
+      "published_sha256": "8665232b4cafb57f401f057ec0cb6af084690cb824501b98aeaeac16c36c6937",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/access.md",
+      "source_sha256": "98d15ae0f283a6c5fae1e2ffc6dd2ca84d35e83e2611941dd0302342fd71d451",
+      "published_sha256": "98d15ae0f283a6c5fae1e2ffc6dd2ca84d35e83e2611941dd0302342fd71d451",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/build-review.md",
+      "source_sha256": "3500b41cd9a09d2f6903b7971d7de10d56de2876a2c00ce2440fb419150eebd2",
+      "published_sha256": "3500b41cd9a09d2f6903b7971d7de10d56de2876a2c00ce2440fb419150eebd2",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/coordination.md",
+      "source_sha256": "689a2f55c46bcaafd810d1a2fffc7c2cef9972614b77a895707b1e4b0beae8bb",
+      "published_sha256": "689a2f55c46bcaafd810d1a2fffc7c2cef9972614b77a895707b1e4b0beae8bb",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/decisions.md",
+      "source_sha256": "d4170ffecb7d74c8cc087a28b8a856335f7f0cb7d42573a4276dc7fa171302a9",
+      "published_sha256": "d4170ffecb7d74c8cc087a28b8a856335f7f0cb7d42573a4276dc7fa171302a9",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/planning.md",
+      "source_sha256": "1783e2a259180753dbc6877b0943bb70cea0442b45c44bc9f25f723c9cbeb9b1",
+      "published_sha256": "1783e2a259180753dbc6877b0943bb70cea0442b45c44bc9f25f723c9cbeb9b1",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/project-context.md",
+      "source_sha256": "1f684518684e0f4acb7ed08aa465b56fcddd6897eb98c13f11d923523a514076",
+      "published_sha256": "edeb4e7e9c2d4b0ed753611b39d4910a9bc0b10aa4eaf2393810622b5b769b1a",
+      "sanitized": true
+    },
+    {
+      "path": "skills/patstack/references/quality.md",
+      "source_sha256": "28d12385dc7974f55a1f23e5575b3ccb6417f986b19d1c3ecec7f8c15832bb8e",
+      "published_sha256": "28d12385dc7974f55a1f23e5575b3ccb6417f986b19d1c3ecec7f8c15832bb8e",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/retro.md",
+      "source_sha256": "a16fd8d41796b5c99892fd387533108ca05c18d25223b8f2806a1bf54dba98d4",
+      "published_sha256": "a16fd8d41796b5c99892fd387533108ca05c18d25223b8f2806a1bf54dba98d4",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/sources.md",
+      "source_sha256": "6e66a5939f8eefb112f154dc7aad8aecee96a9940afecf3194ad49ed0a849036",
+      "published_sha256": "6e66a5939f8eefb112f154dc7aad8aecee96a9940afecf3194ad49ed0a849036",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/task-state.md",
+      "source_sha256": "8e03a4e75b06165681d50eb28d41600fca4d8d1bb548e6a3aa7b6b629c0d1810",
+      "published_sha256": "8e03a4e75b06165681d50eb28d41600fca4d8d1bb548e6a3aa7b6b629c0d1810",
+      "sanitized": false
+    },
+    {
+      "path": "skills/patstack/references/testing-delivery.md",
+      "source_sha256": "106edd2f1f9cb5f7ccf5746a563cdceee586dba06664b184e4e4454d65ee9cf5",
+      "published_sha256": "106edd2f1f9cb5f7ccf5746a563cdceee586dba06664b184e4e4454d65ee9cf5",
+      "sanitized": false
+    },
+    {
+      "path": "skills/create-test-recipes/SKILL.md",
+      "source_sha256": "d3594ff51c45c5fd1300a6a66deea80e681b504002c5d29812442d7596da3ff2",
+      "published_sha256": "d3594ff51c45c5fd1300a6a66deea80e681b504002c5d29812442d7596da3ff2",
+      "sanitized": false
+    },
+    {
+      "path": "skills/create-test-recipes/LICENSE",
+      "source_sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
+      "published_sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
+      "sanitized": false
+    },
+    {
+      "path": "skills/create-test-recipes/PROVENANCE.md",
+      "source_sha256": "3e015bb852ac1e359f34cf9b419c95ffac85efc029cbe7c4f7e45c2b4585611e",
+      "published_sha256": "3e015bb852ac1e359f34cf9b419c95ffac85efc029cbe7c4f7e45c2b4585611e",
+      "sanitized": false
+    },
+    {
+      "path": "skills/create-test-recipes/source.json",
+      "source_sha256": "8cbbf4817f993012ed58b401d4137390e875cec327ad5aee7cc23323af99bc5b",
+      "published_sha256": "8cbbf4817f993012ed58b401d4137390e875cec327ad5aee7cc23323af99bc5b",
+      "sanitized": false
+    },
+    {
+      "path": "skills/create-test-recipes/references/quality-checks.md",
+      "source_sha256": "4ccaeb03980cc7a33f75b735363c0721787788ef3038f90d39ec333a0a35af91",
+      "published_sha256": "4ccaeb03980cc7a33f75b735363c0721787788ef3038f90d39ec333a0a35af91",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/README.md",
+      "source_sha256": "a1bdfc247974d26bf63db5db4221fdb80f45021e41f916cb59f338e6cffe72e1",
+      "published_sha256": "a1bdfc247974d26bf63db5db4221fdb80f45021e41f916cb59f338e6cffe72e1",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/kpi_monitor.py",
+      "source_sha256": "9d94b9d8618b57b1ab8f6caa6e502285edb1d6eb275171dae9cfd808122261c7",
+      "published_sha256": "9d94b9d8618b57b1ab8f6caa6e502285edb1d6eb275171dae9cfd808122261c7",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/test_kpi_monitor.py",
+      "source_sha256": "68826a7e1bfafe750ff2a9958ec1ac6e863b80dccfd79b9b05a07ec8830346a5",
+      "published_sha256": "68826a7e1bfafe750ff2a9958ec1ac6e863b80dccfd79b9b05a07ec8830346a5",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/install.py",
+      "source_sha256": "d47694dbaff9b78fb158de9eaecdbd095bdf89ceb15026a09dd71743c4e15e82",
+      "published_sha256": "d47694dbaff9b78fb158de9eaecdbd095bdf89ceb15026a09dd71743c4e15e82",
+      "sanitized": false
+    }
+  ]
+}

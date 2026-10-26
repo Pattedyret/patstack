@@ -1,0 +1,14 @@
+# Design sources
+
+## What to borrow from each source
+
+| Source | Keep | Adapt |
+|---|---|---|
+| [Matt Pocock: to-spec](https://github.com/mattpocock/skills/blob/main/skills/engineering/to-spec/SKILL.md), [to-tickets](https://github.com/mattpocock/skills/blob/main/skills/engineering/to-tickets/SKILL.md), [implement-spec](https://github.com/mattpocock/skills/blob/main/skills/engineering/implement-spec/SKILL.md) | Synthesize an agreed spec; verifiable slices and blocking edges; fresh worker contexts and integration ownership. | Proportional specs and tests. Preserve an existing accepted brief. Avoid adding interviews and approval steps for routine implementation details. Choose a PR structure appropriate to the work rather than requiring one enormous PR. |
+| [tstack Council](https://github.com/t3dotgg/tstack/blob/main/skills/council/SKILL.md), [Full Send](https://github.com/t3dotgg/tstack/blob/main/skills/full-send/SKILL.md), [Full Stop](https://github.com/t3dotgg/tstack/blob/main/skills/full-stop/SKILL.md), [PR](https://github.com/t3dotgg/tstack/blob/main/skills/file-pr/SKILL.md), [babysit](https://github.com/t3dotgg/tstack/blob/main/skills/babysit-pr/SKILL.md) | T3-owned delegation and PR wakeups; problem-first PRs; per-model scores by review round; explicit stopping modes. | Two model families. Independent first judgments, bounded repair, evidence-backed objections and project-specific authority. Verify the latest head before readiness or merge. |
+| [Zeroshot review loop](https://github.com/the-open-engine/zeroshot/blob/main/docs/guides/review-loop.md) | Separate acceptance and code judgments, parallel review, repair feedback, fresh review sessions and explicit terminal failure. | Borrow the graph and bounded transitions first. Running the Zeroshot engine itself is not a prerequisite or an installation decision in this draft. |
+| [Ponytail](https://github.com/DietrichGebert/ponytail/blob/main/skills/ponytail/SKILL.md) | Reuse existing code and platform capabilities; smallest complete change; retain validation, security, accessibility and necessary checks. | Apply the same economy to Patstack: phase references and existing tools before new frameworks or many overlapping skills. |
+| [Matt Pocock retro](https://github.com/mattpocock/skills/blob/main/skills/engineering/retro/SKILL.md) | Diagnose actual friction and prefer automated checks for mechanical mistakes. | Apply Patrick's evidence-backed autonomous technical improvement grant; preferences/product choices still involve him. |
+
+The upstream files were inspected as sources, not installed or executed. `sources.json` records the main-branch SHA seen at lookup, not a guarantee that web-cache content and that SHA are identical. An implementation should vendor/verify chosen files at pinned revisions and preserve attribution.
+

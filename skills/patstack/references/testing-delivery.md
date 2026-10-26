@@ -1,0 +1,42 @@
+# Check and deliver
+
+Read the existing project verification pack. For missing/stale recipes use create-test-recipes; do not regenerate working coverage. Read [access](access.md) when login or test identity is needed, and [quality](quality.md) for the affected dimensions.
+
+Required checks and reviewed evidence must cover the current head and required merge/base context. An independent reviewer assesses the incremental diff after review; the author cannot carry an independent approval forward. Re-read live PR head/base, required checks and merge state before readiness/merge.
+
+**Endpoint:** Full Stop hands over an evidenced, ready, unmerged PR. Full Send continues through the configured test deployment, required project sync and verified real release. Patrick assigning a concrete task in Full Send (explicit or default) authorizes that task’s established, unambiguous test target and repair revisions; record the grant per head through existing required authorization mechanisms. Stricter project rules still apply. The setup cutover itself deploys no application. Production still needs explicit task-specific authority.
+
+Authority record: `Patstack 1.0.0 Full Send (explicit|default)` names the actual mode basis, established target and retained project gates in the required authorization reason. Quote the real assignment with its native reference; never relabel a default as an explicit stage instruction. Full Stop and ordinary research do not supply this grant.
+
+### One repair flow across PR and live testing
+
+BIG TASK owns every failure until the agreed endpoint is verified. Every failure record names the layer (PR or live), failed criterion, exact candidate/release, evidence, owner and next action. A model score is not a substitute for an executed check.
+
+| Failure point | Return route | Exit condition |
+|---|---|---|
+| Local/PR acceptance, review, CI or preview test | Diagnose → smallest repair → selected-level incremental review → affected acceptance/quality checks → update the same open PR → Babysit | Required checks and evidence cover the current candidate; no unresolved blocker |
+| Live test on the expected deployed release | Stop completion → capture release/failure → choose authorized rollback or fix-forward → repair PR → review/CI/preview checks → test deployment/sync → live retest | The intended result and applicable quality targets pass on the verified delivered release |
+| Live target has changed or belongs to another task | Mark this proof stale/inconclusive → reconcile target ownership and current release → schedule a valid retest | Proof is attributable to the intended candidate; do not patch code based only on someone else's deployment |
+
+A rollback restores an approved known-good state when permitted; it does not prove the requested feature delivered. A merged/closed PR is retained as history: fix-forward or a code revert uses a new linked PR on the same parent task. Reuse the open PR only when it is still the correct continuation. Never reopen a merged PR as a repair mechanism. Reverify downstream syncs after a release changes. Rollback or fix-forward needs the existing environment/data permissions; do not overwrite another task's release or assume a database migration is reversible.
+
+Stale/foreign-release proof consumes elapsed time but is not itself a code-repair attempt. Both layers share cumulative actual repair attempts and elapsed time. Three failed normal cycles maximum, or earlier stagnation, triggers deeper diagnosis and workflow RCA. Switching layer, PR, model or release does not reset the record. Preserve unaffected valid proof, but repeat anything invalidated by the repair or environment change. Missing required proof keeps Full Send open; an actual external blocker ends in an explicit handoff, not a completion claim.
+
+### Candidate and environment coordination, proportional to the job
+
+For larger/thorough non-critical work, BIG TASK freezes an integration candidate and records its head/base, workflow/spec versions, evidence and PRs. Parallel workers use owned isolated branches/worktrees; one integration owner reconciles them. Work in parallel until a shared resource is actually needed. Prefer existing independent previews when available, without creating new infrastructure by default.
+
+Before changing a shared test target, record an owner/expiry reservation event on the existing coordination ticket and coordinate all participating deployment paths for the shortest deployment-through-live-proof window. Record target, owner/task, expected release, actual release, start/expiry and pending synchronization. All participating deployment paths must respect this reservation or it is only advisory; then use an isolated preview or label the resulting isolation limit. Do not hold the target during development, Council, CI or human waits. Renew while actively testing and release at success, live failure before code repair, or explicit handoff. Expiry is not permission to overwrite: reconcile the current owner and release first. Uncoordinated CI or manual deployments can still occur, so verify release identity before and after the proof; mixed-release observations invalidate the run. Coordinate shared test fixtures too; use task-owned data and clean only that data within granted scope.
+
+Tiny edits and bounded critical fixes skip the large integration ceremony, but still check current head, required CI and target release. Use an existing isolated preview or a brief shared-target reservation where needed; never skip evidence freshness. A critical task blocked by another release uses the established incident-priority handoff or a safe available preview, rather than silently evicting the owner. No new orchestration service is required.
+
+### Reusable continuation and PR flows
+
+- **File a PR → Babysit → readiness verdict → Full Send/Full Stop.** These are connected lifecycle steps. File a concise problem-first PR or update the existing one. Babysit actual CI/review state; route genuine findings into focused repair, selected-level reassessment, affected checks and a PR update. The final endpoint follows the task's mode and project delivery route.
+- **Takeover → existing context → finish the work.** BIG TASK reads the existing spec/Issue, PR or branch, relevant thread/handoff, later user corrections, current head and review findings. Check ownership and uncommitted work before writing. Reuse settled decisions and the established goal; clarify only real gaps or changes. Preserve original authorship/co-author credit and link the original work. A handoff describes context but does not establish correctness. Independently verify applicable behavior and remaining evidence, then rejoin implementation/review or the PR lifecycle at the earliest valid point. Do not rebuild the spec or repeat completed valid work just because the lead changed.
+- **Old PR → Modernize → continue or decision.** Check whether the original problem still exists and whether the PR fits the current base, APIs and architecture. A conflict-free rebase is not proof of relevance. If still useful, bring the continuation up to date safely under the project's Git permissions and rejoin review/babysitting. If the goal remains useful but needs a material rework, identify the changed work/decision; do not quietly expand scope. If superseded or obsolete, present evidence and recommend closure rather than spending time reviving it. Actual closure or a changed product goal needs the relevant user authority.
+
+Takeover and Modernize are entry routes into the same BIG TASK workflow. They inherit its selected review level, evidence requirements, iteration/time limits, delivery mode and project procedures. They give no automatic permission to overwrite someone else's active work, force-push, merge, close a PR or deploy. Existing Full Send task grants/project permissions are reused as applicable.
+
+In T3, only the PR-owning lead watches it, via the native PR watcher. A wake provides new state; inspect the latest head/checks/findings before deciding readiness. Stop the watch at handoff. Model review reports remain distinct from GitHub human approvals. See upstream [Takeover](https://github.com/t3dotgg/tstack/blob/main/skills/takeover/SKILL.md), [Modernize](https://github.com/t3dotgg/tstack/blob/main/skills/modernize/SKILL.md), [File PR](https://github.com/t3dotgg/tstack/blob/main/skills/file-pr/SKILL.md) and [Babysit PR](https://github.com/t3dotgg/tstack/blob/main/skills/babysit-pr/SKILL.md).
+

@@ -1,0 +1,26 @@
+{
+  "id": "req-example-0001",
+  "revision": 2,
+  "workflow": "development",
+  "topic": "api",
+  "mode": "full_send",
+  "status": "completed",
+  "host": "devbox",
+  "environment": "test",
+  "source": "example",
+  "started_at": "2026-10-20T09:00:00+00:00",
+  "updated_at": "2026-10-20T10:30:00+00:00",
+  "ended_at": "2026-10-20T10:30:00+00:00",
+  "verified_success": true,
+  "human_interventions": 0,
+  "handoff": "none",
+  "turns": 6,
+  "questions": 0,
+  "tool_calls": 40,
+  "invalid_tool_calls": 0,
+  "tool_failures": 1,
+  "nodes": [
+    {"id": "pr-checks", "status": "pass"},
+    {"id": "live-proof", "status": "pass"}
+  ]
+}
