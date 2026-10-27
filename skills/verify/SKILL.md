@@ -45,7 +45,7 @@ Inside T3, use the [native browser/device routes](../patstack/references/coordin
 
 ## 4. Shared test targets
 
-Before changing a shared test target, record an owner/expiry reservation on the existing task covering only deployment through live proof: target, owner/task, expected and actual release, start/expiry, pending syncs. Do not hold it during development, review, CI or human waits. Renew while actively testing; release on success, on live failure before code repair, or at handoff. Expiry is not permission to overwrite: reconcile the current owner and release first. A reservation binds only if every participating deployment path respects it; otherwise prefer an isolated preview or label the isolation limit. A critical task blocked by another release uses the established incident-priority handoff or an available preview, never silent eviction. Use task-owned fixtures and clean only that data.
+Before changing a shared test target, check the active work and actual release, coordinate who deploys/tests which candidate, and prefer an isolated preview when concurrent work would invalidate proof. Check release identity before and after testing; foreign or stale-release evidence is inconclusive. This requires no registry reservation, lease or eligible agent. Keep the coordination period short, preserve other sessions' work and use only task-owned fixtures. Real environment/data approval still applies; never silently evict another deployment. Keep the target/build and evidence on the existing task reference.
 
 Tiny edits and bounded critical fixes skip integration-candidate ceremony but still check current head, required CI and the target release.
 

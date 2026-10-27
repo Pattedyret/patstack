@@ -1,7 +1,7 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "~/.harnesses-shared/agent-setup",
-  "workflow_version": "1.1.0",
+  "source_label": "<custom --source>",
+  "workflow_version": "1.2.0",
   "skills": [
     "patstack",
     "ponytail",
@@ -26,7 +26,7 @@
   "excluded_private_runtime_trees": [
     "monitoring/patstack/backups"
   ],
-  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source <custom --source>",
   "files": [
     {
       "path": "skills/ponytail/SKILL.md",
@@ -42,14 +42,14 @@
     },
     {
       "path": "skills/to-tickets/SKILL.md",
-      "source_sha256": "b7d0360839c2bcdd20d6bdff4c1d5a2d20e007b005d0fd926ccb1e631456e60b",
-      "published_sha256": "b7d0360839c2bcdd20d6bdff4c1d5a2d20e007b005d0fd926ccb1e631456e60b",
+      "source_sha256": "60445779f42848af91ca8d9e580b89d48b5820320992bf22b9735182bcfcebac",
+      "published_sha256": "60445779f42848af91ca8d9e580b89d48b5820320992bf22b9735182bcfcebac",
       "sanitized": false
     },
     {
       "path": "skills/implement/SKILL.md",
-      "source_sha256": "b6fd17efa049add58ff815daefc5b1eb35506062bb462ebb126246eb2d8dc547",
-      "published_sha256": "b6fd17efa049add58ff815daefc5b1eb35506062bb462ebb126246eb2d8dc547",
+      "source_sha256": "34999a6fbd0199f7765a4974474131d777542e9300a2a5bfeb3e25c32c9b537d",
+      "published_sha256": "34999a6fbd0199f7765a4974474131d777542e9300a2a5bfeb3e25c32c9b537d",
       "sanitized": false
     },
     {
@@ -66,14 +66,14 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "source_sha256": "7b95256559067bbcba259ca2cd2382d278b8532da842bebab50527d7e051c48f",
-      "published_sha256": "7b95256559067bbcba259ca2cd2382d278b8532da842bebab50527d7e051c48f",
+      "source_sha256": "462f39080b4634d5f33c4d3d072084bcd2278884ccd870254b4f2199a915976b",
+      "published_sha256": "462f39080b4634d5f33c4d3d072084bcd2278884ccd870254b4f2199a915976b",
       "sanitized": false
     },
     {
       "path": "skills/full-send/SKILL.md",
-      "source_sha256": "dd3bb703a036666bbd658f0450396541ffb4446eb9c2e47ec8779753d9cbb365",
-      "published_sha256": "dd3bb703a036666bbd658f0450396541ffb4446eb9c2e47ec8779753d9cbb365",
+      "source_sha256": "cf04033521d078bca12ab7fa0c7ceb7b9490b28528e9ae24e68ff7403a7e863e",
+      "published_sha256": "cf04033521d078bca12ab7fa0c7ceb7b9490b28528e9ae24e68ff7403a7e863e",
       "sanitized": false
     },
     {
@@ -96,8 +96,8 @@
     },
     {
       "path": "skills/takeover/SKILL.md",
-      "source_sha256": "b3424c6386b4e58483874a6cb9aea5f7f2b6fe8477035dbe86ffa9cf1df9411f",
-      "published_sha256": "b3424c6386b4e58483874a6cb9aea5f7f2b6fe8477035dbe86ffa9cf1df9411f",
+      "source_sha256": "3803ce6de3e1e623f7935e1cab87be5bd22fdc15e777e515dd5cd769db4f12c5",
+      "published_sha256": "3803ce6de3e1e623f7935e1cab87be5bd22fdc15e777e515dd5cd769db4f12c5",
       "sanitized": false
     },
     {
@@ -108,8 +108,8 @@
     },
     {
       "path": "skills/retro/SKILL.md",
-      "source_sha256": "0812e7d249c7ef77ccd06a1865ec0df05e359bdb066e00c264bf6150f7f5670f",
-      "published_sha256": "0812e7d249c7ef77ccd06a1865ec0df05e359bdb066e00c264bf6150f7f5670f",
+      "source_sha256": "824c28994266cba875346def4f23b60f6db5ec19dd51feba7dd9f26b3d3aed77",
+      "published_sha256": "824c28994266cba875346def4f23b60f6db5ec19dd51feba7dd9f26b3d3aed77",
       "sanitized": false
     },
     {
@@ -132,8 +132,8 @@
     },
     {
       "path": "skills/patstack/SKILL.md",
-      "source_sha256": "992d5435a2a78070d7ae1641addd94c564bc488a609a83ca5db316a5752f71de",
-      "published_sha256": "992d5435a2a78070d7ae1641addd94c564bc488a609a83ca5db316a5752f71de",
+      "source_sha256": "d5117e1aac17632dec010502b56e19a16fffdc09ce396c571b739dd03ea701ec",
+      "published_sha256": "d5117e1aac17632dec010502b56e19a16fffdc09ce396c571b739dd03ea701ec",
       "sanitized": false
     },
     {
@@ -150,8 +150,8 @@
     },
     {
       "path": "skills/patstack/references/coordination.md",
-      "source_sha256": "21c4408d99e01297836f149a55cb258bc722d6f0e98aa3df8a796cd702b19171",
-      "published_sha256": "21c4408d99e01297836f149a55cb258bc722d6f0e98aa3df8a796cd702b19171",
+      "source_sha256": "847506fb80528ca04e0a63364b0ada8c86d25bb5be4f66299c43e82c3054a4fd",
+      "published_sha256": "847506fb80528ca04e0a63364b0ada8c86d25bb5be4f66299c43e82c3054a4fd",
       "sanitized": false
     },
     {
@@ -186,14 +186,14 @@
     },
     {
       "path": "skills/patstack/references/sources.md",
-      "source_sha256": "0a03adedce566ea072841cc7a3d7a354d022b4dae60b1fe68fd4db8537f9bd81",
-      "published_sha256": "0a03adedce566ea072841cc7a3d7a354d022b4dae60b1fe68fd4db8537f9bd81",
+      "source_sha256": "88fb662f8f5b044f5a35ba81c6efb075d1421980bae8360e2c51b5d681939a16",
+      "published_sha256": "88fb662f8f5b044f5a35ba81c6efb075d1421980bae8360e2c51b5d681939a16",
       "sanitized": false
     },
     {
       "path": "skills/patstack/references/task-state.md",
-      "source_sha256": "8e03a4e75b06165681d50eb28d41600fca4d8d1bb548e6a3aa7b6b629c0d1810",
-      "published_sha256": "8e03a4e75b06165681d50eb28d41600fca4d8d1bb548e6a3aa7b6b629c0d1810",
+      "source_sha256": "878cf6bd8922b7bd182bf2fc8e885adf0b753830384d824625c6a2f7986d3300",
+      "published_sha256": "878cf6bd8922b7bd182bf2fc8e885adf0b753830384d824625c6a2f7986d3300",
       "sanitized": false
     },
     {
@@ -300,26 +300,44 @@
     },
     {
       "path": "monitoring/patstack/README.md",
-      "source_sha256": "a1bdfc247974d26bf63db5db4221fdb80f45021e41f916cb59f338e6cffe72e1",
-      "published_sha256": "a1bdfc247974d26bf63db5db4221fdb80f45021e41f916cb59f338e6cffe72e1",
+      "source_sha256": "42162a7f4c008e8120a87036b6cfb0dbe219bf520bbe6389947a1ee88374b4aa",
+      "published_sha256": "42162a7f4c008e8120a87036b6cfb0dbe219bf520bbe6389947a1ee88374b4aa",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/kpi_monitor.py",
-      "source_sha256": "9d94b9d8618b57b1ab8f6caa6e502285edb1d6eb275171dae9cfd808122261c7",
-      "published_sha256": "9d94b9d8618b57b1ab8f6caa6e502285edb1d6eb275171dae9cfd808122261c7",
+      "source_sha256": "e98620c738665355db1a901316c198d825c914ff2d34fa2aa94a1e4445407dad",
+      "published_sha256": "e98620c738665355db1a901316c198d825c914ff2d34fa2aa94a1e4445407dad",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/test_kpi_monitor.py",
-      "source_sha256": "ff48ce7c9d6122ac659e1d58955c7b4ce4146a6f9744bbc4d46bcaec82777512",
-      "published_sha256": "ff48ce7c9d6122ac659e1d58955c7b4ce4146a6f9744bbc4d46bcaec82777512",
+      "source_sha256": "f6f15016da29c192776170ed3a57eb5d8d2acdb4ba961c18deab7214174d04f2",
+      "published_sha256": "f6f15016da29c192776170ed3a57eb5d8d2acdb4ba961c18deab7214174d04f2",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/install.py",
-      "source_sha256": "b080e2aebfddcb44bd6cdf8951db0986ead9ef4d0a639e7dfb6489db049c0a37",
-      "published_sha256": "b080e2aebfddcb44bd6cdf8951db0986ead9ef4d0a639e7dfb6489db049c0a37",
+      "source_sha256": "4b38ffe495f0b899353abc3cbc84019715411f362fed808f93b5cf3a13eefe47",
+      "published_sha256": "4b38ffe495f0b899353abc3cbc84019715411f362fed808f93b5cf3a13eefe47",
+      "sanitized": false
+    },
+    {
+      "path": "tools/ticket-ref/README.md",
+      "source_sha256": "87b25d9ae48cb975bf55d1702e432d305e9230c7a846a9b966a99c597d1bc6cc",
+      "published_sha256": "87b25d9ae48cb975bf55d1702e432d305e9230c7a846a9b966a99c597d1bc6cc",
+      "sanitized": false
+    },
+    {
+      "path": "tools/ticket-ref/ticket_ref.py",
+      "source_sha256": "119de77bda6bc4cb16da5fb19bca1dae2c5e3629fd0e27dc2c5c67dc73691e9e",
+      "published_sha256": "119de77bda6bc4cb16da5fb19bca1dae2c5e3629fd0e27dc2c5c67dc73691e9e",
+      "sanitized": false
+    },
+    {
+      "path": "tools/ticket-ref/test_ticket_ref.py",
+      "source_sha256": "2e9ee18169663b7be34a774f9439f768a7a77792eb05e20fb228beb18811ec30",
+      "published_sha256": "2e9ee18169663b7be34a774f9439f768a7a77792eb05e20fb228beb18811ec30",
       "sanitized": false
     }
   ]

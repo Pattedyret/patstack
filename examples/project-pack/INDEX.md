@@ -10,4 +10,4 @@ Read only the rows that match the actual change.
 | Deploy to test | `DEPLOY.md` in the repo | Test target: `stage`. Production needs explicit task-specific authority. |
 | Verify behavior | [verify-example-app/SKILL.md](verify-example-app/SKILL.md) | Run affected recipes only. |
 
-Test target ownership: reserve `stage` on the task before deploying, release it after live proof or on failure before repair.
+Before deploying to `stage`, follow the project's actual shared-target coordination and approval procedure. A ticket number itself grants no deployment permission.

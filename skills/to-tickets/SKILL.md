@@ -1,6 +1,6 @@
 ---
 name: to-tickets
-description: Break an agreed spec into tracer-bullet vertical slices with explicit blocking edges, each independently verifiable with one owner, exact scope and acceptance, published as GitHub sub-issues with native blocking links or as agent-work child tasks. Use when a spec needs parallel or staged delivery; skip it when one lead can finish the work directly.
+description: Break an agreed spec into tracer-bullet vertical slices with explicit blocking edges, each independently verifiable with one owner, exact scope and acceptance, published as GitHub sub-issues with native blocking links or in the shared task brief. Use when a spec needs parallel or staged delivery; skip it when one lead can finish the work directly.
 ---
 
 # To tickets
@@ -29,8 +29,8 @@ List each slice: title, blocked by, what it delivers end to end, acceptance, own
 ## 4. Publish
 
 - **GitHub:** one sub-issue per slice under the parent Issue ([sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)), created blockers-first, using native [blocking relationships](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-issue-dependencies). Reuse the repo's issue types/labels. Do not close or rewrite the parent.
-- **agent-work:** a child per slice with `parent`, non-empty acceptance, exact absolute scopes and native dependencies ([coordination](../patstack/references/coordination.md)). Preserve agreed test seams in the child context. Model choice is frozen in the spec record before execution.
-- Use GitHub Projects for delivery visibility where useful; runtime ownership stays in agent-work. One authority per field, no second editable status board.
+- **Task brief:** give each independent slice its deliverable, acceptance, files/worktree and dependencies; share the parent ticket reference. Native subagents can start directly with that brief, without registry registration, claims or frozen model assignments ([coordination](../patstack/references/coordination.md)). Preserve agreed test seams.
+- Use GitHub Projects for delivery visibility where useful; execution context stays in the shared brief/native run. One authority per field, no second editable status board.
 - Reviews and QA are checks on existing slices, not new development issues.
 - When the parent's acceptance includes release/live verification, avoid auto-closing it on merge; an intermediate slice may close while the parent stays open.
 

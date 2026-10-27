@@ -1,12 +1,12 @@
 # Private workflow KPIs
 
-One Python standard-library recorder/reporter runs on Mac, devbox and Windows. Its SQLite cache is private to the host and derived from evidence; The existing agent-work registry retains task ownership/status authority; GitHub and native runtime evidence retain their existing roles. It works for development, research, testing and other workflows without creating tickets for casual work.
+One Python standard-library recorder/reporter runs on Mac, devbox and Windows. Its SQLite cache is private to the host and derived from evidence; Ticket references only identify work; GitHub/briefs and native runtime evidence describe scope, progress and results. No task registry grants eligibility or authority. It works for development, research, testing and other workflows without creating tickets for casual work.
 
 ## Use
 
-From this directory, run `python3 kpi_monitor.py collect --host mac` (use `devbox` on Linux). Windows uses `python` and explicit snapshots: it has no supported agent-work collector. Then run `python3 kpi_monitor.py report`. The default store is `~/.local/state/patstack/kpis.sqlite3`; `--db PATH` before the command selects a private test store. Reports go to stdout, not GitHub. No daemon or cron is required: lifecycle hooks record audit receipts; agents record outcome metadata, and Retro refreshes discovery when it reads the report.
+From this directory, run `python3 kpi_monitor.py report` (Windows uses `python`). The default store is `~/.local/state/patstack/kpis.sqlite3`; `--db PATH` selects a private test store. Reports stay private. No monitoring session, daemon or cron is required: existing lifecycle hooks record audit receipts, and the executing agent/auditor records outcome metadata. All three OS hosts use the same explicit snapshot interface.
 
-`collect` reads the supported local agent-work CLI in memory and keeps only root IDs, revisions, timestamps, work class and a closed-state observation. It never stores task titles, context, comments, messages or credentials. Registry completion does not prove verified acceptance, mode or elapsed completion time, so these discovery observations are separate from workflow KPIs.
+`collect --host mac|devbox|windows` now reports `numbering_only` and performs no registry calls or writes. A ticket number has no completion/ownership state to collect. Historical registry observations remain preserved and labelled historical; they are excluded from workflow KPIs. Do not restart the old registry or infer success from a number.
 
 For actual workflow measurements, pipe **one metadata snapshot** to `python3 kpi_monitor.py record`. Give each user request/workflow instance a stable opaque ID, keep it across resume, and increment revision only for changed observations. Retries are idempotent; conflicting revisions reject. Do not create a new ID for phases or children. Host/environment identify the primary execution context; use node observations for checks in other layers, rather than cloning a completed request into every environment. A genuine separate request gets a new ID. Source audits must be traceable in the existing private ticket/run evidence, using this ID and revision.
 
@@ -41,7 +41,7 @@ Use null/omit for unavailable labels. Labels/IDs are short safe slugs, never ema
 - Reliability: unexpected handoffs, unsupported requests, signal/confirmed frustration; observed response/tool errors and retention use their actual audited denominators.
 - Breakdowns: workflow, topic, host, environment and node status. No automatic universal targets or unsupported industry benchmarks. Compare equivalent task types, modes, versions and workloads before claiming improvement.
 
-Retro refreshes discovery, reads the report, investigates missing coverage and weak cohorts, then checks the underlying evidence before proposing/promoting an improvement. Self-reported compliance, model agreement and rising rates without denominators are insufficient. Monitoring never grants deployment/data authority.
+Retro reads the relevant current host reports, investigates missing coverage and weak cohorts, then checks the underlying evidence before proposing/promoting an improvement. Self-reported compliance, model agreement and rising rates without denominators are insufficient. Monitoring never grants deployment/data authority.
 
 Definitions informed by [Microsoft's agent metric reference](https://learn.microsoft.com/en-us/microsoft-copilot-studio/guidance/agent-business-value-metrics-reference) and [deflection definitions](https://learn.microsoft.com/en-us/microsoft-copilot-studio/guidance/deflection-overview); these support-specific definitions are adapted explicitly for development.
 
@@ -53,4 +53,4 @@ The hook requests evidence review through Retro’s report; it does not spawn a 
 
 Install with `python3 install.py --host mac` from a reviewed copy (devbox uses `--host devbox`; Windows uses `python install.py --host windows`). It backs up changed files privately, copies only this monitor package, updates the global KPI pointer and the existing Retro overlay, and appends its own Stop handler while preserving other hooks. Codex requires native `/hooks` trust for new definitions; the installer never edits trust hashes. This is an audit addition, not Patstack activation.
 
-Current coverage: the registry collector and lifecycle hook do not emit semantic outcome labels. Those KPIs stay unmeasured until the executing agent/auditor records supported evidence through `record`. Lifecycle receipts expose current all-time coverage separately; `--as-of` applies to workflow snapshots, not retrospective hook reconstruction.
+Current coverage: reference-only collection and the lifecycle hook do not emit semantic outcome labels. Those KPIs stay unmeasured until the executing agent/auditor records supported evidence through `record`. Lifecycle receipts expose current all-time coverage separately; `--as-of` applies to workflow snapshots, not retrospective hook reconstruction.

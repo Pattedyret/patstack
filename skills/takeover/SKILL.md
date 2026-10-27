@@ -11,7 +11,7 @@ Takeover is an entry route into the same workflow, not a restart. A handoff desc
 
 ## 1. Check ownership first
 
-- Read the task (`show`/`packet`), its events and later steering. If another actor still owns it, coordinate; expired ownership alone is not permission. Use the supported recover/handoff path only after confirming the previous owner stopped.
+- Read the Issue/brief, actual session/PR state and later steering. Check whether someone is still working on the same files, coordinate the handoff and preserve their work. No registry owner, lease or recover operation is required.
 - Inspect the worktree for uncommitted or unpushed work before writing. Preserve it.
 
 ## 2. Rebuild context from sources

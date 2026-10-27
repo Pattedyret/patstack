@@ -17,7 +17,7 @@ Retro improves the agent's environment for future runs. It proposes from evidenc
 
 ## 1. Read primary sources
 
-The session transcript(s) the user names (default: current), task events, PR/review history and repair records, including any deep-diagnosis workflow RCA from [implement](../implement/SKILL.md#repair). Read the private [KPI contract](../../monitoring/patstack/README.md), refresh supported discovery and read reports for the relevant hosts: workflow/topic/node and delivery-environment breakdowns, sample counts, unknown labels, missing emitters. Distinguish native hook receipts, registry discovery, audited outcomes and missing measurements. Metrics guide the search; verify causal claims against the underlying evidence.
+The session transcript(s) the user names (default: current), task events, PR/review history and repair records, including any deep-diagnosis workflow RCA from [implement](../implement/SKILL.md#repair). Read the private [KPI contract](../../monitoring/patstack/README.md), read the current reports for the relevant hosts: workflow/topic/node and delivery-environment breakdowns, sample counts, unknown labels, missing emitters. Distinguish native hook receipts, historical registry observations, audited outcomes and missing measurements. Number allocation provides no execution state; never restart the retired registry for Retro. Metrics guide the search; verify causal claims against the underlying evidence.
 
 ## 2. Find candidates
 

@@ -1,16 +1,16 @@
 # Setup
 
-Patstack is a set of Markdown skills plus one standard-library Python tool. Nothing here installs packages, starts daemons or creates scheduled jobs.
+Patstack is a set of Markdown skills plus standard-library Python tools. Nothing here installs packages, starts daemons or creates scheduled jobs.
 
 ## Prerequisites
 
 | Need | Why | Required? |
 |---|---|---|
 | Claude Code and/or Codex | Run the skills | Yes |
-| Python 3.9+ | KPI recorder, checks, refresh script | Yes for KPIs and checks |
+| Python 3.9+ | Ticket numbering, KPI recorder, checks, refresh script | Yes for the Python tools |
 | `git`, `gh` | PRs, checks, Issue-based specs | For delivery |
-| A task registry implementing the [coordination contract](../coordination/README.md) at `~/.local/bin/agent-work` | Durable ownership, leases, child runs, delivery records | Strongly recommended. Without it, report the missing prerequisite instead of pretending ownership. |
-| T3 Code (or another host with native delegation and PR wakeups) | One-layer child delegation, native PR watcher | For delegation and babysitting as written |
+| A private initialized `ticket-ref` store | Allocate new shared reference numbers offline | Only when issuing a new reference; see the [numbering contract](../coordination/README.md). |
+| A host exposing the needed delegation or wakeup tools | Child delegation and PR watching | Only for those operations; follow its live tool contract. |
 | Two model families (Opus 5.5 and Sol 6.1 by default) | R2/R3 independence | For R2/R3. A missing family is reported, not substituted. |
 | A password manager client with origin-matched autofill | Secret-safe test logins (the [access reference](../skills/patstack/references/access.md) assumes Bitwarden) | Only for authenticated recipes |
 | Playwright or native Computer Use | Browser and UI verification | Only for UI recipes; verify on the actual host |
@@ -43,7 +43,7 @@ The 19 modules cooperate under Patstack. Keep retired, overlapping workflow coll
 
 ## 3. Add your global instructions
 
-Patstack expects a short global instruction block that names the lead models, authority rules (stage and production approvals, no destructive Git without approval) and where project packs live. Adapt the [model routing contract](../MODEL_RANKING.md). Keep the real file private.
+Patstack expects a short global instruction block that names the numbering tool, real authority rules (test and production approvals, no destructive Git without approval), and where project packs live. Optional [model routing preferences](../MODEL_RANKING.md) describe actual available models; they do not decide ticket eligibility. Keep the real setup private.
 
 ## 4. Add a host capability profile (optional, per host)
 
@@ -93,4 +93,4 @@ python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup 
 python3 scripts/check.py
 ```
 
-The default is the installed source tree. The root lead verified modular 1.1 installation and fresh native discovery on all three hosts; the publication refresh now uses that installed source. Packaging a later candidate alone does not establish its activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.
+The default is the installed source tree. During preparation, pass the exact approved candidate tree explicitly. Packaging a candidate establishes neither installation nor native activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.

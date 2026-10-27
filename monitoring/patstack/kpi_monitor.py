@@ -242,7 +242,7 @@ def report(rows, as_of, max_duration=None):
                   "by_host": {host: {"total": sum(r["host"] == host for r in observations),
                        "closed": sum(r["host"] == host and r["nodes"][0]["status"] == "pass" for r in observations),
                        "open": sum(r["host"] == host and r["nodes"][0]["status"] != "pass" for r in observations)} for host in HOSTS},
-                  "note": "Discovery only; not verified workflow outcomes or elapsed durations."},
+                  "note": "Historical registry discovery only; the execution registry is retired. Not verified outcomes or durations."},
               "coverage_note": "Only recorded workflows are known. Missing emitters are unmeasured; rates use observed labels, not all eligible records.",
               "by_node": {}}
     for field, expected in (("host", HOSTS), ("environment", ENVIRONMENTS), ("workflow", ()), ("topic", ())):
@@ -275,23 +275,10 @@ def registry_snapshot(task, host):
 
 
 def collect(db, host):
-    executable = Path.home() / ".local/bin/agent-work"
-    if not executable.is_file() or os.name == "nt":
-        return {"source": "agent-work", "coverage": "unavailable", "inserted": 0,
-                "note": "No supported registry CLI on this host. Explicit workflow snapshots remain available."}
-    process = subprocess.run([str(executable), "list"], capture_output=True, text=True, timeout=30)
-    if process.returncode:
-        raise ValueError("Registry source unavailable")
-    tasks = json.loads(process.stdout)
-    if not isinstance(tasks, list):
-        raise ValueError("Invalid registry result")
-    inserted = 0
-    roots = [t for t in tasks if not t.get("parent")]
-    for task in roots:
-        inserted += record(db, registry_snapshot(task, host))
-    return {"source": "agent-work", "coverage": "registry_metadata_only",
-            "roots_observed": len(roots), "inserted": inserted,
-            "note": "No success, mode, environment, conversation or quality labels inferred. Registry observations are excluded from workflow KPIs."}
+    # Number allocation contains no execution state; do not resurrect the old registry.
+    return {"source": "ticket-references", "coverage": "numbering_only", "inserted": 0,
+            "note": "No task states or outcomes can be inferred from reference numbers. "
+                    "Use audited record snapshots and native lifecycle receipts on every host."}
 
 
 def audit_pulse(db, payload, host, runtime, event, now=None):

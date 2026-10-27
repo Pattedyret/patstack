@@ -6,7 +6,7 @@ Patstack keeps the workflow small and pushes everything else to the layer that a
 
 `skills/patstack/SKILL.md` coordinates the task. The other 18 folders under `skills/` have actual skill entrypoints and actionable workflows: planning (`to-spec`, `to-tickets`, `grilling`), building (`ponytail`, `implement`), checks (`review`, `council`, `verify`), modes (`full-send`, `full-stop`), delivery (`file-pr`, `babysit-pr`), continuity (`takeover`, `modernize`), learning (`retro`, `workflow-eval`) and capabilities (`create-test-recipes`, `reverse-engineer-anything`). See the [per-skill table](../README.md#skills).
 
-A caller can enter a module directly. During development it binds the existing task and accepted spec, applies the shared rules and returns its result to the same lead. Standalone review, research, retro and evaluation stay within the user's request without creating a ticket. Modules do not invoke the coordinator recursively, create another lead or reset permissions, elapsed time, repair attempts or ownership. Shared references are resources used by the actual skills, not substitutes for their entrypoints. They are loaded only when needed:
+A caller can enter a module directly. During development it binds the existing task and accepted spec, applies the shared rules and returns its result to the same lead. Standalone review, research, retro and evaluation stay within the user's request without creating a ticket. Modules do not invoke the coordinator recursively, create another lead or reset permissions, elapsed time, repair attempts or authority. Shared references are resources used by the actual skills, not substitutes for their entrypoints. They are loaded only when needed:
 
 | Reference | Load when |
 |---|---|
@@ -26,8 +26,8 @@ Five old phase-reference paths remain as short compatibility links for already-r
 | Concern | Authority | Patstack's role |
 |---|---|---|
 | Product spec, slices, dependencies, PRs, required checks | GitHub (Issue body, sub-issues, blocking links, branch protection) | Writes and reads them; never bypasses protection or impersonates approvers |
-| Runtime ownership, leases, blockers, child runs, delivery records | Task registry ([contract](../coordination/README.md)) | Registers, claims, checkpoints, completes with evidence |
-| Delegation, PR wakeups, phases in plans and checkpoints | The agent host (T3 Code: `delegate_task`, native PR watcher) | Uses native features; a dedicated progress bar or taskbar phase display is a possible future integration, **not implemented** |
+| Shared task reference numbers | Private local `ticket-ref` allocator ([contract](../coordination/README.md)) | Reuses an existing reference or allocates a new number; enforces no work eligibility or lifecycle |
+| Delegation, PR wakeups, phases in plans and checkpoints | The agent host and its live tool contract | Uses native features; a dedicated progress bar or taskbar phase display is a possible future integration, **not implemented** |
 | Native skills, plugins, Computer Use, browser tools | The client (Claude Code, Codex) and its updates | Uses what the actual runtime exposes; never copies managed payloads |
 | Optional Chirp/Xirp app aliases | Their native app installer | May be discovered where installed; not part of the required 19 or required on Windows |
 | Project procedures and verification recipes | Private project packs | Reads `INDEX.md`, loads only matching procedures |
@@ -36,17 +36,17 @@ Five old phase-reference paths remain as short compatibility links for already-r
 
 One authority per field. A plan, case file or KPI row is evidence, never a second editable status.
 
-T3 Code is a host adapter within these modules, not a separate skill. [Tool routing](../skills/patstack/references/coordination.md#t3-code-tools) names native capability discovery, delegation, PR linking/watch/unwatch, preview browser, device testing and HTML preview/render. Each operation follows its live schema and current task authority; absent tools have an explicit supported fallback. PR creation through a CLI still requires native linking when exposed.
+T3 Code is a host adapter within these modules, not a separate skill. [Tool routing](../skills/patstack/references/coordination.md#t3-code-tools) follows its live injected contract rather than hardcoding a universal tool transport. Capability discovery, delegation, PR links and watches use only the operations actually exposed. A shared ticket reference creates no permission to execute them.
 
 ## Publication boundary
 
-The approved catalog is exactly 19 skill directories. Every regular resource in those source directories and the monitor source package is explicitly mapped by `scripts/refresh_from_source.py`; new resources cause a coverage failure until reviewed. Generated interpreter caches and the monitor installer's exact private backup tree are excluded explicitly. The manifest records source and published SHA-256 for every mapped file. Only exact, hash-anchored private paragraphs are transformed, and transformed bytes pass privacy preflight before any file is written. `--check` recomputes the transformation and compares exact path coverage, both hashes and the actual published bytes.
+The approved catalog is exactly 19 skill directories. Every regular resource in those source directories, the monitor source package and the ticket-number tool is explicitly mapped by `scripts/refresh_from_source.py`; new resources cause a coverage failure until reviewed. Generated interpreter caches and the monitor installer's exact private backup tree are excluded explicitly. The manifest records source and published SHA-256 for every mapped file. Only exact, hash-anchored private paragraphs are transformed, and transformed bytes pass privacy preflight before any file is written. `--check` recomputes the transformation and compares exact path coverage, both hashes and the actual published bytes.
 
 Project packs, accounts, private host configuration, databases, archives and transcripts remain outside the publication. Native frontend-design and Computer Use stay in their owner-managed locations. REA's seven existing files are included and scanned like every other resource; their absent license is documented separately from the MIT-licensed recipe and Ponytail adaptations.
 
 ## Delegation shape
 
-Only the lead (actual Opus 5.5 or Sol 6.1) starts children, and only one layer deep. Each child gets the task and parent, goal, project/worktree, the accessible versioned spec, owned scope, model/runtime, allowed actions, dependencies, acceptance, proof and stop conditions. Children return findings and objections. They do not start agents or new top-level chats. Every fresh review round is a new delegation that carries prior findings and responses.
+The lead keeps one child layer. Each child gets the shared ticket reference, goal, project/worktree, the accessible agreed spec when needed, its exact scope, actual model/runtime, allowed actions, dependencies, acceptance, proof and stop conditions. Model choice is a task judgment, never a registry or ticket eligibility gate. Children return findings and objections. They do not start agents or new top-level chats. Every fresh review round is a new delegation that carries prior findings and responses.
 
 ## Host routing
 

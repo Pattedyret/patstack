@@ -28,9 +28,9 @@ Proceeding under uncertainty means a defensible action that is then checked. It 
 
 ## Test-delivery authority
 
-Patrick assigning a concrete task in Full Send (explicit or default) authorizes that task's established, unambiguous test target and its repair revisions. Record the grant per head through the project's existing authorization mechanism and [coordination's delivery rules](../patstack/references/coordination.md#delivery-and-authority).
+Patrick assigning a concrete task in Full Send (explicit or default) authorizes that task's established, unambiguous test target and its repair revisions. Record the real task grant, target and applicable head in the Issue/PR/brief, preserving the project's real approval mechanism and [coordination's delivery rules](../patstack/references/coordination.md#delivery-and-authority).
 
-Authority record: `Patstack 1.1.0 Full Send (explicit|default)` naming the actual mode basis, established target and retained project gates in the required authorization reason. Quote the real assignment with its native reference; never relabel a default as an explicit stage instruction. Full Stop and ordinary research do not supply this grant. An auto-deploying merge is a deployment. Production needs explicit task-specific authority.
+Authority record: `Patstack 1.2.0 Full Send (explicit|default)` naming the actual mode basis, established target and retained project gates in the task record. This is evidence of the real grant, not an actor-role or ticket-registry approval. Quote the real assignment with its native reference; never relabel a default as an explicit stage instruction. Full Stop and ordinary research do not supply this grant. An auto-deploying merge is a deployment. Production needs explicit task-specific authority.
 
 ## Endpoint
 

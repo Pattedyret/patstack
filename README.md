@@ -2,6 +2,10 @@
 
 **One lead agent owns a development task from request to proof.** Patstack coordinates 19 individually callable skills for Claude Code and Codex. It binds the real project, picks the smallest complete route, chooses review depth by risk, and requires proof of the agreed endpoint: a verified test release (Full Send) or a ready, unmerged PR (Full Stop).
 
+![Illustrative Patstack feature route: shared reference, Plan, Build, Check, Deliver, repair and Learn](docs/assets/patstack-workflow.gif)
+
+*Illustrative workflow, not live task progress or measured results.* [Static diagram](docs/assets/patstack-workflow.svg) · [Interactive walkthrough with pause and reduced-motion support](docs/workflow.html)
+
 ## Skills
 
 Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Invoke a skill by name in your client's supported syntax or ask in plain language. Patstack coordinates them on the same task; calling a module does not create a second lead, ticket or permission grant.
@@ -12,7 +16,7 @@ Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Inv
 | [ponytail](skills/ponytail/SKILL.md) | “Use the smallest complete solution” | Reuses existing code, avoids speculative complexity and keeps required validation and proof. |
 | [to-spec](skills/to-spec/SKILL.md) | “Turn this idea into a spec” | Resolves the problem, scope, acceptance and proof before implementation. |
 | [to-tickets](skills/to-tickets/SKILL.md) | “Split this spec into delivery slices” | Creates independently verifiable slices with dependencies and one shared spec. |
-| [implement](skills/implement/SKILL.md) | “Implement the agreed spec” | Builds the smallest complete change within owned scope. |
+| [implement](skills/implement/SKILL.md) | “Implement the agreed spec” | Builds the smallest complete change within the agreed scope. |
 | [review](skills/review/SKILL.md) | “Review this candidate” | Chooses R1/R2/R3 by risk and records actionable findings. |
 | [council](skills/council/SKILL.md) | “Run a council on this decision” | Uses independent Opus and Sol judgments followed by cross-examination. |
 | [verify](skills/verify/SKILL.md) | “Prove this works” | Runs relevant checks and binds behavior and quality proof to the actual candidate or release. |
@@ -20,7 +24,7 @@ Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Inv
 | [full-stop](skills/full-stop/SKILL.md) | “Full Stop” | Keeps meaningful decisions hands-on and ends at a ready, unmerged PR. |
 | [file-pr](skills/file-pr/SKILL.md) | “File a PR” | Prepares the reviewable diff, problem-first PR and required native links. |
 | [babysit-pr](skills/babysit-pr/SKILL.md) | “Babysit this PR” | Uses native wakeups to handle checks, review and repair on the same task. |
-| [takeover](skills/takeover/SKILL.md) | “Take over this work” | Checks ownership, accepted decisions and current evidence, preserving original credit. |
+| [takeover](skills/takeover/SKILL.md) | “Take over this work” | Checks active work, accepted decisions and current evidence, preserving original credit. |
 | [modernize](skills/modernize/SKILL.md) | “Is this old PR still worth it?” | Rechecks relevance before updating old work. |
 | [retro](skills/retro/SKILL.md) | “Run the retro” | Audits outcomes and missing proof, then proposes or promotes checked technical improvements. |
 | [grilling](skills/grilling/SKILL.md) | “Grill me on this plan” | Asks one numbered batch of meaningful decision questions, each with a recommended answer. |
@@ -30,13 +34,11 @@ Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Inv
 
 The [private KPI recorder](monitoring/patstack/README.md) is a separate standard-library Python package with a lifecycle audit hook, installer and tests. Native frontend-design, Computer Use, and optional app-owned Chirp/Xirp aliases remain external dependencies; their proprietary or owner-managed payloads are not copied here.
 
-In T3 Code, the existing skills prefer the host's native tools for delegation, PR linking and wakeups, browser/device proof and inline visuals. They discover current capabilities and use the documented fallback when necessary. This adds no skill or permission; see [native tool routing](skills/patstack/references/coordination.md#t3-code-tools).
-
-![Patstack workflow: four entry routes, Full Send or Full Stop, five phases with one repair loop, review levels R1–R3 and four route sizes](docs/assets/patstack-workflow.svg)
+In T3 Code, the existing skills follow the live injected tool contract for delegation, PR linking, wakeups and other available capabilities. Each operation uses the actual runtime's supported transport. This adds no skill or permission; see [native tool routing](skills/patstack/references/coordination.md#t3-code-tools).
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** Modular **1.1.0** is installed on Mac, devbox and Windows. Fresh Claude Code and Codex initialization catalogs on all three hosts contain the **19 skills**; 49 source files match across hosts and this privacy-safe package. That proves installation and discovery, not an end-to-end development run. Windows has no native task registry, native Codex hook trust remains unproven, and unattended overnight execution is not guaranteed. See [Status and limits](docs/status-and-limits.md).
+> **Status:** This publication packages **1.2.0**: all **19 skills** plus reference-only ticket numbering, validated against all **52 approved source files**. Its installation and native discovery are **not yet claimed**. The earlier 1.1.0 installation is historical evidence. See [Status and limits](docs/status-and-limits.md).
 
 ---
 
@@ -56,6 +58,12 @@ Patstack triggers when a request designates development work. The modules above 
 | "File a PR" / "Babysit it" | **Delivery steps** inside the same task. These are not separate orchestrators. |
 | "We keep re-figuring out how to test this" | Runs **`create-test-recipes`**: writes project-local Launch / Doctor / Run / Evidence / Cleanup recipes. |
 | "What do you think about X?" | **Nothing.** Discussion, research and casual testing create no development ticket. |
+
+## One reference across agents
+
+A ticket is a shared reference in the form `TKT-` followed by at least four digits. Reuse an existing reference when continuing work; a lead and its subagents normally use the same number in briefs, Issues, PRs and handoffs. A genuinely separate task may receive a new reference.
+
+The bundled `ticket-ref` tool allocates numbers offline from a private local SQLite store. Each issuing host uses a distinct numeric slot; the slot prevents allocation collisions and says nothing about who may work on a ticket. References carry no actor, role, model, lease, claim, workflow status, pickup or completion gate. Practical task briefs, review, tests, CI, live proof and real project authority still apply. See the [numbering contract](coordination/README.md).
 
 ## Two modes
 
@@ -121,7 +129,7 @@ These are engineering examples to derive per project, not universal thresholds. 
 
 ## Continuing other work
 
-- **Takeover:** read the spec, PR, handoff, later corrections and current head. Check ownership and uncommitted work before writing. A handoff describes context, not correctness.
+- **Takeover:** read the spec, PR, handoff, later corrections and current head. Check active work and uncommitted changes before writing. A handoff describes context, not correctness.
 - **Modernize:** first ask whether the original problem still exists. A conflict-free rebase does not prove the PR is still relevant.
 - **File PR → Babysit:** write a problem-first PR. Only the PR-owning lead watches it, through the native T3 PR watcher. A wake brings new state, and the latest head and checks are re-read before any readiness call.
 
@@ -129,7 +137,7 @@ Neither route grants force-push, merge, close or deploy rights.
 
 ## Specs live in GitHub, not in your repo
 
-The canonical task spec goes in the **parent GitHub Issue body**. Delivery slices are native sub-issues, and dependencies use native blocking relationships. Nothing per task is committed to the application repository. There are no spec files, no planning folders, and no `.gitignore` churn. The lead hands each worker the Issue reference and spec version. If a worker cannot read it, the lead sends the content itself, because a path the worker cannot open is not a handoff. [Project context →](skills/patstack/references/project-context.md)
+The canonical task spec goes in the **parent GitHub Issue body**. Delivery slices are native sub-issues, and dependencies use native blocking relationships. Nothing per task is committed to the application repository. There are no spec files, no planning folders, and no `.gitignore` churn. The lead hands each worker the shared ticket reference, Issue reference and spec version. If a worker cannot read it, the lead sends the content itself, because a path the worker cannot open is not a handoff. [Project context →](skills/patstack/references/project-context.md)
 
 ## Native, project and private layers
 
@@ -140,13 +148,13 @@ The canonical task spec goes in the **parent GitHub Issue body**. Delivery slice
 | Native client capabilities (Claude/Codex system skills, plugins, Computer Use, browser tools) | The client's own managed locations | **No**. They are owned and updated by the client. Patstack uses them when the actual runtime exposes them. |
 | Project packs (intake, auth, deploy and sync procedures, verification recipes) | Private, per project | **No**. See the sanitized [example project pack](examples/project-pack/README.md). |
 | Host capability profile | `~/.config/patstack/devices.local.json`, mode 0600, per host | **No**. Only the [template](examples/devices.example.json). |
-| Task registry, KPI database, telemetry, transcripts | Local state on each host | **No**. Only the [runtime contract](coordination/README.md). |
+| Ticket-number store, historical registry, KPI database, telemetry, transcripts | Private local state on each host | **No**. The numbering tool and [contract](coordination/README.md) are included; private data is excluded. |
 
 More in [docs/architecture.md](docs/architecture.md).
 
 ## Long runs and checkpoints
 
-The lead keeps one compact record on the existing ticket: goal and spec version, completed criteria with evidence, candidate head/base/release, owners and child runs, the next concrete action, and cumulative attempts and time. It checkpoints at milestones, before compaction or handoff, and at least every 15 minutes. While waiting on CI or review, it ends only the current turn, and the native PR watcher wakes it. If no durable wake mechanism exists, it reports that gap; it does not pretend an idle chat will restart. Phases show up in native plans and checkpoints. **A T3 progress bar or taskbar phase display is a possible future UI integration and is not implemented.** [Task state →](skills/patstack/references/task-state.md)
+The lead keeps one compact record on the existing ticket: goal and spec version, completed criteria with evidence, candidate head/base/release, active scopes and agent briefs, the next concrete action, and cumulative attempts and time. It checkpoints at milestones, before compaction or handoff, and at least every 15 minutes. While waiting on CI or review, it ends only the current turn, and the native PR watcher wakes it. If no durable wake mechanism exists, it reports that gap; it does not pretend an idle chat will restart. Phases show up in native plans and checkpoints. **A T3 progress bar or taskbar phase display is a possible future UI integration and is not implemented.** [Task state →](skills/patstack/references/task-state.md)
 
 ## KPI monitoring
 
@@ -172,8 +180,9 @@ Then follow [docs/setup.md](docs/setup.md) to expose the skills to Claude Code o
 skills/patstack/                 coordinator + progressive shared references
 skills/<module>/                18 individually callable workflows/capabilities
 monitoring/patstack/             KPI recorder, audit hook, installer, tests
-coordination/README.md           task-registry runtime contract (implementation not included)
-MODEL_RANKING.md                 model-routing contract (example)
+coordination/README.md           reference-only ticket numbering contract
+tools/ticket-ref/               offline numeric allocator and tests
+MODEL_RANKING.md                 optional model preferences (example)
 examples/                        project pack, host profile and KPI snapshot templates
 docs/                            setup, architecture, status, privacy, visuals
 scripts/refresh_from_source.py   refresh published files from the private source

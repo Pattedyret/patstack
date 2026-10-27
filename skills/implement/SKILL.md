@@ -7,7 +7,7 @@ description: Build or repair the candidate for a designated development task - p
 
 Produce the smallest complete candidate and its relevant tests, then hand it to [review](../review/SKILL.md) and [verify](../verify/SKILL.md). Apply [ponytail](../ponytail/SKILL.md) at the session's level.
 
-**Context.** Under a Patstack lead, reuse its ticket, brief/spec version, mode and current candidate. Invoked directly for a concrete change with no owner, apply Patstack's entry (ownership, mode) first. Claim exact write scopes before changing files ([coordination](../patstack/references/coordination.md)); preserve others' edits.
+**Context.** Under a Patstack lead, reuse its ticket, brief/spec version, mode and current candidate. Invoked directly for a concrete change with no owner, apply Patstack's entry (ownership, mode) first. Agree file/worktree responsibilities in the brief ([coordination](../patstack/references/coordination.md)); preserve others' edits. No registry claim or eligible actor is required.
 
 ## Choose the route from the actual change
 

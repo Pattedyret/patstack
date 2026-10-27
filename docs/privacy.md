@@ -5,8 +5,8 @@ This repository is a publication of a private working setup. It contains the reu
 ## Included
 
 - All 19 actual skill folders and their reviewed resources, including REA's seven existing files. Bytes are preserved except for explicitly mapped private paragraphs in `project-context.md`, replaced by generic text through fail-closed hash anchors in [`scripts/refresh_from_source.py`](../scripts/refresh_from_source.py).
-- The KPI recorder, installer and tests. The test file uses a fictional Windows path as a fixture.
-- Authored contracts, docs, visuals and sanitized examples.
+- The ticket-number allocator and its tests, plus the KPI recorder, installer and tests. The test file uses a fictional Windows path as a fixture.
+- Authored contracts, docs, visuals and sanitized examples. The one generated workflow GIF is accepted only at its exact known path with a reviewed SHA-256, signature, byte size and dimensions; every other binary format remains rejected.
 
 ## Never included
 
@@ -15,8 +15,8 @@ This repository is a publication of a private working setup. It contains the reu
 | Real project packs, customer procedures, vault notes | Private local packs and vaults |
 | Host addresses, SSH identities, device inventories | `~/.config/patstack/devices.local.json` (mode 0600) per host |
 | Credentials, tokens, password-manager items | The owner's credential stores |
-| Task registry database, board, KPI database, telemetry | Local state on each host |
-| Transcripts, session IDs, ticket IDs | Client and registry storage |
+| Ticket-number SQLite store, retired registry data and board, KPI database, telemetry | Private local state on each host |
+| Transcripts, session IDs, real ticket IDs | Private client, task and historical registry storage |
 | Client configuration, native and managed skill payloads | The clients' own locations |
 | Rollback archives, previous skill collections | Private backups outside discovery |
 

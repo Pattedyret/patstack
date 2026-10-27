@@ -20,13 +20,24 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-from refresh_from_source import FILES, SKILLS
+from refresh_from_source import FILES, SKILLS, PACKAGE_RESOURCE_ROOTS, WORKFLOW_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT = {".md", ".py", ".json", ".svg", ".html", ".txt", ".yml", ".yaml", ""}
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache"}
 FORBIDDEN_NAMES = re.compile(r"(\.sqlite3?|\.db|\.jsonl|\.env|devices\.local\.json|\.pem|\.key)$", re.I)
 FORBIDDEN_PARTS = {"backups", "archives", "transcripts", "project-skills", ".ssh", ".config"}
+
+# One reviewed, generated preview; all other binary paths remain rejected.
+BINARY_ASSETS = {
+    "docs/assets/patstack-workflow.gif": {
+        "sha256": "6681f220103b14bd8a9b9f6b945f5506af39005814b76565da181e6b87829f18",
+        "signature": b"GIF89a",
+        "size": 143274,
+        "width": 960,
+        "height": 550,
+    },
+}
 
 PATTERNS = {
     "home path": re.compile(r"/Users/[A-Za-z]|/home/[a-z][a-z0-9_-]+/|[A-Z]:[\\/]+Users[\\/]+", re.I),
@@ -86,9 +97,9 @@ def check_manifest():
     paths = [entry["path"] for entry in manifest["files"]]
     if len(paths) != len(set(paths)) or set(paths) != set(FILES):
         fail("manifest: paths must match the exact approved source file list")
-    if manifest.get("skills") != list(SKILLS) or manifest.get("workflow_version") != "1.1.0":
-        fail("manifest: expected modular 1.1.0 and all 19 skills")
-    actual = {rel(path) for top in ("skills", "monitoring/patstack")
+    if manifest.get("skills") != list(SKILLS) or manifest.get("workflow_version") != WORKFLOW_VERSION:
+        fail(f"manifest: expected modular {WORKFLOW_VERSION} and all 19 skills")
+    actual = {rel(path) for top in PACKAGE_RESOURCE_ROOTS
               for path in (ROOT / top).rglob("*")
               if (path.is_file() or path.is_symlink())
               and not SKIP_DIRS & set(path.relative_to(ROOT).parts)}
@@ -158,6 +169,15 @@ def privacy_issues(name, data):
     """Return redacted findings for one path; shared by refresh preflight."""
     problems = []
     path = Path(name)
+    if name in BINARY_ASSETS:
+        expected = BINARY_ASSETS[name]
+        if (hashlib.sha256(data).hexdigest() != expected["sha256"]
+                or not data.startswith(expected["signature"])
+                or len(data) != expected["size"]
+                or int.from_bytes(data[6:8], "little") != expected["width"]
+                or int.from_bytes(data[8:10], "little") != expected["height"]):
+            return [f"privacy: changed or invalid reviewed binary asset {name}"]
+        return []
     if FORBIDDEN_NAMES.search(path.name) or FORBIDDEN_PARTS & set(path.parts):
         return [f"privacy: forbidden path {name}"]
     if path.suffix not in TEXT:
@@ -197,6 +217,9 @@ def check_privacy():
 
 
 def check_formats():
+    for name in BINARY_ASSETS:
+        if not (ROOT / name).is_file():
+            fail(f"asset: missing reviewed binary {name}")
     for path in files():
         if path.suffix == ".json":
             try:
@@ -289,6 +312,15 @@ def check_tests():
     return " ".join(line for line in summary if line.startswith("Ran"))
 
 
+def check_ticket_tests():
+    result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_ticket_ref"],
+                            cwd=ROOT / "tools/ticket-ref", capture_output=True, text=True,
+                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+    if result.returncode:
+        fail("ticket numbering tests: " + result.stderr.strip())
+    return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
+
+
 def check_package_tests():
     result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_package"],
                             cwd=ROOT / "scripts", capture_output=True, text=True,
@@ -303,12 +335,13 @@ def main():
                  check_provenance, check_kpi_example):
         step()
     ran = check_tests()
+    ticket_ran = check_ticket_tests()
     package_ran = check_package_tests()
     if failures:
         print("\n".join(failures))
         print(f"\nFAILED: {len(failures)} problem(s)")
         return 1
-    print(f"OK: exact manifest, links, privacy, formats, {len(SKILLS)} skills, KPI example; KPI tests: {ran}; package controls: {package_ran}")
+    print(f"OK: exact manifest, links, privacy, formats, {len(SKILLS)} skills, KPI example; KPI tests: {ran}; numbering tests: {ticket_ran}; package controls: {package_ran}")
     return 0
 
 

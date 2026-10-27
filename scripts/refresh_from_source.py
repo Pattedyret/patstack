@@ -2,7 +2,7 @@
 """Refresh the published Patstack files from the private source tree.
 
 The private source keeps the same relative layout as this package
-(skills/, monitoring/). Files are copied verbatim except for the
+(skills/, monitoring/, tools/). Files are copied verbatim except for the
 hash-anchored sanitization rules below. Every run rewrites
 SOURCE-MANIFEST.json with source and published SHA-256 values.
 
@@ -21,6 +21,9 @@ import sys
 PACKAGE = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE = "~/.harnesses-shared/agent-setup"
 
+WORKFLOW_VERSION = "1.2.0"
+PACKAGE_RESOURCE_ROOTS = ("skills", "monitoring/patstack", "tools/ticket-ref")
+
 SKILLS = (
     "patstack", "ponytail", "to-spec", "to-tickets", "implement", "review",
     "council", "verify", "full-send", "full-stop", "file-pr", "babysit-pr",
@@ -30,7 +33,7 @@ SKILLS = (
 
 # Directories mirrored from the source. Every regular file inside them must be
 # listed in FILES or EXCLUDED, so a new source file cannot be skipped silently.
-MIRRORED = tuple("skills/" + name for name in SKILLS) + ("monitoring/patstack",)
+MIRRORED = tuple("skills/" + name for name in SKILLS) + ("monitoring/patstack", "tools/ticket-ref")
 # Only generated interpreter caches may be omitted. Archives, backups and
 # unknown resources must cause a coverage error, rather than disappearing.
 EXCLUDED_PARTS = {"__pycache__", ".pytest_cache"}
@@ -73,6 +76,9 @@ FILES = (
     "monitoring/patstack/kpi_monitor.py",
     "monitoring/patstack/test_kpi_monitor.py",
     "monitoring/patstack/install.py",
+    "tools/ticket-ref/README.md",
+    "tools/ticket-ref/ticket_ref.py",
+    "tools/ticket-ref/test_ticket_ref.py",
 )
 
 GENERIC_PROJECT_PACKS = (
@@ -182,7 +188,7 @@ def parity(recorded, entries, outputs, package=None):
     previous = {entry["path"]: entry for entry in recorded}
     drift = sorted(set(expected) ^ set(previous))
     actual = {path.relative_to(package).as_posix()
-              for top in ("skills", "monitoring/patstack")
+              for top in PACKAGE_RESOURCE_ROOTS
               for path in (package / top).rglob("*")
               if (path.is_file() or path.is_symlink())
               and not EXCLUDED_PARTS & set(path.relative_to(package).parts)}
@@ -235,7 +241,7 @@ def main():
     manifest = {
         "description": "Published Patstack files and the private source revision they were refreshed from.",
         "source_label": label,
-        "workflow_version": "1.1.0",
+        "workflow_version": WORKFLOW_VERSION,
         "skills": list(SKILLS),
         "excluded_private_runtime_trees": list(PRIVATE_RUNTIME_TREES),
         "refresh_command": "python3 scripts/refresh_from_source.py --source " + label,

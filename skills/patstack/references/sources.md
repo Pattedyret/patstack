@@ -1,6 +1,6 @@
 # Design sources and module map
 
-## Modules (workflow 1.1.0)
+## Modules (workflow 1.2.0)
 
 Patstack routes; each module owns one procedure. Common references stay in `patstack/references/`: coordination, task-state, project-context, access, quality, sources.
 

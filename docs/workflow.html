@@ -119,7 +119,7 @@
 const PHASES = ["Bind", "Plan", "Build", "Check", "Deliver", "Learn"];
 const S = {
   tiny: {name: "Tiny edit", mode: "send", review: "R1", steps: [
-    {p: 0, t: "Bind the request", b: "“Make the save button use the brand colour” designates a task. The lead binds the workspace, project pack and the existing ticket. No spec file, no task graph, no interview.", e: "Ticket claimed with the exact write scope."},
+    {p: 0, t: "Bind the request", b: "“Make the save button use the brand colour” designates a task. The lead binds the workspace, project pack and the existing ticket. No spec file, no task graph, no interview.", e: "Shared reference and exact scope in the task brief."},
     {p: 2, t: "Edit directly", b: "Smallest complete change with the existing design token. Hover, focus and disabled states move with it. No new abstraction.", e: "Diff limited to the style."},
     {p: 3, t: "R1 focused check", b: "The author checks the diff and the rendered result: requested colour, contrast, focus and hover, supported widths. This is labelled author review, never independent review.", e: "“R1 — CSS-only colour change; no behavior, data or auth change.”"},
     {p: 4, t: "PR, required CI, test target", b: "A short problem-first PR, babysat until required checks pass, then the established test target and a look at the live page.", e: "Release identity verified before and after the live look."},
@@ -128,10 +128,10 @@ const S = {
   feature: {name: "New feature", mode: "send", review: "R2", steps: [
     {p: 0, t: "Bind and reuse", b: "The accepted spec lives in the parent GitHub Issue. The lead reuses it rather than restarting discovery. Full Send is the default mode.", e: "Issue reference and spec version recorded on the task."},
     {p: 1, t: "Brief and quality contract", b: "Goal, non-goals and acceptance. Missing quality targets are derived by the agent from project budgets, healthy comparable flows and primary guidance, then frozen before implementation. A new feature's baseline is the missing behavior; no invented speedup.", e: "Targets with source, method and pass condition."},
-    {p: 2, t: "Owned slices", b: "Only independently verifiable slices run in parallel. Each child gets an owned worktree, spec version, model, acceptance and stop conditions. One child layer; the lead integrates.", e: "Child run IDs and scopes on the same ticket."},
+    {p: 2, t: "Owned slices", b: "Only independently verifiable slices run in parallel. Each child gets an owned worktree, spec version, model, acceptance and stop conditions. One child layer; the lead integrates.", e: "Same reference, accessible spec and exact scope in each brief."},
     {p: 3, t: "R2 independent review", b: "A fresh opposite-model reviewer judges acceptance and implementation. Two verdicts stay separate: “Feature works? Y/N” and “Meets the quality standard? Y/N”.", e: "Reviewed head SHA with both verdicts."},
-    {p: 4, t: "PR → babysit → test target", b: "The native PR watcher wakes the lead on CI or review events. The shared test target is reserved only for the deploy-to-proof window.", e: "Reservation event with owner, expiry and expected release."},
-    {p: 4, r: true, t: "Live check fails", b: "Completion stops. The failure records its layer, criterion, exact release and evidence. The target is released before code repair. Attempts and clock carry over.", e: "Failure record: live · criterion · release · next action."},
+    {p: 4, t: "PR → babysit → test target", b: "A supported PR wakeup resumes the lead on CI or review events. Shared test targets follow the actual project deployment procedure.", e: "Authorized test target and expected release."},
+    {p: 4, r: true, t: "Live check fails", b: "Completion stops. The failure records its layer, criterion, exact release and evidence. Follow the project target procedure before code repair. Attempts and clock carry over.", e: "Failure record: live · criterion · release · next action."},
     {p: 2, r: true, t: "Smallest repair", b: "Fix on the same open PR, or a new linked PR if the first was merged. A fresh non-author reviews the incremental diff.", e: "Repair attempt 1 of at most 3 normal cycles."},
     {p: 4, t: "Retest on the verified release", b: "Live proof is bound to the release actually deployed, checked for drift across the run. The Full Send endpoint is reached.", e: "Release SHA, steps, expected vs actual."},
     {p: 5, t: "Retro with evidence", b: "Read the KPI report, then check the underlying evidence. Only causal, tested improvements are promoted, with a rollback record.", e: "Lessons on the ticket; workflow version pinned."}
@@ -152,7 +152,7 @@ const S = {
     {p: 5, t: "Proportionate retro", b: "Lessons recorded once the endpoint is actually reached.", e: "Retro note."}
   ]},
   takeover: {name: "Takeover / Modernize", mode: "send", review: "R2", steps: [
-    {p: 0, t: "Read what exists", b: "Spec or Issue, PR or branch, the handoff, later user corrections, current head and review findings. Check ownership and uncommitted work before writing anything.", e: "Prior owner confirmed stopped or handed off."},
+    {p: 0, t: "Read what exists", b: "Spec or Issue, PR or branch, the handoff, later user corrections, current head and review findings. Check active work and uncommitted changes before writing anything.", e: "Current handoff and active scopes checked."},
     {p: 3, t: "Verify, don't trust", b: "A handoff describes context, not correctness. For an old PR, first check that the problem still exists: a conflict-free rebase is not proof of relevance.", e: "Independent re-check of claimed behavior."},
     {p: 2, t: "Rejoin at the earliest valid phase", b: "Settled decisions and original credit are kept. Completed valid work is not redone because the lead changed.", e: "Co-author credit and link to the original work."},
     {p: 4, t: "Same PR lifecycle", b: "Babysit to the endpoint of the task's mode. No automatic force-push, merge, close or deploy.", e: "Endpoint evidence by mode."},

@@ -94,6 +94,21 @@ class PublicationControls(unittest.TestCase):
         (self.package / "skills/sample/extra.md").write_text("Unexpected")
         self.assertIn("skills/sample/extra.md", refresh.parity(entries, entries, outputs))
 
+    def test_extra_numbering_resource_fails_source_and_package_coverage(self):
+        relative = "tools/ticket-ref/README.md"
+        for root in (self.source, self.package):
+            target = root / relative
+            target.parent.mkdir(parents=True)
+            target.write_text("Numbering contract")
+        listed = (self.relative, relative)
+        with patch.multiple(refresh, FILES=listed,
+                            MIRRORED=("skills/sample", "tools/ticket-ref")):
+            entries, outputs = refresh.build(self.source)
+            (self.source / "tools/ticket-ref/extra.py").write_text("unexpected")
+            self.assertEqual(refresh.unmapped(self.source), ["tools/ticket-ref/extra.py"])
+            (self.package / "tools/ticket-ref/extra.py").write_text("unexpected")
+            self.assertIn("tools/ticket-ref/extra.py", refresh.parity(entries, entries, outputs))
+
     def test_privacy_patterns_with_redacted_diagnostics(self):
         values = ["/Users/" + "fixture/private", "C:" + "\\Users\\fixture",
                   "fixture@" + "example.net", "100." + "110.120.130",
@@ -107,6 +122,17 @@ class PublicationControls(unittest.TestCase):
                 issues = check.privacy_issues("fixture.md", value.encode())
                 self.assertTrue(issues)
                 self.assertNotIn(value, "\n".join(issues))
+
+    def test_only_exact_reviewed_animation_bytes_are_publishable(self):
+        name = "docs/assets/patstack-workflow.gif"
+        data = (check.ROOT / name).read_bytes()
+        self.assertEqual(check.privacy_issues(name, data), [])
+        self.assertTrue(check.privacy_issues(name, data + b"changed"))
+        self.assertTrue(check.privacy_issues("docs/assets/unreviewed.gif", data))
+        changed = b"BADHDR" + data[6:]
+        expected = dict(check.BINARY_ASSETS[name], sha256=refresh.sha(changed))
+        with patch.object(check, "BINARY_ASSETS", {name: expected}):
+            self.assertTrue(check.privacy_issues(name, changed))
 
     def test_private_names_and_local_denylist(self):
         with patch.object(check, "PRIVATE_WORD_HASHES", {refresh.sha(b"privatefixture")}):
@@ -140,7 +166,7 @@ class PublicationControls(unittest.TestCase):
 
     def test_package_extra_file_and_missing_skill_fail(self):
         entries, _ = refresh.build(self.source)
-        manifest = {"files": entries, "skills": ["sample"], "workflow_version": "1.1.0"}
+        manifest = {"files": entries, "skills": ["sample"], "workflow_version": refresh.WORKFLOW_VERSION}
         (self.package / "SOURCE-MANIFEST.json").write_text(json.dumps(manifest))
         (self.package / "skills/sample/extra.md").write_text("Unexpected resource")
         with patch.multiple(check, ROOT=self.package, FILES=(self.relative,),

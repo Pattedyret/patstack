@@ -45,8 +45,7 @@
         "os": "windows",
         "arch": "x86_64",
         "tools": ["computer-use"],
-        "transport": "ssh-config-alias:windows",
-        "registry_adapter": false
+        "transport": "ssh-config-alias:windows"
       },
       "observed": {
         "checked_at": null,

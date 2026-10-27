@@ -145,6 +145,17 @@ class MetricsTests(unittest.TestCase):
         result = k.summarize([sample(followup_checked_at="2026-11-10T10:00:00+00:00")], NOW)
         self.assertEqual(result["first_contact_resolution_rate"]["observed"], 0)
 
+    def test_reference_only_collection_never_invokes_the_old_registry(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory, patch('subprocess.run') as process:
+            db = Path(directory) / 'not-created.sqlite3'
+            for host in ('mac', 'devbox', 'windows'):
+                result = k.collect(db, host)
+                self.assertEqual(result['coverage'], 'numbering_only')
+                self.assertEqual(result['inserted'], 0)
+            process.assert_not_called()
+            self.assertFalse(db.exists())
+
     def test_registry_discovery_does_not_invent_outcomes(self):
         task = {"id": "t-123", "revision": 2, "state": "done", "work_type": "backend",
                 "created_at": 1790000000, "updated_at": 1790000400,

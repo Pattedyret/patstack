@@ -23,8 +23,9 @@ POINTER = """<!-- patstack-kpi:start -->
 Record private workflow metadata at meaningful milestones and outcomes using
 `~/.harnesses-shared/agent-setup/monitoring/patstack/README.md`.
 This covers development, research and testing without creating extra tickets.
-Before Retro, refresh supported discovery and read the host report; distinguish
-hook receipts, registry discovery, audited outcomes and missing measurements.
+Before Retro, read the relevant host reports; distinguish hook receipts, historical
+registry observations, audited outcomes and missing measurements. Ticket numbers
+carry no execution state; never restart retired registry services for monitoring.
 Keep prompts, transcripts, credentials and device inventories out of telemetry.
 <!-- patstack-kpi:end -->
 """

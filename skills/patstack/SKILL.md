@@ -5,13 +5,13 @@ description: Use when Patrick designates a development task, invokes Full Send o
 
 # Patstack
 
-Workflow version: **1.1.0**. BIG TASK is the lead agent, not a separate role or skill. One lead owns the requested outcome through verified handoff, using the smallest complete path. Patstack chooses mode, route and modules; each module owns its procedure. Modules return results to the lead and never invoke Patstack again.
+Workflow version: **1.2.0**. BIG TASK is the lead agent, not a separate role or skill. One lead owns the requested outcome through verified handoff, using the smallest complete path. Patstack chooses mode, route and modules; each module owns its procedure. Modules return results to the lead and never invoke Patstack again.
 
 A concrete request to change code, configuration or an agreed deliverable designates a task; the literal word TASK is not required. Discussion, research and casual testing stay outside development intake until such a request.
 
 ## Enter or resume
 
-Bind the actual workspace, project procedures and existing task. For a designated task, load [coordination](references/coordination.md) to create/resume ownership; session registration alone creates no development ticket. Preserve its accepted spec and scope. Patrick's latest explicit steering supersedes earlier constraints within retained authority gates. For project procedures, spec distribution or host choices, read [project context](references/project-context.md). Record minimal private [workflow KPI metadata](../../monitoring/patstack/README.md) at start and meaningful boundaries, without creating extra tickets. On long work or resume, read [task state](references/task-state.md); reconcile actual PR/build/release state before continuing. Work owned by someone else or stale work enters through [takeover](../takeover/SKILL.md) or [modernize](../modernize/SKILL.md).
+Bind the actual workspace, project procedures and existing task. For a designated task, load [coordination](references/coordination.md) to reuse or allocate its reference number and share its brief. Session starts create no development ticket; numbering imposes no eligibility, ownership or execution gate. Preserve its accepted spec and scope. Patrick's latest explicit steering supersedes earlier constraints within retained authority gates. For project procedures, spec distribution or host choices, read [project context](references/project-context.md). Record minimal private [workflow KPI metadata](../../monitoring/patstack/README.md) at start and meaningful boundaries, without creating extra tickets. On long work or resume, read [task state](references/task-state.md); reconcile actual PR/build/release state before continuing. Work owned by someone else or stale work enters through [takeover](../takeover/SKILL.md) or [modernize](../modernize/SKILL.md).
 
 ## Choose the mode
 
@@ -46,7 +46,7 @@ When running in T3 Code, use its available native tools for the operation; read 
 
 ## Common references
 
-Load only when the step needs them: [coordination](references/coordination.md) (registry, delegation, delivery authority), [task state](references/task-state.md) (long runs/resume), [project context](references/project-context.md) (project packs, hosts), [access](references/access.md) (BW Locker/login), [quality](references/quality.md) (targets and evidence), [sources](references/sources.md) (provenance and module map).
+Load only when the step needs them: [coordination](references/coordination.md) (reference numbers, native delegation, delivery authority), [task state](references/task-state.md) (long runs/resume), [project context](references/project-context.md) (project packs, hosts), [access](references/access.md) (BW Locker/login), [quality](references/quality.md) (targets and evidence), [sources](references/sources.md) (provenance and module map).
 
 ## Invariants the lead keeps
 
