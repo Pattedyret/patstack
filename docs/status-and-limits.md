@@ -50,7 +50,7 @@ Independent Opus review produced conditional findings, which the rollout lead re
 | Mutation and privacy negative controls | **EXECUTED** by `scripts/check.py`: omitted/extra resources, changed source/output, stale manifests, privacy anchors/values and broken links fail as expected. |
 | Workflow SVG renders as intended | **OBSERVED** in a headless browser, light and dark themes, at 1200 px |
 | Walkthrough HTML: autoplay advances, Pause stops, reduced motion starts paused, no horizontal overflow at 390 px in dark mode | **OBSERVED** in a headless browser |
-| Animated README preview | **EXECUTED:** 9 distinct feature-route frames, 960 × 550 px, 36-second loop, 143,274 bytes; local headless-browser screenshots differ after 4.5 seconds, proving playback advances. **OBSERVED:** representative exported frames are readable with no clipped content. Illustrative workflow only; GitHub playback awaits publication. |
+| Animated README preview | **EXECUTED:** 9 distinct feature-route frames, 960 × 550 px, 36-second loop, 143,274 bytes; local headless-browser screenshots differ after 4.5 seconds, proving playback advances. **OBSERVED:** representative exported frames are readable with no clipped content. Illustrative workflow only; playback inside GitHub itself is not browser-verified. |
 | Mermaid diagram in the README renders on GitHub | **Not verified locally.** No Mermaid renderer was available offline. |
 | Host installation, retirement and native client tests | Separate source-owner evidence; private rollout helpers and runtime state are not part of this package |
 
