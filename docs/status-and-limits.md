@@ -1,6 +1,6 @@
 # Status and limits
 
-What is true for this publication, as of 2026-10-26. Labels: **EXECUTED** means code or assertions ran and passed; **OBSERVED** means the real behavior was seen; **REPORTED** means stated by the source owner and not reproducible from this package; **NOT DONE** means it has not happened.
+What is true for this publication, as of 2026-10-27. Labels: **EXECUTED** means code or assertions ran and passed; **OBSERVED** means the real behavior was seen; **REPORTED** means stated by the source owner and not reproducible from this package; **NOT DONE** means it has not happened.
 
 ## Activation
 
@@ -13,6 +13,7 @@ Three layers are kept apart. **Installed** means files and links are in place an
 | Modular 1.1.0 | Fresh Claude Code and Codex initialization catalogs on Mac, devbox and Windows each contain all 19 | **REPORTED** actual native discovery; no model turn or application task was sent. Codex entries are enabled, without discovery errors. |
 | Modular 1.1.0 | All 49 source files match across the three hosts; all migration targets match their installed journals | **REPORTED** exact byte-hash and journal checks. Only the three documented private paragraphs are sanitized for publication. |
 | Modular 1.1.0 | Mac and devbox setup checks, catalog/context/KPI/PR-to-Retro tests | **REPORTED**: 21 globals including two optional aliases, 25 roles; 19/11/25/21 focused tests pass on each. |
+| Native T3 tools | Existing Patstack, File PR, Babysit PR and Verify instructions route to available native tools | **REPORTED** instruction-only update on all three hosts (five files, plus Windows mirrors). Opposite-model review matched live tool contracts; this is not proof of every tool or an end-to-end delivery. |
 | Modular migration | Reversible additive installation and rollback, preservation of native/project/client state, concurrent edits and name collisions | **REPORTED**: six local tests pass with host subcases; five selected tests pass on native Windows, including its dangling-link case. |
 | Private host profile | Windows ACL restricted to owner, SYSTEM and Administrators; POSIX hosts use mode 0600 | **REPORTED** baseline host evidence; actual profiles are excluded. |
 | Runtime | Devbox isolated headless Chromium DOM smoke test passes | **REPORTED.** Proves browser infrastructure readiness only, not any feature or auth behavior. |

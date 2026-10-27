@@ -33,6 +33,8 @@ Targets come from the spec. Missing targets are derived before acceptance from p
 
 Use existing project tests and verification recipes. For a genuinely missing or stale recipe use [create-test-recipes](../create-test-recipes/SKILL.md). For login or a test persona follow [access](../patstack/references/access.md): matching origin/environment, approved least-privilege persona, secret-safe autofill/broker path; never print, persist or screenshot credentials, tokens, cookies or signed URLs. Host choice for browser/native proof follows [project context](../patstack/references/project-context.md).
 
+Inside T3, use the [native browser/device routes](../patstack/references/coordination.md#t3-code-tools): `preview_status` → `preview_open` when needed → snapshots and focused interactions; mobile uses `device_list` → `device_open` and the returned launcher/context. Follow actual tool availability, tab ownership and documented fallback rules; a closed preview alone is not a blocker.
+
 ## 3. Measure, when performance or quality is claimed
 
 1. Freeze metric, workload, dataset, tolerance/noise rule and pass condition before implementation.

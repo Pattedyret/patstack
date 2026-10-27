@@ -30,6 +30,8 @@ Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Inv
 
 The [private KPI recorder](monitoring/patstack/README.md) is a separate standard-library Python package with a lifecycle audit hook, installer and tests. Native frontend-design, Computer Use, and optional app-owned Chirp/Xirp aliases remain external dependencies; their proprietary or owner-managed payloads are not copied here.
 
+In T3 Code, the existing skills prefer the host's native tools for delegation, PR linking and wakeups, browser/device proof and inline visuals. They discover current capabilities and use the documented fallback when necessary. This adds no skill or permission; see [native tool routing](skills/patstack/references/coordination.md#t3-code-tools).
+
 ![Patstack workflow: four entry routes, Full Send or Full Stop, five phases with one repair loop, review levels R1–R3 and four route sizes](docs/assets/patstack-workflow.svg)
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.

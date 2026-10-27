@@ -32,7 +32,7 @@ Keep it short; link raw artifacts instead of pasting them. No secrets, private d
 
 ## After filing
 
-1. Link the PR to its Issue (avoid auto-closing a parent whose acceptance needs live verification) and register it through native T3 PR linking.
+1. Link the PR to its Issue (avoid auto-closing a parent whose acceptance needs live verification) and, when exposed in T3, call `link_pull_request` immediately with the PR URL (each stack layer separately). A CLI-created PR is not automatically linked. Before handoff, inspect `list_thread_pull_requests` and link any missing PR from this work.
 2. Record the PR URL and head on the task.
 3. Continue with [babysit-pr](../babysit-pr/SKILL.md). Only the PR-owning lead watches it.
 

@@ -9,7 +9,7 @@ description: Watch an open PR through CI and review using native PR wakeups, rou
 
 ## Wait natively
 
-Start the native PR watcher and end the current turn; its event wakes the lead. Do not poll, sleep-loop or create a recurring job. If no durable wake mechanism exists, report that exact liveness gap instead of pretending an idle chat will resume.
+Inspect current checks and handle existing review comments before waiting; T3 comment wakes cover only comments posted after the watch starts. When work is pending, call the exposed `watch_pull_request` tool and end the current turn; its event wakes the lead. Do not poll, sleep-loop or create a recurring job. If no durable wake mechanism exists, report that exact liveness gap instead of pretending an idle chat will resume.
 
 ## On each wake
 
@@ -26,4 +26,4 @@ Start the native PR watcher and end the current turn; its event wakes the lead. 
 
 Ready only when, on the current head: required CI passes, the selected review level covers the incremental diff, required acceptance/quality evidence is current, and no blocking finding is unresolved. Then follow the mode: [Full Send](../full-send/SKILL.md) continues to merge/test delivery within its grant; [Full Stop](../full-stop/SKILL.md) hands off the ready unmerged PR.
 
-Stop the watch at handoff or completion so the thread returns to Patrick. Model verdicts are not human GitHub approvals.
+Call the exposed `unwatch_pull_request` at handoff or completion so the thread returns to Patrick. Model verdicts are not human GitHub approvals.

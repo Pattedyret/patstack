@@ -36,6 +36,8 @@ Five old phase-reference paths remain as short compatibility links for already-r
 
 One authority per field. A plan, case file or KPI row is evidence, never a second editable status.
 
+T3 Code is a host adapter within these modules, not a separate skill. [Tool routing](../skills/patstack/references/coordination.md#t3-code-tools) names native capability discovery, delegation, PR linking/watch/unwatch, preview browser, device testing and HTML preview/render. Each operation follows its live schema and current task authority; absent tools have an explicit supported fallback. PR creation through a CLI still requires native linking when exposed.
+
 ## Publication boundary
 
 The approved catalog is exactly 19 skill directories. Every regular resource in those source directories and the monitor source package is explicitly mapped by `scripts/refresh_from_source.py`; new resources cause a coverage failure until reviewed. Generated interpreter caches and the monitor installer's exact private backup tree are excluded explicitly. The manifest records source and published SHA-256 for every mapped file. Only exact, hash-anchored private paragraphs are transformed, and transformed bytes pass privacy preflight before any file is written. `--check` recomputes the transformation and compares exact path coverage, both hashes and the actual published bytes.

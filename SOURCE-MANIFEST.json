@@ -1,6 +1,6 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "<custom --source>",
+  "source_label": "~/.harnesses-shared/agent-setup",
   "workflow_version": "1.1.0",
   "skills": [
     "patstack",
@@ -26,7 +26,7 @@
   "excluded_private_runtime_trees": [
     "monitoring/patstack/backups"
   ],
-  "refresh_command": "python3 scripts/refresh_from_source.py --source <custom --source>",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup",
   "files": [
     {
       "path": "skills/ponytail/SKILL.md",
@@ -66,8 +66,8 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "source_sha256": "ca84bc54c3908f579c6cd26c1a05d2d43da939ae2804cbe4d0d971c273a91a20",
-      "published_sha256": "ca84bc54c3908f579c6cd26c1a05d2d43da939ae2804cbe4d0d971c273a91a20",
+      "source_sha256": "7b95256559067bbcba259ca2cd2382d278b8532da842bebab50527d7e051c48f",
+      "published_sha256": "7b95256559067bbcba259ca2cd2382d278b8532da842bebab50527d7e051c48f",
       "sanitized": false
     },
     {
@@ -84,14 +84,14 @@
     },
     {
       "path": "skills/file-pr/SKILL.md",
-      "source_sha256": "0c6c7aeeed56fd6f2a915ae511fba079761b3338a2caa281f8c92b4906b7fd41",
-      "published_sha256": "0c6c7aeeed56fd6f2a915ae511fba079761b3338a2caa281f8c92b4906b7fd41",
+      "source_sha256": "66a886dfb30a0bd6cff1b94f1ea1396e45b3a1c1637f67ffcd6960716ec8af34",
+      "published_sha256": "66a886dfb30a0bd6cff1b94f1ea1396e45b3a1c1637f67ffcd6960716ec8af34",
       "sanitized": false
     },
     {
       "path": "skills/babysit-pr/SKILL.md",
-      "source_sha256": "92a89644854a90958717cb75d68864b9857992a94f784dc9b3dde3da74ac4a25",
-      "published_sha256": "92a89644854a90958717cb75d68864b9857992a94f784dc9b3dde3da74ac4a25",
+      "source_sha256": "e08e14f1f328b0731718daab8f6bab933ed02efda8cf9f953911bd0f46a17b34",
+      "published_sha256": "e08e14f1f328b0731718daab8f6bab933ed02efda8cf9f953911bd0f46a17b34",
       "sanitized": false
     },
     {
@@ -132,8 +132,8 @@
     },
     {
       "path": "skills/patstack/SKILL.md",
-      "source_sha256": "2f7fc713558e86a7d59e978cd82c8ffaa65e77df3ae75d81028a38045c3841e5",
-      "published_sha256": "2f7fc713558e86a7d59e978cd82c8ffaa65e77df3ae75d81028a38045c3841e5",
+      "source_sha256": "992d5435a2a78070d7ae1641addd94c564bc488a609a83ca5db316a5752f71de",
+      "published_sha256": "992d5435a2a78070d7ae1641addd94c564bc488a609a83ca5db316a5752f71de",
       "sanitized": false
     },
     {
@@ -150,8 +150,8 @@
     },
     {
       "path": "skills/patstack/references/coordination.md",
-      "source_sha256": "689a2f55c46bcaafd810d1a2fffc7c2cef9972614b77a895707b1e4b0beae8bb",
-      "published_sha256": "689a2f55c46bcaafd810d1a2fffc7c2cef9972614b77a895707b1e4b0beae8bb",
+      "source_sha256": "21c4408d99e01297836f149a55cb258bc722d6f0e98aa3df8a796cd702b19171",
+      "published_sha256": "21c4408d99e01297836f149a55cb258bc722d6f0e98aa3df8a796cd702b19171",
       "sanitized": false
     },
     {

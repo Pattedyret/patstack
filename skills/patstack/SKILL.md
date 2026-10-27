@@ -42,6 +42,8 @@ Research, check prior tasks and test assumptions where useful, then make and rec
 
 Load a module when its step starts; do not preload every module. Take the earliest valid row when shapes overlap, and re-route if risk, scope or evidence changes.
 
+When running in T3 Code, use its available native tools for the operation; read the [T3 tool routing](references/coordination.md#t3-code-tools) when choosing transport. This is the existing workflow using its host, not another skill or permission grant.
+
 ## Common references
 
 Load only when the step needs them: [coordination](references/coordination.md) (registry, delegation, delivery authority), [task state](references/task-state.md) (long runs/resume), [project context](references/project-context.md) (project packs, hosts), [access](references/access.md) (BW Locker/login), [quality](references/quality.md) (targets and evidence), [sources](references/sources.md) (provenance and module map).
