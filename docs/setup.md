@@ -39,7 +39,7 @@ Chirp/Xirp aliases are optional app-owned dependencies, outside this catalog. Th
 
 If a client resolves relative links from the symlink location rather than the real path, cross-references can miss. In that case open the referenced file from the repository root. `scripts/check.py` validates the links inside the repository only.
 
-The 19 modules cooperate under Patstack. Keep retired, overlapping workflow collections out of discovery so an older router does not compete with them. Verify source files, links, fresh native discovery and actual task behavior separately: linking files alone does not establish activation.
+The 19 modules cooperate under Patstack. Keep retired, overlapping workflow collections out of discovery so an older router does not compete with them. Verify source files, links, fresh native discovery and actual task behavior separately: linking files alone does not establish activation. Windows mirrors can require external Markdown-link adaptation; verify the exact intended adaptation separately from canonical source parity. The source owner has completed the 1.2.0 rollout and fresh initialization-catalog checks on Mac, devbox and Windows; see the reported [host evidence](status-and-limits.md#reported-host-rollout-evidence). Existing GUI sessions may still need a reload.
 
 ## 3. Add your global instructions
 
@@ -93,4 +93,4 @@ python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup 
 python3 scripts/check.py
 ```
 
-The default is the installed source tree. During preparation, pass the exact approved candidate tree explicitly. Packaging a candidate establishes neither installation nor native activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.
+The default is the installed source tree. This publication was checked against the installed Mac source after the three-host rollout; all 52 source files match the manifest. During preparation of a later version, pass its exact approved candidate tree explicitly. Packaging a candidate establishes neither installation nor native activation. Refresh fails if any required skill/resource is absent, a new source file is unmapped, a source symlink appears, privacy preflight fails or a sanitization anchor changes. Review the changed source and update the publication mapping or exact transformation deliberately. Do not edit the private source merely to make publication pass. `--check` compares exact manifest coverage, both hashes and actual published bytes without writing.

@@ -38,7 +38,7 @@ In T3 Code, the existing skills follow the live injected tool contract for deleg
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** This publication packages **1.2.0**: all **19 skills** plus reference-only ticket numbering, validated against all **52 approved source files**. Its installation and native discovery are **not yet claimed**. The earlier 1.1.0 installation is historical evidence. See [Status and limits](docs/status-and-limits.md).
+> **Status:** **1.2.0** is installed on Mac, devbox and Windows. The rollout lead reports all **19 skills** in fresh Claude Code and Codex initialization catalogs on each host, with all **52 canonical source files** matching the reviewed manifest. Local publication checks also pass. Fresh catalogs do not prove existing GUI sessions reloaded or a full overnight development run. See [Status and limits](docs/status-and-limits.md).
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "<custom --source>",
+  "source_label": "~/.harnesses-shared/agent-setup",
   "workflow_version": "1.2.0",
   "skills": [
     "patstack",
@@ -26,7 +26,7 @@
   "excluded_private_runtime_trees": [
     "monitoring/patstack/backups"
   ],
-  "refresh_command": "python3 scripts/refresh_from_source.py --source <custom --source>",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup",
   "files": [
     {
       "path": "skills/ponytail/SKILL.md",
