@@ -336,8 +336,8 @@
     },
     {
       "path": "tools/ticket-ref/test_ticket_ref.py",
-      "source_sha256": "2e9ee18169663b7be34a774f9439f768a7a77792eb05e20fb228beb18811ec30",
-      "published_sha256": "2e9ee18169663b7be34a774f9439f768a7a77792eb05e20fb228beb18811ec30",
+      "source_sha256": "72101054e3c7b4fbbae7a179eb52d7ae4819f3e813ab7cf0b3d8dd09bc0f572d",
+      "published_sha256": "72101054e3c7b4fbbae7a179eb52d7ae4819f3e813ab7cf0b3d8dd09bc0f572d",
       "sanitized": false
     }
   ]

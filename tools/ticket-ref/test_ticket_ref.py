@@ -1,4 +1,5 @@
 import concurrent.futures
+from contextlib import closing
 import importlib.util
 import os
 from pathlib import Path
@@ -57,7 +58,7 @@ class ReferencesOnly(unittest.TestCase):
             result = subprocess.run([sys.executable, str(SCRIPT), 'new'], env=env,
                                     check=True, text=True, capture_output=True)
             self.assertEqual(result.stdout.strip(), 'TKT-' + '9902')
-            with sqlite3.connect(path) as connection:
+            with closing(sqlite3.connect(path)) as connection:
                 self.assertEqual(connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall(), [('counter',)])
                 self.assertEqual([row[1] for row in connection.execute('PRAGMA table_info(counter)')], ['id', 'slot', 'sequence'])
 
