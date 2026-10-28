@@ -116,7 +116,14 @@ The setup check reports out-of-date mirrors as `WARN` and missing ones as `FAIL`
 
 ### Approve the hooks in Codex
 
-Codex runs a new or changed hook only after you approve it: start `codex`, run `/hooks` and approve the Patstack hooks. Nothing in Patstack edits trust hashes. Approve again after any reinstall that changes a hook.
+Codex runs a new or changed hook only after you approve it. Either:
+
+```bash
+python3 scripts/codex_hook_trust.py --dry-run   # list the Patstack hooks and their trust status
+python3 scripts/codex_hook_trust.py             # show each full command, ask, then approve
+```
+
+or start `codex`, run `/hooks` and approve them by hand. The script does exactly what `/hooks` does: it asks Codex's own app-server for the hook inventory and its hashes, and writes the approval through Codex's own config API. It only ever approves hooks in your `~/.codex/hooks.json` whose command is exactly the installer's form, run by one of this machine's Python installations against this setup's own scripts; it never invents a hash and never touches plugin or project hooks. Approve again after any reinstall that changes a hook.
 
 ### Check the setup
 

@@ -359,6 +359,18 @@
       "sanitized": false
     },
     {
+      "path": "scripts/codex_hook_trust.py",
+      "source_sha256": "2afbae3e5cf490e0b3599e7c9479bcf566f187e2d77d06fabf52c93301830ffb",
+      "published_sha256": "2afbae3e5cf490e0b3599e7c9479bcf566f187e2d77d06fabf52c93301830ffb",
+      "sanitized": false
+    },
+    {
+      "path": "scripts/test_codex_hook_trust.py",
+      "source_sha256": "2832cb0393a09a1949abcf9b66461555a174f7b383a5d27b91a238de178a8524",
+      "published_sha256": "2832cb0393a09a1949abcf9b66461555a174f7b383a5d27b91a238de178a8524",
+      "sanitized": false
+    },
+    {
       "path": "tools/ticket-ref/README.md",
       "source_sha256": "87b25d9ae48cb975bf55d1702e432d305e9230c7a846a9b966a99c597d1bc6cc",
       "published_sha256": "87b25d9ae48cb975bf55d1702e432d305e9230c7a846a9b966a99c597d1bc6cc",
