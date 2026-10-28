@@ -123,6 +123,18 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(len(trust), 3)  # status, KPI and tool-count hooks
         self.assertTrue(all("not trusted" in x for x in trust), trust)
 
+    def test_trust_without_tomllib_matches_tomllib(self):
+        for trusted in (True, False):
+            self.write_codex(trusted=trusted)
+            rows = lambda: [(r["status"], r["detail"]) for r in d.run(self.root, self.home, "devbox", self.db).rows
+                            if r["check"] == "codex trust"]
+            with mock.patch.object(d, "tomllib", None):
+                fallback = rows()
+            self.assertEqual(len(fallback), 3, fallback)
+            self.assertEqual({s for s, _ in fallback}, {"INFO" if trusted else "WARN"})
+            if d.tomllib is not None:
+                self.assertEqual(fallback, rows())
+
     def test_unfired_hook_warns(self):
         self.receipt("claude")
         _, rows = self.statuses()

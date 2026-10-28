@@ -132,8 +132,8 @@
     },
     {
       "path": "skills/patstack/SKILL.md",
-      "source_sha256": "a7fcc54e83dc9889ff32cc092f03ba704ab4eb50e215ac30a0f6a07f6687cd34",
-      "published_sha256": "a7fcc54e83dc9889ff32cc092f03ba704ab4eb50e215ac30a0f6a07f6687cd34",
+      "source_sha256": "c4e97fa8bc623ada580155f19c36874916a4cfbeccd587820f03f5a30948a38b",
+      "published_sha256": "c4e97fa8bc623ada580155f19c36874916a4cfbeccd587820f03f5a30948a38b",
       "sanitized": false
     },
     {
@@ -324,26 +324,26 @@
     },
     {
       "path": "monitoring/patstack/task_kpi.py",
-      "source_sha256": "917ced279bf59c9fef7bbf1e0015bf612442269b723ac95cbec34eb73b287d0b",
-      "published_sha256": "917ced279bf59c9fef7bbf1e0015bf612442269b723ac95cbec34eb73b287d0b",
+      "source_sha256": "df73529dea6f354ca4bea9cb36f4655d5e588b87479dfad176e1528f2090f26f",
+      "published_sha256": "df73529dea6f354ca4bea9cb36f4655d5e588b87479dfad176e1528f2090f26f",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/test_task_kpi.py",
-      "source_sha256": "9e94dbc561bae61e3490eee4a76c774807ce98a347bda14c2e09e68b6205fb00",
-      "published_sha256": "9e94dbc561bae61e3490eee4a76c774807ce98a347bda14c2e09e68b6205fb00",
+      "source_sha256": "a8c7b48f6eee560e87a5d1bae93756d23644cc1a7c3dd2f965b92e13f3a881f2",
+      "published_sha256": "a8c7b48f6eee560e87a5d1bae93756d23644cc1a7c3dd2f965b92e13f3a881f2",
       "sanitized": false
     },
     {
       "path": "scripts/setup_doctor.py",
-      "source_sha256": "62b9630af7ea7ad8601a761bdb7b6a2f514792e0ee2329e76d334374cc18b36d",
-      "published_sha256": "62b9630af7ea7ad8601a761bdb7b6a2f514792e0ee2329e76d334374cc18b36d",
+      "source_sha256": "de872f22f3026419b43b48301123b99e59f69cb661efbedeec4d2980c3af185f",
+      "published_sha256": "de872f22f3026419b43b48301123b99e59f69cb661efbedeec4d2980c3af185f",
       "sanitized": false
     },
     {
       "path": "scripts/test_setup_doctor.py",
-      "source_sha256": "a0e65d08f9eea7c9879a356a3da5ba9c4c48bfa3607a75f9d13f9c6c97150ab8",
-      "published_sha256": "a0e65d08f9eea7c9879a356a3da5ba9c4c48bfa3607a75f9d13f9c6c97150ab8",
+      "source_sha256": "e4b4f4ddf06a6d59dc8392c2a14c74e4ff12dbb6bac1259ec63d371a2ab23d6c",
+      "published_sha256": "e4b4f4ddf06a6d59dc8392c2a14c74e4ff12dbb6bac1259ec63d371a2ab23d6c",
       "sanitized": false
     },
     {

@@ -96,6 +96,22 @@ class TaskKpiTests(unittest.TestCase):
         nodes = {n["id"]: n["status"] for n in self.run_cli("show", "--id", "TKT-1")["nodes"]}
         self.assertEqual(nodes, {"unit": "pass", "ui": "pass", "ci": "pass"})
 
+    def test_finish_without_start_records_the_outcome(self):
+        task = ["--workflow", "bugfix", "--topic", "orders", "--mode", "full_send", "--host", "devbox"]
+        done = self.run_cli("finish", "--id", "TKT-7", "--status", "completed", "--verified", "yes", *task,
+                            "--started-at", "2026-10-28T10:00:00+00:00", "--node", "health=pass")
+        self.assertEqual((done["revision"], done["verified_success"]), (2, True))
+        shown = self.run_cli("show", "--id", "TKT-7")
+        self.assertEqual((shown["status"], shown["started_at"], shown["nodes"]),
+                         ("completed", "2026-10-28T10:00:00+00:00", [{"id": "health", "status": "pass"}]))
+        # no invented start time
+        self.assertIn("--started-at", self.run_cli("finish", "--id", "TKT-8", "--status", "completed", "--verified", "yes", *task, ok=False)["error"])
+        # invalid outcome or future start: nothing at all is written
+        self.run_cli("finish", "--id", "TKT-9", "--status", "failed", "--verified", "yes", *task, "--started-at", "2026-10-28T10:00:00+00:00", ok=False)
+        self.run_cli("finish", "--id", "TKT-10", "--status", "completed", "--verified", "yes", *task, "--started-at", "2999-01-01T00:00:00+00:00", ok=False)
+        self.assertEqual(self.run_cli("show", "--id", "TKT-9"), {"missing": "TKT-9"})
+        self.assertEqual(self.run_cli("show", "--id", "TKT-10"), {"missing": "TKT-10"})
+
     def test_cli_never_echoes_free_text(self):
         for args in (["show", "--id", "private prose here"], ["finish", "--id", "TKT-1", "--status", "secret-word", "--verified", "yes"]):
             out = subprocess.run([sys.executable, str(SCRIPT), "--db", str(self.db), *args], capture_output=True, text=True)
