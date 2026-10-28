@@ -274,11 +274,11 @@ def check_codex(home, host, report):
         return False
     active = any(label == "KPI" for label, *_ in positions)
     config = home / ".codex/config.toml"
-    if tomllib is None or not config.is_file():
-        report.add("WARN", "codex trust", "config.toml or tomllib unavailable; trust not checked")
+    if not config.is_file():
+        report.add("WARN", "codex trust", "config.toml unavailable; trust not checked")
         return active
     try:
-        state = tomllib.loads(config.read_text(encoding="utf-8")).get("hooks", {}).get("state", {})
+        state = trust_state(config.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         report.add("WARN", "codex trust", f"config.toml unreadable: {exc.__class__.__name__}")
         return active
@@ -290,6 +290,21 @@ def check_codex(home, host, report):
         else:
             report.add("WARN", "codex trust", f"{label} hook not trusted; open Codex and approve it in /hooks")
     return active
+
+
+def trust_state(text):
+    """Codex's hooks.state tables; without tomllib (Python < 3.11, e.g. macOS's python3) only the form Codex writes."""
+    if tomllib is not None:
+        return tomllib.loads(text).get("hooks", {}).get("state", {})
+    state, table = {}, None
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("["):
+            m = re.fullmatch(r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]', line)
+            table = state.setdefault(json.loads(m.group(1)), {}) if m else None
+        elif table is not None and re.match(r'trusted_hash\s*=\s*"[^"]+"', line):
+            table["trusted_hash"] = True
+    return state
 
 
 def check_kpi(root, host, runtimes, db, report, timeout):

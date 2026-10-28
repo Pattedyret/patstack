@@ -50,8 +50,14 @@ def start(args):
 
 def finish(args):
     previous = latest_snapshot(args.db, args.id)
-    if not previous:
-        raise ValueError("No start snapshot for this task; run start first")
+    opening = None
+    if not previous:  # finish without start: a real start time is required, never invented
+        if not (args.workflow and args.topic and args.mode and args.host and args.started_at):
+            raise ValueError("No start snapshot for this task: pass --started-at (when the request began), --workflow, --topic, --mode and --host")
+        opening = {"id": args.id, "revision": 1, "workflow": args.workflow, "topic": args.topic, "mode": args.mode,
+                   "status": "open", "started_at": args.started_at, "updated_at": args.started_at, "host": args.host,
+                   "environment": args.environment, "source": args.source}
+        previous = kpi_monitor.validate(dict(opening))
     stamp = now()
     # Keep earlier observations and an existing terminal time; only what this call states changes.
     row = {key: value for key, value in previous.items() if key not in ("revision", "updated_at")}
@@ -73,6 +79,9 @@ def finish(args):
         return {"recorded": False, "revision": previous["revision"], "status": row["status"],
                 "verified_success": row.get("verified_success")}
     row.update(revision=previous["revision"] + 1, updated_at=stamp)
+    kpi_monitor.validate(dict(row))  # both snapshots are valid before anything is written
+    if opening:
+        kpi_monitor.record(args.db, opening)
     kpi_monitor.record(args.db, row)
     return {"recorded": True, "revision": row["revision"], "status": args.status,
             "verified_success": row.get("verified_success")}
@@ -117,6 +126,13 @@ def main(argv=None):
     end.add_argument("--human-interventions", type=int)
     end.add_argument("--handoff", choices=("none", "planned", "requested", "unexpected"))
     end.add_argument("--node", action="append", help="Proof node as id=pass|fail|blocked|not_run; repeatable")
+    end.add_argument("--workflow", help="Only needed when there was no start")
+    end.add_argument("--topic", help="Only needed when there was no start")
+    end.add_argument("--mode", choices=("full_send", "full_stop", "other"), help="Only needed when there was no start")
+    end.add_argument("--host", choices=kpi_monitor.HOSTS, help="Only needed when there was no start")
+    end.add_argument("--environment", default="local", choices=kpi_monitor.ENVIRONMENTS)
+    end.add_argument("--source", default="patstack")
+    end.add_argument("--started-at", help="ISO time the request began; required when there was no start")
     single = commands.add_parser("once", help="Record an unticketed request (discussion, research, testing) when it concludes")
     single.add_argument("--id", required=True, help="Opaque request slug, e.g. req-20261028-kpi-question")
     single.add_argument("--workflow", required=True, help="discussion, research, testing, ...")

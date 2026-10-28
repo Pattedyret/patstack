@@ -1,6 +1,6 @@
 ---
 name: patstack
-description: Use when Patrick designates a development task, invokes Full Send or Full Stop, or continues an existing implementation, PR or delivery task. Coordinates the lead, mode and which Patstack modules run; not needed for unticketed discussion, research or a standalone module request.
+description: Use for any request to change code, configuration, data or another development deliverable (fix, add, deploy, migrate, release, sync), when Full Send or Full Stop is invoked, or to continue an existing implementation, PR or delivery task. Not for questions, discussion, research or non-development writing such as emails. Coordinates the lead, mode and which Patstack modules run; not needed for unticketed discussion, research or a standalone module request.
 ---
 
 # Patstack
