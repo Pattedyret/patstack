@@ -25,7 +25,8 @@ WORKFLOW_VERSION = "1.2.0"
 PACKAGE_RESOURCE_ROOTS = ("skills", "monitoring/patstack", "tools/ticket-ref")
 # Single published source files outside those roots (the setup check lives beside the package tooling).
 PACKAGE_RESOURCE_FILES = ("scripts/setup_doctor.py", "scripts/test_setup_doctor.py",
-                          "scripts/skill_mirrors.py", "scripts/test_skill_mirrors.py")
+                          "scripts/skill_mirrors.py", "scripts/test_skill_mirrors.py",
+                          "scripts/codex_hook_trust.py", "scripts/test_codex_hook_trust.py")
 
 SKILLS = (
     "patstack", "ponytail", "to-spec", "to-tickets", "implement", "review",
@@ -85,6 +86,8 @@ FILES = (
     "scripts/test_setup_doctor.py",
     "scripts/skill_mirrors.py",
     "scripts/test_skill_mirrors.py",
+    "scripts/codex_hook_trust.py",
+    "scripts/test_codex_hook_trust.py",
     "tools/ticket-ref/README.md",
     "tools/ticket-ref/ticket_ref.py",
     "tools/ticket-ref/test_ticket_ref.py",
