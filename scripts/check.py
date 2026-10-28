@@ -20,7 +20,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-from refresh_from_source import FILES, SKILLS, PACKAGE_RESOURCE_ROOTS, WORKFLOW_VERSION
+from refresh_from_source import FILES, SKILLS, PACKAGE_RESOURCE_ROOTS, PACKAGE_RESOURCE_FILES, WORKFLOW_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT = {".md", ".py", ".json", ".svg", ".html", ".txt", ".yml", ".yaml", ""}
@@ -103,6 +103,7 @@ def check_manifest():
               for path in (ROOT / top).rglob("*")
               if (path.is_file() or path.is_symlink())
               and not SKIP_DIRS & set(path.relative_to(ROOT).parts)}
+    actual |= {name for name in PACKAGE_RESOURCE_FILES if (ROOT / name).exists()}
     if actual != set(FILES):
         fail("manifest: package coverage differs: " + ", ".join(sorted(actual ^ set(FILES))))
     for entry in manifest["files"]:

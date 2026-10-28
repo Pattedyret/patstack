@@ -1,6 +1,11 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
+
+FWD = lambda path: str(path).replace("\\", "/")  # the installer writes forward-slash commands on Windows
 from pathlib import Path
 
 import kpi_monitor as k
@@ -204,6 +209,178 @@ class MetricsTests(unittest.TestCase):
             self.assertTrue(after["unrelated_setting"])
             self.assertTrue(one["changed"])
             self.assertEqual(installer.install(Path(__file__).parent, home, "windows")["changed"], [])
+
+    def test_installer_reads_utf8_instructions_on_any_platform(self):
+        # Windows defaults to cp1252, where the UTF-8 bytes of "”" (0x9d) are undefined.
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            agents = home / ".harnesses-shared/agent-setup/AGENTS.md"
+            agents.parent.mkdir(parents=True)
+            agents.write_text("Patstack ”kilde” – æøå\n", encoding="utf-8")
+            (home / ".claude").mkdir()
+            (home / ".claude/settings.json").write_text(json.dumps({"note": "”"}), encoding="utf-8")
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            self.assertIn("”kilde”", agents.read_text(encoding="utf-8"))
+            self.assertEqual(json.loads((home / ".claude/settings.json").read_text(encoding="utf-8"))["note"], "”")
+
+    def test_installer_adds_one_session_status_hook_when_doctor_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            settings = home / ".claude/settings.json"
+            settings.parent.mkdir()
+            banner = {"hooks": [{"type": "command", "command": "banner.sh"}]}
+            settings.write_text(json.dumps({"hooks": {"SessionStart": [banner]}}))
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            self.assertEqual(json.loads(settings.read_text())["hooks"]["SessionStart"], [banner])  # no doctor shipped yet
+            mention = {"hooks": [{"type": "command", "command": "echo setup_doctor.py --hook claude"}]}
+            settings.write_text(json.dumps({"hooks": {"SessionStart": [banner, mention]}}))
+            doctor = home / ".harnesses-shared/agent-setup/scripts/setup_doctor.py"
+            doctor.parent.mkdir(parents=True)
+            doctor.write_text("")
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            starts = json.loads(settings.read_text())["hooks"]["SessionStart"]
+            self.assertEqual(starts[:2], [banner, mention])
+            self.assertEqual(len(starts), 3)  # a mere mention does not suppress the real hook; reruns add none
+            command = starts[2]["hooks"][0]["command"]
+            self.assertTrue(command.endswith(f"{FWD(doctor)} --host devbox --hook claude"), command)
+
+    def hook_run(self, db, runtime, event, body):
+        out = subprocess.run([sys.executable, str(Path(__file__).with_name("kpi_monitor.py")), "--db", str(db), "audit-hook",
+                              "--host", "devbox", "--runtime", runtime, "--event", event], input=body, capture_output=True)
+        self.assertEqual((out.returncode, out.stdout.strip()), (0, b"{}"), out.stderr)
+
+    def test_tool_events_and_oversized_envelopes_count_without_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "k.sqlite3"
+            small = json.dumps({"session_id": "s1", "tool_name": "Bash", "tool_response": {"stdout": "secret-output"}}).encode()
+            big = json.dumps({"session_id": "s1", "tool_response": {"stdout": "x" * 2_000_000}}).encode()
+            self.hook_run(db, "claude", "PostToolUse", small)
+            self.hook_run(db, "claude", "PostToolUse", big)  # 2 MB: drained, session id kept
+            self.hook_run(db, "claude", "PostToolUseFailure", small)
+            self.hook_run(db, "claude", "Stop", small)
+            self.hook_run(db, "codex", "PostToolUse", json.dumps({"thread_id": "t1"}).encode())
+            self.assertNotIn(b"secret-output", db.read_bytes())
+            kpis = {(r["runtime"]): r for r in k.session_kpis(db)}
+            self.assertEqual((kpis["claude"]["sessions"], kpis["claude"]["turns"]), (1, 1))
+            self.assertEqual((kpis["claude"]["tool_calls"], kpis["claude"]["tool_failures"]), (3, 1))
+            self.assertEqual((kpis["codex"]["tool_calls"], kpis["codex"]["tool_failures"]), (1, None))
+
+    def test_large_envelope_uses_only_the_top_level_session_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "k.sqlite3"
+            body = json.dumps({"tool_input": {"session_id": "nested"}, "session_id": "top",
+                               "tool_response": {"stdout": "y" * 2_000_000}}).encode()
+            self.hook_run(db, "claude", "PostToolUse", body)
+            import sqlite3
+            from contextlib import closing
+            with closing(sqlite3.connect(db)) as con:  # closed, so Windows can remove the temp dir
+                keys = [r[0] for r in con.execute("SELECT session FROM audit_receipts")]
+            top = __import__("hashlib").sha256(b"devbox:claude:top").hexdigest()[:32]
+            self.assertEqual(keys, [top])
+
+    def test_installer_replaces_a_narrow_tool_counter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / ".claude").mkdir()
+            narrow = {"matcher": "Bash", "hooks": [{"type": "command", "command": "keep-me-narrow"}]}
+            (home / ".claude/settings.json").write_text(json.dumps({"hooks": {"PostToolUse": [narrow]}}))
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            groups = json.loads((home / ".claude/settings.json").read_text())["hooks"]["PostToolUse"]
+            self.assertEqual(groups[0], narrow)  # an unrelated narrow hook is preserved
+            self.assertEqual(groups[1]["matcher"], "*")  # plus a counter that sees every tool
+
+    def test_installer_removes_a_narrow_kpi_counter_instead_of_double_counting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / ".claude").mkdir()
+            kpi = FWD(home / ".harnesses-shared/agent-setup/monitoring/patstack/kpi_monitor.py")
+            (home / ".harnesses-shared/agent-setup/monitoring/patstack").mkdir(parents=True)
+            (home / ".harnesses-shared/agent-setup/monitoring/patstack/kpi_monitor.py").write_text("")
+            narrow_counter = {"type": "command", "command": f"{FWD(sys.executable)} -B {kpi} audit-hook --host devbox --runtime claude --event PostToolUse"}
+            other = {"type": "command", "command": "keep-me"}
+            (home / ".claude/settings.json").write_text(json.dumps({"hooks": {"PostToolUse": [
+                {"matcher": "Bash", "hooks": [narrow_counter, other]}, {"matcher": "Edit", "hooks": [dict(narrow_counter)]}]}}))
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            groups = json.loads((home / ".claude/settings.json").read_text())["hooks"]["PostToolUse"]
+            self.assertEqual(groups[0], {"matcher": "Bash", "hooks": [other]})  # counter removed, other hook kept
+            self.assertEqual(len(groups), 2)  # the counter-only Edit group is gone; one full counter added
+            self.assertEqual(groups[1]["matcher"], "*")
+
+    def test_installer_keeps_a_same_named_counter_owned_by_someone_else(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / ".claude").mkdir()
+            foreign = home / "unrelated-owner/kpi_monitor.py"
+            foreign.parent.mkdir(); foreign.write_text("")
+            theirs = {"matcher": "Bash", "hooks": [{"type": "command", "command":
+                      f"{FWD(sys.executable)} {FWD(foreign)} audit-hook --host devbox --runtime claude --event PostToolUse"}]}
+            (home / ".claude/settings.json").write_text(json.dumps({"hooks": {"PostToolUse": [theirs]}}))
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            groups = json.loads((home / ".claude/settings.json").read_text())["hooks"]["PostToolUse"]
+            self.assertEqual(groups[0], theirs)
+
+    def test_session_minutes_span_first_to_last_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "k.sqlite3"
+            k.audit_pulse(db, {"session_id": "a"}, "mac", "claude", "Stop", "2026-10-01T10:00:00+00:00")
+            k.audit_pulse(db, {"session_id": "a"}, "mac", "claude", "PostToolUse", "2026-10-01T10:30:00+00:00")
+            k.audit_pulse(db, {"session_id": "b"}, "mac", "claude", "Stop", "2026-10-01T11:00:00+00:00")
+            (row,) = k.session_kpis(db)
+            self.assertEqual(row["session_minutes"], {"median": 15.0, "mean": 15.0})  # 30 and 0 minutes
+            self.assertEqual((row["sessions"], row["tool_sessions"], row["tool_calls"], row["tool_failures"]), (2, 1, 1, 0))
+
+    def test_installer_adds_tool_counters_once_per_client(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            for rel in (".claude/settings.json", ".codex/hooks.json"):
+                (home / rel).parent.mkdir(parents=True, exist_ok=True)
+                (home / rel).write_text("{}")
+            installer.install(Path(__file__).parent, home, "devbox")
+            installer.install(Path(__file__).parent, home, "devbox")
+            claude = json.loads((home / ".claude/settings.json").read_text())["hooks"]
+            codex = json.loads((home / ".codex/hooks.json").read_text())["hooks"]
+            self.assertEqual([len(claude["PostToolUse"]), len(claude["PostToolUseFailure"]), len(codex["PostToolUse"])], [1, 1, 1])
+            self.assertNotIn("PostToolUseFailure", codex)
+            self.assertEqual((claude["PostToolUse"][0]["matcher"], codex["PostToolUse"][0]["matcher"]), ("*", ".*"))
+            command = claude["PostToolUseFailure"][0]["hooks"][0]["command"]
+            self.assertTrue(command.endswith("audit-hook --host devbox --runtime claude --event PostToolUseFailure"), command)
+
+    def test_installer_recognises_only_its_own_command_form(self):
+        with tempfile.TemporaryDirectory() as directory:
+            doctor_path, kpi_path = Path(directory) / "setup_doctor.py", Path(directory) / "kpi_monitor.py"
+            doctor_path.write_text(""); kpi_path.write_text("")
+            py, doctor, kpi = FWD(sys.executable), FWD(doctor_path), FWD(kpi_path)
+            self.assertTrue(installer.is_status_hook(f"{py} {doctor} --host devbox --hook claude", "devbox", "claude"))
+            self.assertTrue(installer.is_status_hook(f"{py} -B {doctor} --host devbox --hook claude", "devbox", "claude"))
+            self.assertTrue(installer.is_kpi_hook(f"{py} {kpi} audit-hook --host devbox --runtime claude --event Stop", "devbox", "claude"))
+            for command in (f"echo {doctor} --host devbox --hook claude", f"{py} {doctor} --host devbox --hook codex",
+                            f"{py} -c {doctor} --host devbox --hook claude", f"{py} -X utf8=2 {doctor} --host devbox --hook claude",
+                            f"/usr/bin/env python3 {doctor} --host devbox --hook claude", f"{py} {doctor} --host devbox --hook claude --bogus",
+                            f"{py} {doctor.replace('setup_doctor.py', 'not_setup_doctor.py')} --host devbox --hook claude",
+                            f"{py} {doctor} --host mac --hook claude"):
+                self.assertFalse(installer.is_status_hook(command, "devbox", "claude"), command)
+            fake_path = Path(directory) / "python3"
+            fake_path.write_text(""); fake_path.chmod(0o600)
+            fake = FWD(fake_path) if os.name != "nt" else "C:/missing/python3"
+            for command in (f"{py} {kpi} audit-hook --host devbox --runtime claude --event Stop --bogus",
+                            f"echo {kpi} audit-hook --host devbox --runtime claude --event Stop",
+                            f"{py} {kpi} audit-hook --host devbox --runtime claude --event\nStop",
+                            f"{fake} {kpi} audit-hook --host devbox --runtime claude --event Stop"):
+                self.assertFalse(installer.is_kpi_hook(command, "devbox", "claude"), command)
+
+    def test_installer_keeps_existing_recognised_status_hook(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            doctor = home / ".harnesses-shared/agent-setup/scripts/setup_doctor.py"
+            doctor.parent.mkdir(parents=True)
+            doctor.write_text("")
+            settings = home / ".claude/settings.json"
+            settings.parent.mkdir()
+            existing = {"hooks": [{"type": "command", "command": f"{FWD(sys.executable)} -B {FWD(doctor)} --host devbox --hook claude"}]}
+            settings.write_text(json.dumps({"hooks": {"SessionStart": [existing]}}))
+            installer.install(Path(__file__).parent, home, "devbox", skip_codex_hook=True)
+            self.assertEqual(json.loads(settings.read_text())["hooks"]["SessionStart"], [existing])
 
     def test_patstack_installer_only_updates_new_retro_and_preserves_old_overlay(self):
         for version in ["1.0.0", "1.1.0"]:

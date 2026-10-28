@@ -56,9 +56,9 @@ Independent Opus review produced conditional findings, which the rollout lead re
 
 ## Monitoring reality
 
-- **Hooks:** lifecycle hooks record audit receipts (hashed session identity, host, runtime, event counts), not outcomes, prompts or transcripts. Native loading and trust require actual client evidence; shell/config checks are separate.
+- **Hooks:** lifecycle and tool hooks record audit receipts (hashed session identity, host, runtime, event counts: turns, tool calls and, for Claude, tool failures), not outcomes, prompts, tool data or transcripts. A SessionStart hook shows a one-line setup status in every session. Native loading and trust require actual client evidence. Shell and config checks are separate.
 - **Historical discovery:** old `agent-work` discovery remains historical/retired. It is not required for numbering, task entry or Retro.
-- **Outcomes:** verified success, interventions, response/tool errors and other semantic KPIs stay **unmeasured** until an executing agent or auditor records explicit labelled snapshots supported by evidence.
+- **Outcomes:** verified success, interventions and other semantic KPIs stay **unmeasured** until the lead records them with `task_kpi.py` (`start` at intake, `finish` at the endpoint, `once` for unticketed requests), backed by evidence. The setup check warns about completed tasks without a recorded outcome.
 - **Private state:** Unix stores use owner-only access; Windows stores inherit the user profile ACLs and need that boundary verified at installation. Real host profiles and state are excluded from publication.
 
 ## Authority
@@ -69,5 +69,6 @@ Independent Opus review produced conditional findings, which the rollout lead re
 
 ## Known gaps
 
-- `monitoring/patstack/install.py` targets the source setup's directory layout. Plain checkouts should wire the hook manually ([setup](setup.md#6-kpi-recorder-and-audit-hook-optional)).
+- `monitoring/patstack/install.py` targets the source setup's directory layout. Plain checkouts wire the hooks in the exact form shown in [setup step 6](setup.md#6-session-status-kpi-hooks-and-outcomes).
+- Codex older than about 0.160 skips async hooks, so that host records no Codex KPIs until Codex is updated. One-shot `claude -p` runs record no Stop receipt. Codex tool failures are unmeasured. See [known limits](setup.md#known-limits-observed-2026-10-28).
 - The skills address their owner by name in a few rules (for example retained human gates). Replace the name when adopting them.
