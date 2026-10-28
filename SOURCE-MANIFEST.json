@@ -1,6 +1,6 @@
 {
   "description": "Published Patstack files and the private source revision they were refreshed from.",
-  "source_label": "~/.harnesses-shared/agent-setup",
+  "source_label": "<custom --source>",
   "workflow_version": "1.2.0",
   "skills": [
     "patstack",
@@ -26,7 +26,7 @@
   "excluded_private_runtime_trees": [
     "monitoring/patstack/backups"
   ],
-  "refresh_command": "python3 scripts/refresh_from_source.py --source ~/.harnesses-shared/agent-setup",
+  "refresh_command": "python3 scripts/refresh_from_source.py --source <custom --source>",
   "files": [
     {
       "path": "skills/ponytail/SKILL.md",
@@ -132,8 +132,8 @@
     },
     {
       "path": "skills/patstack/SKILL.md",
-      "source_sha256": "d5117e1aac17632dec010502b56e19a16fffdc09ce396c571b739dd03ea701ec",
-      "published_sha256": "d5117e1aac17632dec010502b56e19a16fffdc09ce396c571b739dd03ea701ec",
+      "source_sha256": "a7fcc54e83dc9889ff32cc092f03ba704ab4eb50e215ac30a0f6a07f6687cd34",
+      "published_sha256": "a7fcc54e83dc9889ff32cc092f03ba704ab4eb50e215ac30a0f6a07f6687cd34",
       "sanitized": false
     },
     {
@@ -300,26 +300,62 @@
     },
     {
       "path": "monitoring/patstack/README.md",
-      "source_sha256": "42162a7f4c008e8120a87036b6cfb0dbe219bf520bbe6389947a1ee88374b4aa",
-      "published_sha256": "42162a7f4c008e8120a87036b6cfb0dbe219bf520bbe6389947a1ee88374b4aa",
+      "source_sha256": "3499a71c07f6de33f31d0b8d46b845a52d4522f0ada1e33fa0f969b27da52483",
+      "published_sha256": "3499a71c07f6de33f31d0b8d46b845a52d4522f0ada1e33fa0f969b27da52483",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/kpi_monitor.py",
-      "source_sha256": "e98620c738665355db1a901316c198d825c914ff2d34fa2aa94a1e4445407dad",
-      "published_sha256": "e98620c738665355db1a901316c198d825c914ff2d34fa2aa94a1e4445407dad",
+      "source_sha256": "e57a1c829cffa4aec0691ea004e46fc1b377ca410eabd0421bf72ab28bd56114",
+      "published_sha256": "e57a1c829cffa4aec0691ea004e46fc1b377ca410eabd0421bf72ab28bd56114",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/test_kpi_monitor.py",
-      "source_sha256": "f6f15016da29c192776170ed3a57eb5d8d2acdb4ba961c18deab7214174d04f2",
-      "published_sha256": "f6f15016da29c192776170ed3a57eb5d8d2acdb4ba961c18deab7214174d04f2",
+      "source_sha256": "03c920b10e9a0eed304bef808758e1aabe5ae2af545379685fd39ba018436e51",
+      "published_sha256": "03c920b10e9a0eed304bef808758e1aabe5ae2af545379685fd39ba018436e51",
       "sanitized": false
     },
     {
       "path": "monitoring/patstack/install.py",
-      "source_sha256": "4b38ffe495f0b899353abc3cbc84019715411f362fed808f93b5cf3a13eefe47",
-      "published_sha256": "4b38ffe495f0b899353abc3cbc84019715411f362fed808f93b5cf3a13eefe47",
+      "source_sha256": "0c20aa61c6f6d43508cef84c9a74292c4d9a13ed6ea6a089ac029c4f620758b9",
+      "published_sha256": "0c20aa61c6f6d43508cef84c9a74292c4d9a13ed6ea6a089ac029c4f620758b9",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/task_kpi.py",
+      "source_sha256": "917ced279bf59c9fef7bbf1e0015bf612442269b723ac95cbec34eb73b287d0b",
+      "published_sha256": "917ced279bf59c9fef7bbf1e0015bf612442269b723ac95cbec34eb73b287d0b",
+      "sanitized": false
+    },
+    {
+      "path": "monitoring/patstack/test_task_kpi.py",
+      "source_sha256": "9e94dbc561bae61e3490eee4a76c774807ce98a347bda14c2e09e68b6205fb00",
+      "published_sha256": "9e94dbc561bae61e3490eee4a76c774807ce98a347bda14c2e09e68b6205fb00",
+      "sanitized": false
+    },
+    {
+      "path": "scripts/setup_doctor.py",
+      "source_sha256": "62b9630af7ea7ad8601a761bdb7b6a2f514792e0ee2329e76d334374cc18b36d",
+      "published_sha256": "62b9630af7ea7ad8601a761bdb7b6a2f514792e0ee2329e76d334374cc18b36d",
+      "sanitized": false
+    },
+    {
+      "path": "scripts/test_setup_doctor.py",
+      "source_sha256": "a0e65d08f9eea7c9879a356a3da5ba9c4c48bfa3607a75f9d13f9c6c97150ab8",
+      "published_sha256": "a0e65d08f9eea7c9879a356a3da5ba9c4c48bfa3607a75f9d13f9c6c97150ab8",
+      "sanitized": false
+    },
+    {
+      "path": "scripts/skill_mirrors.py",
+      "source_sha256": "6962e4d1421a82540715b12ba367f0cc140c7651f7c9516e6760bbce382b92fc",
+      "published_sha256": "6962e4d1421a82540715b12ba367f0cc140c7651f7c9516e6760bbce382b92fc",
+      "sanitized": false
+    },
+    {
+      "path": "scripts/test_skill_mirrors.py",
+      "source_sha256": "5d3d907138574f970c53032ba2acc8c964547ef2cc7446737f429de97a61055a",
+      "published_sha256": "5d3d907138574f970c53032ba2acc8c964547ef2cc7446737f429de97a61055a",
       "sanitized": false
     },
     {

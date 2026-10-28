@@ -302,6 +302,41 @@ def audit_pulse(db, payload, host, runtime, event, now=None):
     return {"recorded": True, "note": "Lifecycle receipt, not task completion or audited correctness"}
 
 
+TOOL_EVENTS = ("PostToolUse", "PostToolUseFailure")
+HOOK_ENVELOPE_LIMIT = 64 * 1024 * 1024  # tool payloads can carry whole files; only the top-level id is kept
+
+
+def session_kpis(db):
+    """Per host/runtime session metrics from lifecycle receipts only: counts and times, never content."""
+    db = Path(db).expanduser()
+    if not db.exists():
+        return []
+    with closing(sqlite3.connect(db.resolve().as_uri() + "?mode=ro", uri=True)) as con:
+        if not con.execute("SELECT 1 FROM sqlite_master WHERE name='audit_receipts'").fetchone():
+            return []
+        rows = con.execute("SELECT host, runtime, session, event, first_seen, last_seen, receipts FROM audit_receipts").fetchall()
+    sessions = {}
+    for host, runtime, session, event, first, last, receipts in rows:
+        item = sessions.setdefault((host, runtime, session), {"first": first, "last": last, "events": Counter()})
+        item["first"], item["last"] = min(item["first"], first, key=stamp), max(item["last"], last, key=stamp)
+        item["events"][event] += receipts
+    result = []
+    for host, runtime in sorted({(h, r) for h, r, _ in sessions}):
+        group = [v for (h, r, _), v in sessions.items() if (h, r) == (host, runtime)]
+        minutes = [(stamp(v["last"]) - stamp(v["first"])).total_seconds() / 60 for v in group]
+        tool_sessions = [v for v in group if any(v["events"][e] for e in TOOL_EVENTS)]
+        calls = sum(v["events"]["PostToolUse"] + v["events"]["PostToolUseFailure"] for v in group)
+        failures = sum(v["events"]["PostToolUseFailure"] for v in group) if runtime == "claude" else None
+        result.append({"host": host, "runtime": runtime, "sessions": len(group),
+                       "turns": sum(v["events"]["Stop"] for v in group),
+                       "session_minutes": {"median": round(statistics.median(minutes), 1), "mean": round(statistics.fmean(minutes), 1)},
+                       "tool_sessions": len(tool_sessions), "tool_calls": calls if tool_sessions else None,
+                       "tool_failures": failures if tool_sessions else None,
+                       "note": "Times span first to last receipt, so single-turn sessions read 0. Tool counts start when the tool hooks are installed; "
+                               + ("failures come from PostToolUseFailure." if runtime == "claude" else "Codex has no failure event, so failures are unmeasured.")})
+    return result
+
+
 def audit_coverage(db):
     db = Path(db).expanduser()
     if not db.exists():
@@ -323,7 +358,7 @@ def main():
     audit = commands.add_parser("audit-hook", help="Private nonblocking lifecycle audit receipt; reads hook JSON on stdin")
     audit.add_argument("--host", choices=HOSTS, required=True)
     audit.add_argument("--runtime", choices=("codex", "claude"), required=True)
-    audit.add_argument("--event", choices=("Stop", "SessionEnd"), required=True)
+    audit.add_argument("--event", choices=("Stop", "SessionEnd") + TOOL_EVENTS, required=True)
     read = commands.add_parser("report", help="Print a read-only Retro JSON report")
     read.add_argument("--as-of", default=datetime.now(timezone.utc).isoformat())
     read.add_argument("--max-duration", type=float, help="Explicit duration-only upper cutoff in seconds")
@@ -348,9 +383,12 @@ def main():
                 raise ValueError("Snapshot too large")
             result = {"inserted": record(args.db, json.loads(body))}
         elif args.command == "audit-hook":
-            body = sys.stdin.read(1_000_001)
-            if len(body) > 1_000_000:
-                raise ValueError("Hook envelope too large")
+            body = sys.stdin.buffer.read(HOOK_ENVELOPE_LIMIT + 1)
+            if len(body) > HOOK_ENVELOPE_LIMIT:
+                while sys.stdin.buffer.read(1 << 20):  # drain so the client never blocks; this receipt stays unmeasured
+                    pass
+                print("{}")
+                return 0
             audit_pulse(args.db, json.loads(body), args.host, args.runtime, args.event)
             print("{}")
             return 0
@@ -361,6 +399,7 @@ def main():
                 raise ValueError("Duration limit must be finite and positive")
             result = report(latest(args.db, args.as_of), args.as_of, args.max_duration)
             result["audit_hook_coverage"] = audit_coverage(args.db)
+            result["session_kpis"] = session_kpis(args.db)
             result["audit_hook_coverage_scope"] = "Current all-time receipts; not historical as-of reconstruction or outcome audit"
         print(json.dumps(result, indent=2, allow_nan=False))
         return 0

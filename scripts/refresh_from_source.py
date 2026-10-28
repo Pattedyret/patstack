@@ -23,6 +23,9 @@ DEFAULT_SOURCE = "~/.harnesses-shared/agent-setup"
 
 WORKFLOW_VERSION = "1.2.0"
 PACKAGE_RESOURCE_ROOTS = ("skills", "monitoring/patstack", "tools/ticket-ref")
+# Single published source files outside those roots (the setup check lives beside the package tooling).
+PACKAGE_RESOURCE_FILES = ("scripts/setup_doctor.py", "scripts/test_setup_doctor.py",
+                          "scripts/skill_mirrors.py", "scripts/test_skill_mirrors.py")
 
 SKILLS = (
     "patstack", "ponytail", "to-spec", "to-tickets", "implement", "review",
@@ -76,6 +79,12 @@ FILES = (
     "monitoring/patstack/kpi_monitor.py",
     "monitoring/patstack/test_kpi_monitor.py",
     "monitoring/patstack/install.py",
+    "monitoring/patstack/task_kpi.py",
+    "monitoring/patstack/test_task_kpi.py",
+    "scripts/setup_doctor.py",
+    "scripts/test_setup_doctor.py",
+    "scripts/skill_mirrors.py",
+    "scripts/test_skill_mirrors.py",
     "tools/ticket-ref/README.md",
     "tools/ticket-ref/ticket_ref.py",
     "tools/ticket-ref/test_ticket_ref.py",
@@ -192,6 +201,7 @@ def parity(recorded, entries, outputs, package=None):
               for path in (package / top).rglob("*")
               if (path.is_file() or path.is_symlink())
               and not EXCLUDED_PARTS & set(path.relative_to(package).parts)}
+    actual |= {name for name in PACKAGE_RESOURCE_FILES if (package / name).exists()}
     drift.extend(actual ^ set(expected))
     if len(previous) != len(recorded):
         drift.append("<duplicate manifest paths>")
