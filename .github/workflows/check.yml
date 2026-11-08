@@ -1,0 +1,77 @@
+# Publication check
+#
+# What this workflow does
+# -----------------------
+# Patstack is a public copy of a private working setup. Every change to it must
+# prove that it still publishes only the reusable workflow and nothing private.
+# This workflow runs the repository's own gate, `python3 scripts/check.py`, on
+# every push to main, on every pull request and on demand.
+#
+# check.py fails the run if any of these is true:
+#   1. Manifest: a file under skills/, monitoring/patstack/ or tools/ticket-ref/
+#      differs from the SHA-256 recorded in SOURCE-MANIFEST.json, or a file was
+#      added or removed there. Those files are refreshed from the private source
+#      by scripts/refresh_from_source.py and must never be hand-edited here.
+#   2. Links: a relative Markdown link or #anchor does not resolve.
+#   3. Privacy: a file contains a home-directory path, email address, IPv4
+#      address, private key, token, SSH key, tailnet host, ticket or session
+#      identifier, or one of the private names the checker guards by hash.
+#      Forbidden file types (databases, .env, device profiles, keys) also fail.
+#   4. Formats: JSON or SVG does not parse, the workflow GIF changed from its
+#      reviewed hash and size, or docs/workflow.html loads a remote resource or
+#      loses its pause and reduced-motion support.
+#   5. Skills: there are not exactly 19 skill folders, or a SKILL.md lacks valid
+#      frontmatter and a real workflow body.
+#   6. Tests: the KPI recorder, ticket numbering, setup doctor, skill mirror,
+#      Codex hook trust and package mutation tests do not all pass.
+#
+# Safety choices
+# --------------
+# - Read-only token: the job can read the repository and nothing else.
+# - No secrets are used, so pull requests from forks run safely.
+# - Third-party actions are pinned to full commit SHAs, not movable tags.
+# - The checkout does not keep the Git credential after it finishes.
+# - check.py uses only the Python standard library and never touches the
+#   network, so nothing is installed and the result depends only on the commit.
+# - Two Python versions: 3.9 is the oldest version the hosts run, and 3.13
+#   catches deprecations early.
+
+name: Publication check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check.py (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.13"]
+    steps:
+      - name: Check out the exact commit under test
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Run the publication check
+        # Exit code 1 means at least one rule above failed; the log names each
+        # failing file and rule. Run the same command locally before pushing.
+        run: python3 scripts/check.py

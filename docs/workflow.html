@@ -66,6 +66,19 @@
   .legend h3{font-size:14px;margin:0 0 4px}.legend p{margin:0;color:var(--muted);font-size:14px}
   footer{margin-top:24px;color:var(--muted);font-size:13px}
 
+  .whole{margin-top:40px;border-top:1px solid var(--line);padding-top:28px}
+  .whole h2{font-size:22px;margin:0 0 4px}
+  .steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  .steps li{border:1px solid var(--line);border-left:3px solid var(--send);border-radius:0 10px 10px 0;padding:12px 16px;background:var(--card)}
+  .steps li.rep{border-left-color:var(--rep)}
+  .steps h3{font-size:16px;margin:0 0 6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .steps p{margin:0 0 6px;max-width:72ch}
+  .steps p:last-child{margin-bottom:0}
+  .steps .gate{color:var(--muted);font-size:14px}
+  .owner{font:600 12px/1 var(--mono);padding:4px 7px;border-radius:5px;background:var(--soft);border:1px solid var(--line);color:var(--ink);white-space:nowrap}
+  .whole .sub{font-size:16px;margin:22px 0 6px}
+  .whole code{font-family:var(--mono);font-size:13px}
+
   @media (max-width:620px){
     main{padding:20px 14px 32px}
     .rail{grid-template-columns:repeat(3,1fr)}
@@ -112,6 +125,54 @@
     <div><h3>R1 · R2 · R3</h3><p>Focused author check, one fresh opposite-model reviewer, or an independent Opus + Sol council. Chosen by behavior and blast radius.</p></div>
     <div><h3>One repair flow</h3><p>PR and live failures return to the same task with a cumulative attempt count and clock. At most three normal cycles, then deep diagnosis.</p></div>
   </div>
+  <section class="whole" aria-labelledby="wholeTitle">
+    <h2 id="wholeTitle">The whole workflow, start to finish</h2>
+    <p class="lede">The walkthrough above shows single routes. This is the complete sequence every development task follows, with the skill that owns each step and what has to be true before the next one starts.</p>
+
+    <ol class="steps">
+      <li>
+        <h3>0 · Is this development work?</h3>
+        <p>A concrete request to change code, configuration or an agreed deliverable starts a task. Questions, discussion, research and casual testing do not: they get an answer and nothing changes.</p>
+      </li>
+      <li>
+        <h3>1 · Bind <span class="owner">patstack</span></h3>
+        <p>The lead binds the real workspace, the project's own procedures and any existing task, and reuses its shared reference number (or allocates one with <code>ticket-ref</code>). It looks up the project's tier: customer-facing, friends, or personal. That tier decides how much autonomy the task gets, and a project that is not in the map is treated as customer-facing. Then it picks the <strong>mode</strong>: Full Send by default, or Full Stop for high-impact work. Work owned by someone else enters through <span class="owner">takeover</span>; stale work enters through <span class="owner">modernize</span>, which first checks that the problem still exists.</p>
+        <p class="gate">Ready when: one lead, one reference, a mode with its reason, and the actual project rules are known.</p>
+      </li>
+      <li>
+        <h3>2 · Plan <span class="owner">to-spec</span> <span class="owner">to-tickets</span> <span class="owner">grilling</span></h3>
+        <p>Tiny edits skip straight to Build: the request is its own brief. Larger work gets a spec in the parent GitHub Issue covering the problem, goal, non-goals, acceptance criteria and frozen quality targets. If parallel delivery helps, the spec is split into independently verifiable slices with blocking edges. In Full Stop the owner is asked one numbered batch of genuine decisions, each with a recommended answer.</p>
+        <p class="gate">Ready when: the brief, quality targets and proof method are enough to build. An accepted spec is reused, never rebuilt.</p>
+      </li>
+      <li>
+        <h3>3 · Build <span class="owner">implement</span> <span class="owner">ponytail</span></h3>
+        <p>The smallest complete change: reuse existing code, add no speculative abstraction, and never cut validation, security, accessibility or tests. Independent slices may run in parallel, each with one owner, its own worktree and a full brief. There is only one child layer, and the lead integrates.</p>
+        <p class="gate">Ready when: the candidate and its relevant tests exist on a known head.</p>
+      </li>
+      <li>
+        <h3>4 · Check <span class="owner">review</span> <span class="owner">council</span> <span class="owner">verify</span></h3>
+        <p>Review depth follows risk, not file names. <strong>R1</strong> is the author's focused check, for trivial edits. <strong>R2</strong> is one fresh reviewer from the other model family, the minimum for auth, credentials, untrusted input, production data or destructive actions. <strong>R3</strong> is a council: two models judge independently, then cross-examine. Verification labels every claim EXECUTED, OBSERVED or REASONED, binds it to the exact head, and gives two verdicts: “Feature works? Y/N” and “Meets the quality standard? Y/N”.</p>
+        <p class="gate">Ready when: the current head has the required review, green CI and acceptance evidence. Missing proof counts as “not verified”, never as yes.</p>
+      </li>
+      <li>
+        <h3>5 · Deliver <span class="owner">file-pr</span> <span class="owner">babysit-pr</span> <span class="owner">full-send</span> <span class="owner">full-stop</span></h3>
+        <p>A short, problem-first pull request. The native PR watcher wakes the lead on CI and review events, so nobody polls. <strong>Full Send</strong> merges once review and CI cover the head, ships to the project's established test target and checks the live result. <strong>Full Stop</strong> publishes its in-depth review on the PR and hands over a ready PR for a human to check. Production, destructive data actions and force-pushes always need their own explicit authority.</p>
+        <p class="gate">Done when: Full Send has a verified release with live proof; Full Stop has an evidenced, ready PR handed over.</p>
+      </li>
+      <li class="rep">
+        <h3>↺ Repair, at any layer</h3>
+        <p>A failing review, CI run or live check sends the same task back to Build with a record of the layer, criterion, exact release and evidence. Attempts and time accumulate across PRs and models. After three normal cycles, or earlier if progress stalls, the lead switches to deeper diagnosis instead of retrying.</p>
+      </li>
+      <li>
+        <h3>6 · Learn <span class="owner">retro</span> <span class="owner">workflow-eval</span></h3>
+        <p>A retro sized to the task: one line for a tiny edit, a root-cause analysis after an incident. It reads the private KPI report first, then the underlying evidence. Only tested technical improvements with a rollback are promoted; preference and product changes go to the owner. <span class="owner">workflow-eval</span> runs blinded comparisons of pinned workflow versions when a change needs proof.</p>
+      </li>
+    </ol>
+
+    <h3 class="sub">Always available</h3>
+    <p class="lede"><span class="owner">create-test-recipes</span> writes project-local Launch / Doctor / Run / Evidence / Cleanup recipes so testing is never rediscovered. <span class="owner">reverse-engineer-anything</span> uses REA when a claim depends on a shipped binary or package rather than source. Calling any module on its own creates no ticket and grants no permission.</p>
+  </section>
+
   <footer>Keys: ← → step, space pauses. Under reduced-motion settings the walkthrough starts paused with no animation.</footer>
 </main>
 

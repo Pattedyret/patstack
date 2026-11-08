@@ -168,7 +168,7 @@ Snapshots are allowlisted metadata only: IDs, mode, status, timestamps, counts a
 ## Quick start
 
 ```bash
-git clone <this repository> patstack && cd patstack
+git clone https://github.com/Pattedyret/patstack.git && cd patstack
 python3 scripts/check.py        # links, privacy scan, formats, KPI example, unit tests
 ```
 
@@ -191,8 +191,25 @@ scripts/test_package.py          source/parity/privacy mutation counterexamples
 SOURCE-MANIFEST.json             source and published SHA-256 per refreshed file
 ```
 
-## Credits and license
+## Credits and kudos
 
-Patstack draws on [Theo's tstack](https://github.com/t3dotgg/tstack), [Matt Pocock's skills](https://github.com/mattpocock/skills), [Poteto's pstack](https://github.com/cursor/plugins/tree/main/pstack), [Zeroshot's review loop](https://github.com/the-open-engine/zeroshot/blob/main/docs/guides/review-loop.md) and [Ponytail](https://github.com/DietrichGebert/ponytail). Recipe and Ponytail adaptations retain their MIT notices and provenance. REA's existing source has no license supplied; its inclusion does not invent a reuse grant. See [`sources.md`](skills/patstack/references/sources.md) and [NOTICE.md](NOTICE.md).
+Patstack stands on other people's work. Thank you to everyone below. Each of these projects shaped a concrete part of the workflow, and the best ideas here are theirs.
 
-**No license has been selected for this repository as a whole.** See [NOTICE.md](NOTICE.md).
+| Who | Their work | What Patstack owes them |
+|---|---|---|
+| **Theo Browne** ([@t3dotgg](https://github.com/t3dotgg)) | [tstack](https://github.com/t3dotgg/tstack) | The two stopping modes, **Full Send** and **Full Stop**, plus the Council, File PR, Babysit PR, Takeover and Modernize skills. Problem-first PRs, native PR wakeups and per-model scores per review round all come from tstack. |
+| **Matt Pocock** ([@mattpocock](https://github.com/mattpocock)) | [skills](https://github.com/mattpocock/skills) | `to-spec`, `to-tickets` and `implement-spec`: synthesizing an agreed spec, vertical slices with blocking edges, expand-contract refactors. His `retro` shaped the retro module, and the grilling interview started with him. |
+| **Lauren Tan (Poteto)** ([@poteto](https://github.com/poteto)) | [pstack](https://github.com/cursor/plugins/tree/main/pstack) | `create-verification-skill`, adapted under MIT as [`create-test-recipes`](skills/create-test-recipes/PROVENANCE.md). The eval playbook and benchmark checklist behind blinded, pinned comparisons in `workflow-eval`. |
+| **The Open Engine Company** ([@the-open-engine](https://github.com/the-open-engine)) | [Zeroshot review loop](https://github.com/the-open-engine/zeroshot/blob/main/docs/guides/review-loop.md) | Separate acceptance and code verdicts, fresh reviewer sessions, bounded repair feedback and explicit terminal failure: the graph behind `review` and `council`. |
+| **Dietrich Gebert** ([@DietrichGebert](https://github.com/DietrichGebert)) | [Ponytail](https://github.com/DietrichGebert/ponytail) | The smallest-complete-change discipline. Ponytail 5.3.2 is vendored under MIT as [`ponytail`](skills/ponytail/PROVENANCE.json), and its economy shapes Patstack itself. |
+| **morluto** ([@morluto](https://github.com/morluto)) | [REA](https://github.com/morluto/rea) | Reverse-engineer-anything: the artifact and runtime analysis skill, adapted under MIT from a pinned REA commit (see [NOTICE.md](NOTICE.md)). |
+
+Patstack is written and maintained by **Patrick** ([@Pattedyret](https://github.com/Pattedyret)). Module text is a Patstack rewrite unless a folder says it is adapted; the [module map](skills/patstack/references/sources.md) records what was kept and what was changed for every source. Names and links acknowledge design sources, not endorsement.
+
+## License
+
+**No license has been selected for this repository as a whole**, so default copyright applies to the original material. The adapted `create-test-recipes`, `ponytail` and `reverse-engineer-anything` folders keep their upstream MIT terms. See [NOTICE.md](NOTICE.md).
+
+## Security and privacy
+
+Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md). Every push and pull request runs the [publication check](.github/workflows/check.yml): a privacy scan, an exact manifest match, link and format checks, and all unit tests. See [docs/privacy.md](docs/privacy.md) for what is and is never published.
