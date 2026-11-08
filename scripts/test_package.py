@@ -23,9 +23,12 @@ class PublicationControls(unittest.TestCase):
             target = root / self.relative
             target.parent.mkdir(parents=True)
             target.write_text("Reviewed public workflow\n")
-        self.enterContext(patch.multiple(refresh, FILES=(self.relative,),
-                                        MIRRORED=("skills/sample",), SANITIZE={},
-                                        SKILLS=("sample",), PACKAGE=self.package))
+        # start()/addCleanup(stop) instead of enterContext(), which needs 3.11+.
+        patcher = patch.multiple(refresh, FILES=(self.relative,),
+                                 MIRRORED=("skills/sample",), SANITIZE={},
+                                 SKILLS=("sample",), PACKAGE=self.package)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_verbatim_and_published_parity(self):
         entries, outputs = refresh.build(self.source)
