@@ -4,6 +4,8 @@ DevStack is a reusable development workflow. Here, **the owner** means the perso
 
 **One lead agent owns a development task from request to proof.** DevStack coordinates 19 individually callable skills for Claude Code and Codex. It binds the real project, picks the smallest complete route, chooses review depth by risk, and requires proof of the agreed endpoint: a verified test release (Full Send) or an R2/R3-reviewed PR merged through the merge gate (Full Stop).
 
+**Start here:** [START-HERE.md](START-HERE.md) takes you from a fresh clone to your first task in four steps.
+
 **New on the team?** Start with the [first-day onboarding guide](docs/onboarding.md): install, daily use, KPIs and a checklist. To let an agent do the setup, paste one of the [setup prompts](docs/setup-prompts.md).
 
 ![Illustrative DevStack feature route: shared reference, Plan, Build, Check, Deliver, repair and Learn](docs/assets/devstack-workflow.gif)
