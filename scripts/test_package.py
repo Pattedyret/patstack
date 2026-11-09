@@ -269,7 +269,7 @@ class PublicationControls(unittest.TestCase):
         patcher = patch.object(check, "pack_policies", return_value=policy)
         patcher.start()
         self.addCleanup(patcher.stop)
-        private = patch.object(check, "PRIVATE_WORD_HASHES", check.PRIVATE_WORD_HASHES | {refresh.sha(words)})
+        private = patch.object(check, "PRIVATE_WORD_HASHES", check.PRIVATE_WORD_HASHES | {refresh.sha(words), refresh.sha(b"otherclientfx")})
         private.start()
         self.addCleanup(private.stop)
         self.assertEqual(check.privacy_issues("project-packs/sample/skills/x/SKILL.md", words), [])
@@ -282,7 +282,7 @@ class PublicationControls(unittest.TestCase):
         guards.start()
         self.addCleanup(guards.stop)
         for value in ("Quillon", "someone@" + "example.no", "/Users/" + "fixture/repo",
-                      "~/.fixture-setup/x", "ghp_" + "a" * 24, "l" + "up project"):
+                      "~/.fixture-setup/x", "ghp_" + "a" * 24, "otherclientfx project"):
             with self.subTest(value=value[:4]):
                 self.assertTrue(check.privacy_issues("project-packs/sample/INDEX.md", value.encode()))
         self.assertTrue(check.privacy_issues("docs/fixture.md", ("100." + "64.1.1").encode()))

@@ -36,7 +36,7 @@ A machine you retire keeps its row, so the slot is never handed out again. A rep
 `--after` must be at least the highest `TKT-` number the team has used anywhere: PR and issue titles in every repository, branch names and handoffs. The first number the machine issues is above it, so a new number can never repeat an old one. For this repository:
 
 ```bash
-gh pr list -R <owner>/devstack --state all --limit 500 --json title -q '.[].title' | grep -oE 'TKT-[0-9]+' | sort -t- -k2 -n | tail -1
+gh pr list -R OWNER/REPO --state all --limit 500 --json title -q '.[].title' | grep -oE 'TKT-[0-9]+' | sort -t- -k2 -n | tail -1
 ```
 
 Run the same query for the other repositories you work in, and take the largest result. A value that is too high only leaves a gap, which is harmless. A value that is too low can reissue a number.

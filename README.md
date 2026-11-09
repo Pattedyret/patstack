@@ -182,7 +182,7 @@ The workflow supports private project packs. A pack's `INDEX.md` declares applic
 ## Quick start
 
 ```bash
-git clone https://github.com/<owner>/devstack.git devstack && cd devstack
+git clone "https://github.com/OWNER/REPO.git" devstack && cd devstack   # this repository's GitHub path
 python3 scripts/check.py        # links, privacy scan, formats, KPI example, unit tests
 ```
 

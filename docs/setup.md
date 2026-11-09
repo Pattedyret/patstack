@@ -48,15 +48,16 @@ DevStack expects a short global instruction block that loads the coordinator for
 1. Copy the template and replace `<DEVSTACK>` with the absolute path of this checkout:
 
    ```bash
-   sed "s#<DEVSTACK>#$PWD#g" examples/global-instructions/AGENTS.md > /tmp/devstack-global.md
+   global=$(mktemp)
+   python3 -c 'import os, sys; sys.stdout.write(open(sys.argv[1]).read().replace("<DEVSTACK>", os.getcwd()))' examples/global-instructions/AGENTS.md > "$global"
    ```
 
 2. **No existing file:** install it for each client you use.
 
    ```bash
    mkdir -p ~/.claude ~/.codex
-   [ -e ~/.claude/CLAUDE.md ] || cp /tmp/devstack-global.md ~/.claude/CLAUDE.md
-   [ -e ~/.codex/AGENTS.md ]  || cp /tmp/devstack-global.md ~/.codex/AGENTS.md
+   [ -e ~/.claude/CLAUDE.md ] || [ -L ~/.claude/CLAUDE.md ] || cp "$global" ~/.claude/CLAUDE.md
+   [ -e ~/.codex/AGENTS.md ]  || [ -L ~/.codex/AGENTS.md ] || cp "$global" ~/.codex/AGENTS.md
    ```
 
    To keep one copy, place it once (for example `~/.codex/AGENTS.md`) and make the other path a symlink to it, which is how the upstream setup shares one file between both clients. On Windows, copy instead of linking.

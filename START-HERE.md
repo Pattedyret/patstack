@@ -7,11 +7,11 @@ You need Claude Code or Codex, Python 3.9 or newer, and `git`. `gh` helps for pu
 ## 1. Clone and check
 
 ```bash
-git clone https://github.com/<owner>/<repository>.git devstack && cd devstack
+git clone "https://github.com/OWNER/REPO.git" devstack && cd devstack
 python3 scripts/check.py
 ```
 
-The output should start with `OK:`. The check runs offline. If it fails, fix that first; see [setup step 1](docs/setup.md#1-validate-the-checkout).
+Replace `OWNER/REPO` with this repository's path on GitHub. The output should start with `OK:`. The check runs offline. If it fails, fix that first; see [setup step 1](docs/setup.md#1-validate-the-checkout).
 
 ## 2. Link the skills
 
@@ -30,13 +30,14 @@ For Codex, link the same folders into the skills directory your Codex version di
 
 ## 3. Add the global instructions
 
-These tell your agent to load DevStack for every change request. Fill in this checkout's path, then install the file only where none exists:
+These tell your agent to load DevStack for every change request. Fill in this checkout's path in a private temporary file, then install it only where nothing exists yet (existing files and links are left alone):
 
 ```bash
-sed "s#<DEVSTACK>#$PWD#g" examples/global-instructions/AGENTS.md > /tmp/devstack-global.md
+global=$(mktemp)
+python3 -c 'import os, sys; sys.stdout.write(open(sys.argv[1]).read().replace("<DEVSTACK>", os.getcwd()))' examples/global-instructions/AGENTS.md > "$global"
 mkdir -p ~/.claude ~/.codex
-[ -e ~/.claude/CLAUDE.md ] || cp /tmp/devstack-global.md ~/.claude/CLAUDE.md
-[ -e ~/.codex/AGENTS.md ]  || cp /tmp/devstack-global.md ~/.codex/AGENTS.md
+[ -e ~/.claude/CLAUDE.md ] || [ -L ~/.claude/CLAUDE.md ] || cp "$global" ~/.claude/CLAUDE.md
+[ -e ~/.codex/AGENTS.md ]  || [ -L ~/.codex/AGENTS.md ] || cp "$global" ~/.codex/AGENTS.md
 ```
 
 Already have one of those files? Do not overwrite it: back it up and merge by hand as described in [setup step 3](docs/setup.md#3-add-your-global-instructions).

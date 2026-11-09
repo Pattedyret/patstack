@@ -22,7 +22,7 @@ Rather let an agent do it? Paste the install prompt from [setup prompts](setup-p
 Clone into a folder you will keep: links, hooks and instructions point at this checkout. Moving it later needs the steps in 2.8; rerunning the installer alone leaves the old hooks behind.
 
 ```bash
-git clone https://github.com/<owner>/devstack.git devstack && cd devstack
+git clone "https://github.com/OWNER/REPO.git" devstack && cd devstack   # this repository's GitHub path
 python3 scripts/check.py
 ```
 
@@ -55,10 +55,11 @@ Rerun `--apply` after every `git pull`, or Windows agents keep reading the old t
 ### 2.3 Install the global instructions without overwriting yours
 
 ```bash
-sed "s#<DEVSTACK>#$PWD#g" examples/global-instructions/AGENTS.md > /tmp/devstack-global.md
+global=$(mktemp)
+python3 -c 'import os, sys; sys.stdout.write(open(sys.argv[1]).read().replace("<DEVSTACK>", os.getcwd()))' examples/global-instructions/AGENTS.md > "$global"
 mkdir -p ~/.claude ~/.codex
-[ -e ~/.claude/CLAUDE.md ] || cp /tmp/devstack-global.md ~/.claude/CLAUDE.md
-[ -e ~/.codex/AGENTS.md ]  || cp /tmp/devstack-global.md ~/.codex/AGENTS.md
+[ -e ~/.claude/CLAUDE.md ] || [ -L ~/.claude/CLAUDE.md ] || cp "$global" ~/.claude/CLAUDE.md
+[ -e ~/.codex/AGENTS.md ]  || [ -L ~/.codex/AGENTS.md ] || cp "$global" ~/.codex/AGENTS.md
 ```
 
 The `[ -e … ] ||` guard copies only where no file exists yet. **If you already have one,** back it up (`cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak`) and merge by hand: keep your own rules, add the template's sections, drop any older workflow block that names another router, and keep the template's first line `<!-- devstack-global-instructions -->` so the setup check recognises it. Where rules disagree, the stricter authority rule wins. Details: [setup step 3](setup.md#3-add-your-global-instructions).

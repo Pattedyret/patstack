@@ -420,8 +420,8 @@
     },
     {
       "path": "tools/ticket-ref/SLOTS.md",
-      "source_sha256": "0b79faaa56dd22e21d62c37e349f1b1b6a1f73a9786dc09242daa3840350b2ea",
-      "published_sha256": "0b79faaa56dd22e21d62c37e349f1b1b6a1f73a9786dc09242daa3840350b2ea",
+      "source_sha256": "e90e58dcd874de41a78d63f81691d10889664cdd7538962e9b02a4a54ff06444",
+      "published_sha256": "e90e58dcd874de41a78d63f81691d10889664cdd7538962e9b02a4a54ff06444",
       "sanitized": false
     },
     {

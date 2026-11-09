@@ -100,6 +100,7 @@ ALLOW_LINES = {
 # SHA-256 of lowercase private words (customer, product, account and host
 # names). Hashes keep the guarded names out of the published checker.
 PRIVATE_WORD_HASHES = {
+    "3318a69ad31e3f18ec2ccea4041e8d59fe52ea6b1147a9c3f000d35174d53f8b",
     "0b4e6e1a8f6c0fbe044f9ba4f8667cb22d9bf86fab71b1d227ed99e3fc634914",
     "2f9cb7cda5222087ae8774bc7a30bd0ac7de094e8aa354059072eece2217bbf8",
     "d2ec7ac9b679a4f6a78840b882b846b93b8f6dc6a7359b6272e63e89e56eb3bf",
