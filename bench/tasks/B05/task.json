@@ -1,0 +1,1 @@
+{"id": "B05", "title": "Antall i stedet for verdier", "family": "dataverifisering", "prompt_lang": "nb", "timeout_min": 25, "canaries": [], "verify_patterns": ["migrate.py", "check_counts", "summary.py", "sqlite3", "unittest"]}

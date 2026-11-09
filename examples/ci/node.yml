@@ -1,0 +1,50 @@
+# Minimal CI template for a Node project (GitHub Actions).
+# Copy to .github/workflows/ci.yml in the target repo through its normal PR, after its owner agrees.
+# Review before use: the Node version, the default branch and which scripts must run.
+# Action versions are pinned to a major release; check each action's releases page for the current major.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: the job only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: Install from the lockfile
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f yarn.lock ]; then
+            corepack enable && yarn install --frozen-lockfile
+          elif [ -f pnpm-lock.yaml ]; then
+            corepack enable && pnpm install --frozen-lockfile
+          else
+            echo "No supported lockfile (package-lock.json, yarn.lock, pnpm-lock.yaml); refusing an unpinned install." >&2
+            exit 1
+          fi
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Typecheck
+        run: npm run typecheck --if-present
+      - name: Test
+        run: npm test --if-present

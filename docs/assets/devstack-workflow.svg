@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-labelledby="title desc">
+  <title id="title">DevStack workflow</title>
+  <desc id="desc">Four entry routes bind the project and choose Full Send or Full Stop. Work moves through Plan, Build, Check, Deliver and Learn. Check and Deliver failures return to Build through one repair flow, with deep diagnosis after at most three normal cycles. Full Send ends at a verified test release; Full Stop merges through the gate after R2 or R3 review. Review levels R1 to R3 and route sizes are shown below.</desc>
+  <style>
+    .bg{fill:#fbfaf7}.ink{fill:#1d2329}.muted{fill:#5b6670}.line{stroke:#c3c9cf}
+    .box{fill:#fff;stroke:#1d2329;stroke-width:1.4}.soft{fill:#f2f0ea;stroke:#c3c9cf}
+    .send{stroke:#b4400c}.sendf{fill:#b4400c}.stop{stroke:#2856a3}.stopf{fill:#2856a3}
+    .rep{stroke:#b42318}.repf{fill:#b42318}.arrow{stroke:#1d2329;stroke-width:1.4;fill:none}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lab{font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em}
+    .h{font-size:15px;font-weight:650}.t{font-size:12.5px}.s{font-size:11.5px}
+    @media (prefers-color-scheme:dark){
+      .bg{fill:#0f1317}.ink{fill:#e8eaed}.muted{fill:#9aa4ad}.line{stroke:#3a434c}
+      .box{fill:#161b21;stroke:#c9d1d9}.soft{fill:#1b2128;stroke:#3a434c}.arrow{stroke:#c9d1d9}
+      .send{stroke:#f08a4b}.sendf{fill:#f08a4b}.stop{stroke:#7aa7ef}.stopf{fill:#7aa7ef}
+      .rep{stroke:#f2776c}.repf{fill:#f2776c}
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ink"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="repf"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="740"/>
+
+  <text class="ink" x="40" y="46" font-size="24" font-weight="700">DevStack</text>
+  <text class="muted t" x="152" y="46">19 callable skills. One lead, two modes, proof at every layer.</text>
+
+  <!-- Lane labels -->
+  <g class="muted lab">
+    <text x="40" y="109">ENTER</text><text x="40" y="186">BIND</text><text x="40" y="270">MODE</text>
+    <text x="40" y="384">PHASES</text><text x="40" y="566">REVIEW</text><text x="40" y="662">ROUTES</text>
+  </g>
+
+  <!-- Entry chips -->
+  <g>
+    <rect class="box" x="140" y="84" width="200" height="38" rx="19"/><text class="ink t" x="240" y="108" text-anchor="middle">Designated task</text>
+    <rect class="box" x="360" y="84" width="200" height="38" rx="19"/><text class="ink t" x="460" y="108" text-anchor="middle">Takeover</text>
+    <rect class="box" x="580" y="84" width="200" height="38" rx="19"/><text class="ink t" x="680" y="108" text-anchor="middle">Modernize an old PR</text>
+    <rect class="box" x="800" y="84" width="200" height="38" rx="19"/><text class="ink t" x="900" y="108" text-anchor="middle">Critical incident</text>
+  </g>
+  <g class="arrow" marker-end="url(#a)">
+    <path d="M240 122V158"/><path d="M460 122V158"/><path d="M680 122V158"/><path d="M900 122V158"/>
+  </g>
+
+  <!-- Bind -->
+  <rect class="soft" x="140" y="160" width="860" height="44" rx="8"/>
+  <text class="ink t" x="570" y="187" text-anchor="middle">Bind the actual workspace, project pack, existing ticket and spec · resume at the earliest valid phase</text>
+  <path class="arrow" d="M350 204V236" marker-end="url(#a)"/><path class="arrow" d="M790 204V236" marker-end="url(#a)"/>
+
+  <!-- Modes -->
+  <rect class="box send" x="140" y="238" width="420" height="64" rx="8" stroke-width="2"/>
+  <text class="sendf h" x="160" y="262">FULL SEND · default</text>
+  <text class="ink s" x="160" y="282">Lead researches, decides and records routine choices,</text>
+  <text class="ink s" x="160" y="296">then ships through the test target with live proof.</text>
+  <rect class="box stop" x="580" y="238" width="420" height="64" rx="8" stroke-width="2"/>
+  <text class="stopf h" x="600" y="262">FULL STOP · high-impact work</text>
+  <text class="ink s" x="600" y="282">Owner joins meaningful product and approach decisions;</text>
+  <text class="ink s" x="600" y="296">R2/R3 review, then the lead merges through the gate.</text>
+  <path class="arrow" d="M350 302V318M790 302V318M790 318H218"/><path class="arrow" d="M218 318V336" marker-end="url(#a)"/>
+
+  <!-- Phases -->
+  <g>
+    <rect class="box" x="140" y="340" width="156" height="84" rx="8"/>
+    <text class="ink h" x="156" y="366">Plan</text><text class="muted s" x="156" y="388">brief · quality targets</text><text class="muted s" x="156" y="404">frozen proof method</text>
+    <rect class="box" x="316" y="340" width="156" height="84" rx="8"/>
+    <text class="ink h" x="332" y="366">Build</text><text class="muted s" x="332" y="388">smallest complete</text><text class="muted s" x="332" y="404">change + tests</text>
+    <rect class="box" x="492" y="340" width="156" height="84" rx="8"/>
+    <text class="ink h" x="508" y="366">Check</text><text class="muted s" x="508" y="388">review level · CI</text><text class="muted s" x="508" y="404">acceptance + quality</text>
+    <rect class="box" x="668" y="340" width="156" height="84" rx="8"/>
+    <text class="ink h" x="684" y="366">Deliver</text><text class="muted s" x="684" y="388">file PR → babysit</text><text class="muted s" x="684" y="404">endpoint by mode</text>
+    <rect class="box" x="844" y="340" width="156" height="84" rx="8"/>
+    <text class="ink h" x="860" y="366">Learn</text><text class="muted s" x="860" y="388">proportionate retro</text><text class="muted s" x="860" y="404">KPI-informed</text>
+  </g>
+  <g class="arrow" marker-end="url(#a)">
+    <path d="M296 382H314"/><path d="M472 382H490"/><path d="M648 382H666"/><path d="M824 382H842"/>
+  </g>
+
+  <!-- Repair loop -->
+  <path class="rep" d="M570 424V456Q570 466 560 466H404Q394 466 394 456V428" fill="none" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#r)"/>
+  <path class="rep" d="M746 424V456Q746 466 736 466H570" fill="none" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text class="repf s" x="394" y="490" font-weight="600">One repair flow for PR and live failures</text>
+  <text class="muted s" x="394" y="506">Same task, cumulative attempts and clock · at most three normal cycles, then deep diagnosis with a changed hypothesis</text>
+
+  <!-- Endpoints -->
+  <text class="muted lab" x="1032" y="324">DELIVER ENDS</text>
+  <rect class="box send" x="1032" y="332" width="138" height="50" rx="8" stroke-width="2"/>
+  <text class="sendf s" x="1044" y="352" font-weight="650">Full Send ends at</text><text class="ink s" x="1044" y="370">verified test release</text>
+  <rect class="box stop" x="1032" y="388" width="138" height="50" rx="8" stroke-width="2"/>
+  <text class="stopf s" x="1044" y="408" font-weight="650">Full Stop ends at</text><text class="ink s" x="1044" y="426">R2/R3, gated merge</text>
+  <text class="muted s" x="1032" y="462">Production always</text><text class="muted s" x="1032" y="477">needs its own explicit</text><text class="muted s" x="1032" y="492">authority.</text>
+
+  <!-- Review levels -->
+  <line class="line" x1="140" y1="526" x2="1170" y2="526"/>
+  <g>
+    <rect class="box" x="140" y="540" width="274" height="62" rx="8"/>
+    <text class="ink h" x="156" y="562">R1 · Focused</text><text class="muted s" x="156" y="580">Author checks diff and targeted result.</text><text class="muted s" x="156" y="594">Tiny cosmetic, copy, mechanical edits.</text>
+    <rect class="box" x="433" y="540" width="274" height="62" rx="8"/>
+    <text class="ink h" x="449" y="562">R2 · Independent</text><text class="muted s" x="449" y="580">One fresh opposite-model reviewer.</text><text class="muted s" x="449" y="594">Fixes, features; floor for auth and data.</text>
+    <rect class="box" x="726" y="540" width="274" height="62" rx="8"/>
+    <text class="ink h" x="742" y="562">R3 · Council</text><text class="muted s" x="742" y="580">Two configured families, independent first.</text><text class="muted s" x="742" y="594">Broad auth/API, migrations, shared systems.</text>
+  </g>
+  <text class="muted s" x="1032" y="566">Depth follows</text><text class="muted s" x="1032" y="581">behavior and blast</text><text class="muted s" x="1032" y="596">radius, not filenames.</text>
+
+  <!-- Routes -->
+  <line class="line" x1="140" y1="622" x2="1170" y2="622"/>
+  <g>
+    <rect class="soft" x="140" y="636" width="200" height="78" rx="8"/>
+    <text class="ink h" x="156" y="660">Tiny edit</text><text class="muted s" x="156" y="680">Direct in context · R1</text><text class="muted s" x="156" y="696">focused visual check</text>
+    <rect class="soft" x="360" y="636" width="200" height="78" rx="8"/>
+    <text class="ink h" x="376" y="660">Bounded fix</text><text class="muted s" x="376" y="680">Red repro → smallest fix</text><text class="muted s" x="376" y="696">R2 when risk warrants</text>
+    <rect class="soft" x="580" y="636" width="200" height="78" rx="8"/>
+    <text class="ink h" x="596" y="660">New feature</text><text class="muted s" x="596" y="680">Plan + quality work</text><text class="muted s" x="596" y="696">works Y/N · quality Y/N</text>
+    <rect class="soft" x="800" y="636" width="200" height="78" rx="8"/>
+    <text class="ink h" x="816" y="660">Critical</text><text class="muted s" x="816" y="680">Short recovery contract</text><text class="muted s" x="816" y="696">full retro after recovery</text>
+  </g>
+  <text class="muted s" x="1032" y="660">Size, urgency and</text><text class="muted s" x="1032" y="675">review depth are</text><text class="muted s" x="1032" y="690">chosen separately</text><text class="muted s" x="1032" y="705">from the mode.</text>
+</svg>

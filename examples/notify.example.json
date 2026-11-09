@@ -1,0 +1,5 @@
+{
+  "url": "https://ntfy.example.invalid",
+  "topic": "devstack",
+  "host": "devbox"
+}

@@ -17,7 +17,7 @@ You can expect an acknowledgement within a week. Fixes land through a normal pul
 
 ## What does not
 
-Patstack is a set of agent instructions and small standard-library Python tools. It runs no service and holds no user data. Problems in Claude Code, Codex, T3 Code, REA or any other tool Patstack calls belong with that project.
+DevStack is a set of agent instructions and small standard-library Python tools. It runs no service and holds no user data. Problems in Claude Code, Codex, T3 Code, REA or any other tool DevStack calls belong with that project.
 
 ## Supported versions
 

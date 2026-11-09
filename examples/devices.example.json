@@ -1,5 +1,5 @@
 {
-  "_comment": "Shape of the private host capability profile. Copy to ~/.config/patstack/devices.local.json, chmod 600, and fill it locally. Never commit the real file. Values below are placeholders, not an inventory.",
+  "_comment": "Shape of the private host capability profile. Copy to ~/.config/devstack/devices.local.json, chmod 600, and fill it locally. Never commit the real file. Values below are placeholders, not an inventory.",
   "schema": 1,
   "hosts": [
     {

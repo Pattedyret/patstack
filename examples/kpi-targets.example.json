@@ -1,0 +1,14 @@
+{
+  "work_days": 7,
+  "work": {
+    "verified_success_pct": ">=95",
+    "unexpected_handoff_pct": "<=0",
+    "verification_missing": "<=0"
+  },
+  "bench_arm": "devstack",
+  "bench": {
+    "kvalitet": ">=95",
+    "security_holes_pct": "<=0",
+    "median_minutes": "<=4"
+  }
+}

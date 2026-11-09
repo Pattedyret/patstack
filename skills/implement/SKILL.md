@@ -7,7 +7,7 @@ description: Build or repair the candidate for a designated development task - p
 
 Produce the smallest complete candidate and its relevant tests, then hand it to [review](../review/SKILL.md) and [verify](../verify/SKILL.md). Apply [ponytail](../ponytail/SKILL.md) at the session's level.
 
-**Context.** Under a Patstack lead, reuse its ticket, brief/spec version, mode and current candidate. Invoked directly for a concrete change with no owner, apply Patstack's entry (ownership, mode) first. Agree file/worktree responsibilities in the brief ([coordination](../patstack/references/coordination.md)); preserve others' edits. No registry claim or eligible actor is required.
+**Context.** Under a DevStack lead, reuse its ticket, brief/spec version, mode and current candidate. Invoked directly for a concrete change with no owner, apply DevStack's entry (ownership, mode) first. Agree file/worktree responsibilities in the brief ([coordination](../devstack/references/coordination.md)); preserve others' edits. No registry claim or eligible actor is required.
 
 ## Choose the route from the actual change
 
@@ -31,7 +31,9 @@ Classify risk by behavior and blast radius, not the file or product name. A cosm
 
 ## Parallel slices
 
-Split only independently verifiable work that benefits from parallel execution ([to-tickets](../to-tickets/SKILL.md)). Only the lead starts children; one child layer. Each child gets its own branch/worktree and the brief from [coordination](../patstack/references/coordination.md#delegate-and-communicate): task, accessible spec version, owned scope, actual provider/model/runtime/reasoning, allowed actions, dependencies, acceptance, proof and stop conditions. Children return results and objections; they start no agents or top-level chats.
+Split only independently verifiable work that benefits from parallel execution ([to-tickets](../to-tickets/SKILL.md)). Only the lead starts children; one child layer. Each child gets its own branch/worktree and the brief from [coordination](../devstack/references/coordination.md#delegate-and-communicate): task, accessible spec version, owned scope, actual provider/model/runtime/reasoning, allowed actions, dependencies, acceptance, proof and stop conditions. Children return results and objections; they start no agents or top-level chats.
+
+**Worktree hygiene:** one worktree per slice, reused for every review and repair round of that slice (never a new worktree per round); remove it after its PR merges. `python3 tools/worktrees.py <repo>` reports worktrees per repo and ticket and, with `--apply`, removes only merged, clean and pushed ones. More than 8 slices for one ticket means re-plan, not more worktrees. A ticket spanning repos is a [change set](../devstack/references/change-sets.md).
 
 Work in parallel until a shared resource is actually needed. For larger work, the lead freezes an integration candidate (head/base, workflow/spec versions, evidence, PRs) and one integration owner merges slices, rerunning the checks the merge invalidates. Clean up child worktrees the task owns.
 
@@ -50,4 +52,4 @@ Every failure, at any layer, comes back here. The lead owns it until the agreed 
 - **Three failed normal cycles is a maximum, not a quota.** A repeated finding without new evidence, an exhausted timebox or a refuted approach triggers deep diagnosis earlier. Never run an identical pass to reach three.
 - **Deep diagnosis**, same clock and history: rebuild the reproduction, inspect actual runtime/test behavior, challenge both the implementation hypothesis and the AI workflow, change the approach from new evidence, fix the root cause and verify it. Then record the technical root cause and the workflow/detection failure that let it persist (input to [retro](../retro/SKILL.md)). It is not abandonment, a new task or an unlimited extension.
 - Reassess the approach as a unit rather than stacking speculative patches. Block only on agreed acceptance, applicable standards and material safety/regression risk; record non-blocking improvements as follow-ups.
-- With no viable progress, surface the specific blocker and the best verified recovery option promptly; ask Patrick only for the actual missing decision or authority. Missing required proof keeps the task open; a genuine external blocker ends in an explicit handoff, never a completion claim.
+- With no viable progress, surface the specific blocker and the best verified recovery option promptly; ask the owner only for the actual missing decision or authority. Missing required proof keeps the task open; a genuine external blocker ends in an explicit handoff, never a completion claim.

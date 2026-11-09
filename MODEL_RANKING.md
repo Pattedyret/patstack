@@ -1,23 +1,23 @@
-# Model routing preferences (example)
+# Modellvalg — konfigurerbar veiledning for teamet
 
-Use the actual models and tools exposed by the current runtime. This optional private policy helps the lead choose a model for the work; a ticket number imposes no role, model or eligibility requirement. This is a routing preference, not a benchmark, and the examples below contain no measured quality scores.
+Teamet eller den enkelte brukeren kan redigere disse modellpreferansene etter egne behov og faktisk tilgjengelighet. Tabellen er det dokumenterte standardeksemplet, ikke en måling av kvalitet eller en regel om hvem som får arbeide på en ticket. Bruk modellene og verktøyene som den aktuelle kjøringen faktisk tilbyr.
 
-## Choose for the work
+## Velg etter arbeidet
 
-| Need | Example preference | What to verify |
+| Behov | Standardeksempel | Hva må verifiseres? |
 |---|---|---|
-| Whole-task coordination and integration | A capable model that can assess the whole task | Enough context, actual project access and the required tools |
-| Frontend design or backend architecture | Opus 5.5 where available and suitable | Current model catalog, relevant experience and project fit |
-| Implementation, integrations, tests or analysis | Sol 6.1 where available and suitable | Actual model identity, runtime and accepted task scope |
-| Interactive UI verification | A runtime that actually exposes Computer Use | Real tool availability and the tested host; a model name grants no tool access |
-| R2 independent review | A fresh opposite-family reviewer where available | Independence and required review depth; report missing required review |
-| R3 Council | Fresh Opus and Sol judgments | Independent first judgments, then evidence-based cross-examination |
+| Helhetsansvar, koordinering og integrasjon | Opus 5.5 | Tilstrekkelig kontekst, faktisk prosjekttilgang og nødvendige verktøy |
+| Frontend-design eller backend-arkitektur | Opus 5.5 | Tilgjengelig modell, relevant erfaring og egnethet for prosjektet |
+| Implementering, integrasjoner, tester eller analyse | Sol 6.1 | Faktisk modellidentitet, kjøremiljø og avtalt oppgaveomfang |
+| Interaktiv UI-verifisering | Astra i et kjøremiljø som faktisk tilbyr Computer Use | Reell verktøytilgang og testet vert; modellnavnet gir ingen verktøytilgang |
+| R2 uavhengig gjennomgang | En fersk reviewer fra motsatt modellfamilie | Uavhengighet og påkrevd dybde; manglende obligatorisk gjennomgang rapporteres |
+| R3 Council | Ferske vurderinger fra de to konfigurerte modellfamiliene (standard: Opus og Sol) | Uavhengige førstevurderinger, deretter kryssprøving basert på bevis |
 
-## Assignment guidance
+## Veiledning ved tildeling
 
-1. Check the live model catalog on the actual host. Do not assume an alias resolves identically elsewhere.
-2. Keep the actual provider, model and runtime identity in a practical delegation brief. A role label supplies neither a model nor tools.
-3. Choose quality and fit first. If a requested or required capability is unavailable, report the gap instead of silently relabeling another model or downgrading review.
-4. Launching an agent grants no new right to push, merge, deploy, alter data or send external messages.
+1. Kontroller den levende modellkatalogen på den aktuelle verten. Ikke anta at et alias betyr det samme overalt.
+2. Behold faktisk leverandør, modell og kjøremiljø i delegeringsbriefen. Et rollenavn gir verken en modell eller verktøy.
+3. Velg kvalitet og egnethet først. Hvis en ønsket eller nødvendig kapasitet mangler, rapporter gapet; ikke gi en annen modell falsk identitet eller senk gjennomgangsnivået i stillhet.
+4. Oppstart av en agent gir ingen ny rett til push, merge, deploy, dataendringer eller eksterne meldinger.
 
-Keep a private, dated preference document when useful. None of these preferences restricts which model may pick up a ticket.
+Endrede preferanser opphever ingen menneskelige godkjenningsporter, sikkerhetskrav eller krav til uavhengig gjennomgang. Ingen av preferansene begrenser hvilken modell som kan overta en ticket. Behold gjerne et privat, datert preferansedokument ved behov.

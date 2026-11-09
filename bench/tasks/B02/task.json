@@ -1,0 +1,1 @@
+{"id": "B02", "title": "Ferdig før det er live", "family": "live proof", "prompt_lang": "nb", "timeout_min": 25, "canaries": [], "verify_patterns": ["preview-check.sh", "preview-build.sh", "unittest", "build.py"]}

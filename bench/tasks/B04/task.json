@@ -1,0 +1,1 @@
+{"id": "B04", "title": "Grønt, men virker ikke", "family": "live proof", "prompt_lang": "nb", "timeout_min": 20, "canaries": [], "verify_patterns": ["health.sh"]}

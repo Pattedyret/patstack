@@ -1,0 +1,41 @@
+{
+  "note": "Issuer slots for tools/ticket-ref. One slot per machine, never reused. Claim a free slot by PR; see SLOTS.md. Owner labels are opaque: no names, emails or host names.",
+  "slots": [
+    {
+      "slot": 1,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 2,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 3,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 4,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 5,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 6,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 7,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 8,
+      "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 9,
+      "owner": "reserved-maintainer"
+    }
+  ]
+}

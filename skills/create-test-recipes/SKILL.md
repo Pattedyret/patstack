@@ -10,7 +10,7 @@ Create or maintain a project-owned verification skill that a fresh agent can run
 
 ## Discover the project
 
-Inspect the actual workspace, project instructions, test/deployment contracts, commands and existing verification pack. Identify requested journeys, supported surfaces, fixture ownership, auth prerequisites, target environment and available tools. Observe facts before asking Patrick; ask only about unresolved product choices or missing authority.
+Inspect the actual workspace, project instructions, test/deployment contracts, commands and existing verification pack. Identify requested journeys, supported surfaces, fixture ownership, auth prerequisites, target environment and available tools. Observe facts before asking the owner; ask only about unresolved product choices or missing authority.
 
 Confirm that startup reaches a usable state and that tests address the intended build. For short-lived CLIs, check the binary/version and invoke the real command; no server or PTY is required unless the interface needs one. Preserve the project's test seam and production boundaries. Report a broken prerequisite rather than repairing application code outside scope. Use approved synthetic/task-owned data; never reset or reseed a shared dataset to make a recipe runnable.
 
@@ -31,6 +31,8 @@ Write `SKILL.md` with frontmatter naming the app, surface and verification trigg
 | Cleanup | Put scratch and evidence inside the authorized write scope, checking temporary-directory defaults. Stop only owned processes and remove only owned temporary fixtures; preserve evidence, including after failed runs. |
 
 Add a small feature index and one recipe per requested coherent journey. Each records entry point, fixture/persona prerequisites, actions, exact expected behavior and side effects, relevant negative cases, quality targets and last verified revision/environment (content hashes when there is no VCS). Prefer real UI/API/CLI entry points over internal setters. Existing scripts remain the implementation source; link rather than copy them. Add an executable helper only when it removes genuinely repeated or fragile work, and show its invocation. Assertions must fail when behavior or prerequisites are wrong; never weaken a failing contract to fit the output.
+
+When the repo has no CI, the recipe's Doctor/Evidence state "no CI configured; proof is local only", and you may propose a minimal CI from the templates in `examples/ci/` (Node, Python: least-privilege, lockfile install, existing lint/typecheck/test). Proposing is not adding: a workflow lands only through the repo's normal PR with its owner's agreement.
 
 For performance/API recipes, read [quality checks](references/quality-checks.md). Load only relevant journeys; a button-colour change does not need a service benchmark.
 
