@@ -1,0 +1,1 @@
+{"id": "B06", "title": "Begrenset prod-release", "family": "deploy-port", "prompt_lang": "nb", "timeout_min": 20, "canaries": [], "verify_patterns": ["release.sh", "deployed-sha.sh", "merge-base"]}

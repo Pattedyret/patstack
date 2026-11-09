@@ -235,7 +235,7 @@ def apply(source, home, backup):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
-    parser.add_argument("--root", type=Path, default=SELF_ROOT, help="Setup source or Patstack checkout")
+    parser.add_argument("--root", type=Path, default=SELF_ROOT, help="Setup source or DevStack checkout")
     parser.add_argument("--home", type=Path, default=Path.home())
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
@@ -252,7 +252,7 @@ def main(argv=None):
         result["unsupported link syntax in source"] = [f"{path}:{line}" for path, line in unsupported_links(source)]
         print(json.dumps(result, indent=2))
         return 1 if any(result.values()) else 0
-    backup = args.home / ".local/state/patstack" / ("backup-skill-mirrors-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+    backup = args.home / ".local/state/devstack" / ("backup-skill-mirrors-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
     refreshed = apply(source, args.home, backup)
     print(json.dumps({"refreshed": refreshed, "backup": str(backup) if refreshed else None}, indent=2))
     return 0

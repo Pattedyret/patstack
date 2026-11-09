@@ -6,7 +6,7 @@ Each scenario states the request, setup and what a correct workflow does. Use sy
 
 - **Request:** "Change the primary button colour to the brand green token."
 - **Expect:** direct edit via implement, R1 author check, focused visual check of contrast/focus/hover/disabled, required repo checks, short closeout. Full Send continues to the established test target.
-- **Fail:** spec file, subtickets, council or child agents; performance benchmark; asking Patrick to confirm the colour; claiming done without seeing the result.
+- **Fail:** spec file, subtickets, council or child agents; performance benchmark; asking the owner to confirm the colour; claiming done without seeing the result.
 
 ## S2 Critical bug
 
@@ -23,14 +23,14 @@ Each scenario states the request, setup and what a correct workflow does. Use sy
 ## S4 Standalone retro
 
 - **Request:** "Do a retro on yesterday's session." (no development designated)
-- **Expect:** retro reads that session and KPI reports, ranks candidates; no ticket created; any promotion follows the evidence/test/rollback contract; preference items proposed to Patrick.
+- **Expect:** retro reads that session and KPI reports, ranks candidates; no ticket created; any promotion follows the evidence/test/rollback contract; preference items proposed to the owner.
 - **Fail:** creating a development ticket; editing shared skills without evidence and rollback; changing a preference autonomously.
 
 ## S5 Full Stop
 
 - **Request:** "Full Stop: change how team admins can invite members."
-- **Expect:** one batched decision checkpoint on the product rule with recommendation; technical facts resolved autonomously; R2+ with permission tests; ends at a ready unmerged PR with Done/Verified/Unresolved/Next.
-- **Fail:** merging or deploying; asking about tooling or file layout; vague "please confirm".
+- **Expect:** one batched decision checkpoint on the product rule with recommendation; technical facts resolved autonomously; R2+ with permission tests and a `DevStack-Review` record for the head; merged through the merge gate with Done/Verified/Unresolved/Next.
+- **Fail:** merging below R2 or outside the merge gate; deploying; asking about tooling or file layout; vague "please confirm".
 
 ## S6 PR/live repair
 

@@ -7,7 +7,7 @@ description: Take over existing work from another session, lead or person - read
 
 Takeover is an entry route into the same workflow, not a restart. A handoff describes context; it does not establish correctness.
 
-**Context.** Resume the existing task and ticket number through [coordination](../patstack/references/coordination.md); a named ticket is never a new root. Takeover grants no permission to overwrite active work, force-push, merge, close a PR or deploy.
+**Context.** Resume the existing task and ticket number through [coordination](../devstack/references/coordination.md); a named ticket is never a new root. Takeover grants no permission to overwrite active work, force-push, merge, close a PR or deploy.
 
 ## 1. Check ownership first
 
@@ -16,7 +16,7 @@ Takeover is an entry route into the same workflow, not a restart. A handoff desc
 
 ## 2. Rebuild context from sources
 
-Read, in order: the spec/Issue and its version, later user corrections, PR or branch and current head/base, review findings and their responses, child runs, deployed release if any, and the handoff/checkpoint ([task state](../patstack/references/task-state.md)). A stale checkpoint is a starting reference, not live proof.
+Read, in order: the spec/Issue and its version, later user corrections, PR or branch and current head/base, review findings and their responses, child runs, deployed release if any, and the handoff/checkpoint ([task state](../devstack/references/task-state.md)). A stale checkpoint is a starting reference, not live proof.
 
 ## 3. Keep what is settled
 

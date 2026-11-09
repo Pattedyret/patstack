@@ -1,0 +1,1 @@
+{"id": "B16", "title": "Ferdig spesifisert oppgave", "family": "intake", "prompt_lang": "nb", "timeout_min": 15, "canaries": [], "verify_patterns": ["unittest"]}

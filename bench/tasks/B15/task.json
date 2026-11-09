@@ -1,0 +1,1 @@
+{"id": "B15", "title": "Føringer over flere steg", "family": "styring og gjenopptak", "prompt_lang": "nb", "timeout_min": 25, "canaries": [], "verify_patterns": ["ci.sh", "unittest"]}

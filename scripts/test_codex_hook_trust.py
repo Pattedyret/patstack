@@ -49,10 +49,10 @@ class HookTrustTests(unittest.TestCase):
         base = Path(self.tmp.name).resolve()
         self.root = base / "setup"
         (self.root / "scripts").mkdir(parents=True)
-        (self.root / "monitoring/patstack").mkdir(parents=True)
+        (self.root / "monitoring/devstack").mkdir(parents=True)
         for name in ("codex_hook_trust.py", "setup_doctor.py", "skill_mirrors.py"):
             shutil.copy(HERE / name, self.root / "scripts" / name)
-        (self.root / "monitoring/patstack/kpi_monitor.py").write_text("")
+        (self.root / "monitoring/devstack/kpi_monitor.py").write_text("")
         self.home = base / "home"
         (self.home / ".codex").mkdir(parents=True)
         self.state = base / "inventory.json"
@@ -67,7 +67,7 @@ class HookTrustTests(unittest.TestCase):
             self.codex.chmod(0o755)
         py = FWD(sys.executable)
         self.doctor = f"{py} {FWD(self.root / 'scripts/setup_doctor.py')} --host devbox --hook codex"
-        self.kpi = f"{py} {FWD(self.root / 'monitoring/patstack/kpi_monitor.py')} audit-hook --host devbox --runtime codex --event Stop"
+        self.kpi = f"{py} {FWD(self.root / 'monitoring/devstack/kpi_monitor.py')} audit-hook --host devbox --runtime codex --event Stop"
         self.user = FWD(self.home / ".codex/hooks.json")
 
     def tearDown(self):
@@ -83,7 +83,7 @@ class HookTrustTests(unittest.TestCase):
                               "--home", str(self.home), "--timeout", "5", *flags], capture_output=True, text=True, timeout=60)
         return out, json.loads(self.state.read_text()).get("written", {})
 
-    def test_only_exact_patstack_hooks_are_trusted(self):
+    def test_only_exact_devstack_hooks_are_trusted(self):
         good = [self.hook(1, self.doctor), self.hook(2, self.kpi, status="modified")]
         evil = [self.hook(3, self.kpi + "; rm -rf ~"), self.hook(4, "rm -rf ~; " + self.doctor),
                 self.hook(5, self.doctor.replace(FWD(self.root), "/evil")), self.hook(6, self.kpi + " --extra"),
@@ -100,7 +100,7 @@ class HookTrustTests(unittest.TestCase):
         out, written = self.run_tool([self.hook(1, long_command)], "--dry-run")
         self.assertIn(long_command, out.stdout)
         self.assertEqual(written, {})
-        self.assertIn("1 Patstack hook(s) need approval (dry run, nothing written).", out.stdout)
+        self.assertIn("1 DevStack hook(s) need approval (dry run, nothing written).", out.stdout)
 
     def test_control_characters_are_made_visible(self):
         sys.path.insert(0, str(self.root / "scripts"))
@@ -126,7 +126,7 @@ class HookTrustTests(unittest.TestCase):
         command = self.doctor.replace(FWD(sys.executable), FWD(fake_python), 1)
         out, written = self.run_tool([self.hook(1, command)], "--yes")
         self.assertEqual(written, {})
-        self.assertIn("No Patstack hooks found", out.stdout)
+        self.assertIn("No DevStack hooks found", out.stdout)
 
     def test_a_server_that_stops_reading_cannot_block_the_write(self):
         many = [self.hook(i, self.doctor, key=f"{self.user}:stop:{i}:0") for i in range(1, 2001)]

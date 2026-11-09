@@ -17,33 +17,45 @@ spec = importlib.util.spec_from_file_location("setup_doctor", Path(__file__).wit
 d = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(d)
 
-KPI_SOURCE = Path(__file__).resolve().parent.parent / "monitoring/patstack/kpi_monitor.py"
+KPI_SOURCE = Path(__file__).resolve().parent.parent / "monitoring/devstack/kpi_monitor.py"
+# Owner-specific shell hooks some users wire themselves; DevStack ships none of them.
+USER_HOOKS = ("block-destructive.py", "read-size-guard.sh", "supabase-deploy-gate.sh", "bash-batch-nudge.sh")
+
+
+def io_capture(call):
+    import contextlib
+    import io
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        call()
+    return buffer.getvalue()
 
 
 class DoctorTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.home = Path(self.tmp.name)
-        self.root = self.home / ".harnesses-shared/agent-setup"
-        (self.root / "skills/patstack").mkdir(parents=True)
-        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n")
-        (self.root / "monitoring/patstack").mkdir(parents=True)
+        self.root = self.home / "devstack"
+        (self.root / "skills/devstack").mkdir(parents=True)
+        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n")
+        (self.root / "monitoring/devstack").mkdir(parents=True)
         (self.root / "scripts").mkdir()
         shutil.copy(Path(__file__).with_name("setup_doctor.py"), self.root / "scripts/setup_doctor.py")
         shutil.copy(Path(__file__).with_name("skill_mirrors.py"), self.root / "scripts/skill_mirrors.py")
-        shutil.copy(KPI_SOURCE, self.root / "monitoring/patstack/kpi_monitor.py")
-        (self.root / "AGENTS.md").write_text("Read patstack. KPI: monitoring/patstack/README.md\n")
+        shutil.copy(KPI_SOURCE, self.root / "monitoring/devstack/kpi_monitor.py")
+        (self.root / "AGENTS.md").write_text("Read devstack. KPI: monitoring/devstack/README.md\n")
         for client in (".claude", ".codex", ".agents"):
             (self.home / client).mkdir()
         os.symlink(self.root / "skills", self.home / ".claude/skills")
         os.symlink(self.root / "skills", self.home / ".agents/skills")
         os.symlink(self.root / "AGENTS.md", self.home / ".claude/CLAUDE.md")
         os.symlink(self.root / "AGENTS.md", self.home / ".codex/AGENTS.md")
+        (self.home / ".claude.json").write_text("{}")  # Claude Code's own state: the client is in use
         (self.home / ".local/bin").mkdir(parents=True)
         (self.home / ".local/bin/ticket-ref").write_text("#!/bin/sh\n")
         self.hooks = self.home / ".claude/hooks"
         self.hooks.mkdir()
-        for name in d.SAFETY_HOOKS:
+        for name in USER_HOOKS:
             (self.hooks / name).write_text("#!/bin/sh\n")
         self.db = self.home / "kpis.sqlite3"
         self.write_claude()
@@ -53,16 +65,16 @@ class DoctorTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def kpi(self, runtime):
-        return f"{FWD(sys.executable)} {FWD(self.root)}/monitoring/patstack/kpi_monitor.py audit-hook --host devbox --runtime {runtime} --event Stop"
+        return f"{FWD(sys.executable)} {FWD(self.root)}/monitoring/devstack/kpi_monitor.py audit-hook --host devbox --runtime {runtime} --event Stop"
 
     def status(self, runtime):
         return f"{FWD(sys.executable)} {FWD(self.root)}/scripts/setup_doctor.py --host devbox --hook {runtime}"
 
     def write_claude(self, extra=None, kpi_runtime="claude"):
-        pre = [{"type": "command", "command": str(self.hooks / n)} for n in d.SAFETY_HOOKS[:3]]
+        pre = [{"type": "command", "command": str(self.hooks / n)} for n in USER_HOOKS[:3]]
         hooks = {
             "PreToolUse": [{"matcher": "Bash", "hooks": pre}],
-            "PostToolUse": [{"hooks": [{"type": "command", "command": str(self.hooks / d.SAFETY_HOOKS[3])}]}],
+            "PostToolUse": [{"hooks": [{"type": "command", "command": str(self.hooks / USER_HOOKS[3])}]}],
             "Stop": [{"hooks": [{"type": "command", "command": self.kpi(kpi_runtime)}]}],
             "SessionStart": [{"hooks": [{"type": "command", "command": self.status("claude")}]}],
             "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "command", "command": self.kpi("claude").replace("Stop", "PostToolUseFailure")}]}],
@@ -105,6 +117,38 @@ class DoctorTests(unittest.TestCase):
         self.assertNotIn(("claude tool hook", "WARN"), rows)
         self.assertNotIn(("codex tool hook", "WARN"), rows)
 
+    def test_template_pack_and_bench_are_reported(self):
+        _, rows = self.statuses()
+        self.assertIn(("template .claude", "INFO"), rows)  # hand-written instructions still work
+        self.assertIn(("project pack", "INFO"), rows)
+        self.assertIn(("bench", "INFO"), rows)
+        (self.root / "AGENTS.md").write_text(d.TEMPLATE_MARKER + "\nRead devstack. KPI: monitoring/devstack/README.md\n")
+        (self.root / "project-packs/sample").mkdir(parents=True)
+        (self.root / "project-packs/sample/INDEX.md").write_text("# Pack\n")
+        (self.root / "bench").mkdir()
+        (self.root / "bench/bench.py").write_text("")
+        report, rows = self.statuses()
+        for check in ("template .claude", "template .codex", "project pack", "bench"):
+            self.assertIn((check, "OK"), rows)
+        self.assertFalse(report.failed)
+        real = d.run(d.SELF_ROOT, self.home, "devbox", self.db)  # this checkout ships the pack and the bench
+        found = {r["check"]: r["status"] for r in real.rows}
+        self.assertEqual(found["bench"], "OK")
+        self.assertEqual(found["project pack"], "OK" if list(d.SELF_ROOT.glob("project-packs/*/INDEX.md")) else "INFO")
+
+    def test_session_line_carries_no_kpi_targets(self):
+        report = d.Report()
+        report.add("OK", "claude receipts", "12 Stop receipts recorded on devbox")
+        report.add("WARN", "kpi targets", "🎯 targets 1/3 met · MISS median_minutes 5.5 (<=4)")
+        line = d.summary(report)
+        self.assertTrue(line.endswith("all checks OK"), line)  # targets belong in a finished task's report
+        self.assertNotIn("🎯", line)
+        self.assertNotIn("kpi targets", line)
+        self.assertIn("unless it starts with ⚠", json.loads(d.hook_output("claude", line))["hookSpecificOutput"]["additionalContext"])
+        report = d.Report()
+        report.add("INFO", "kpi targets", "none set; copy examples/kpi-targets.example.json to ~/.config/devstack/kpi-targets.json")
+        self.assertNotIn("🎯", d.summary(report))
+
     def test_missing_kpi_hook_fails(self):
         self.write_claude(kpi_runtime="codex")  # wrong runtime is not a Claude KPI hook
         report, rows = self.statuses("claude KPI hook")
@@ -135,13 +179,74 @@ class DoctorTests(unittest.TestCase):
             if d.tomllib is not None:
                 self.assertEqual(fallback, rows())
 
+    def client_rows(self, clients=None, which=lambda name: None):
+        report = d.run(self.root, self.home, "devbox", self.db, clients=clients, which=which)
+        return report, report.rows
+
+    def test_claude_only_install_has_no_codex_fail_or_warn(self):
+        # A Claude-only user who ran the installer for both clients: Codex files exist, Codex itself never ran.
+        (self.home / ".codex/config.toml").unlink()
+        shutil.rmtree(self.home / ".agents")
+        report, rows = self.client_rows()
+        self.assertFalse(report.failed, rows)
+        codex = [r for r in rows if "codex" in r["check"] or r["check"] == "skills .agents"]
+        self.assertTrue(codex)
+        self.assertEqual({"INFO"}, {r["status"] for r in codex}, codex)
+        self.assertIn(("claude KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
+
+    def test_codex_only_install_has_no_claude_fail_or_warn(self):
+        (self.home / ".claude.json").unlink()
+        shutil.rmtree(self.home / ".claude")
+        report, rows = self.client_rows()
+        self.assertFalse(report.failed, rows)
+        claude = [r for r in rows if "claude" in r["check"]]
+        self.assertTrue(claude)
+        self.assertEqual({"INFO"}, {r["status"] for r in claude}, claude)
+        self.assertIn(("codex KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
+
+    def test_both_clients_are_checked_when_both_are_in_use(self):
+        report, rows = self.client_rows()
+        found = {(r["check"], r["status"]) for r in rows}
+        for check in ("skills .claude", "skills .agents", "instructions .claude", "instructions .codex",
+                      "claude KPI hook", "codex KPI hook"):
+            self.assertIn((check, "OK"), found)
+        self.assertFalse(report.failed)
+
+    def test_explicit_clients_override_detection(self):
+        shutil.rmtree(self.home / ".agents")
+        (self.home / ".codex/config.toml").unlink()
+        report, _ = self.client_rows(clients=["claude", "codex"])
+        self.assertIn(("skills .agents", "FAIL"), {(r["check"], r["status"]) for r in report.rows})
+        report, _ = self.client_rows(clients=["claude"])
+        self.assertFalse(report.failed)
+
+    def test_detection_uses_binaries_or_client_state_only(self):
+        (self.home / ".claude.json").unlink()
+        (self.home / ".codex/config.toml").unlink()
+        self.assertEqual([], d.detect_clients(self.home, which=lambda name: None))
+        self.assertEqual(["codex"], d.detect_clients(self.home, which=lambda name: "/bin/x" if name == "codex" else None))
+        report, rows = self.client_rows()  # nothing found: both are checked rather than silently skipped
+        self.assertIn(("clients", "INFO"), {(r["check"], r["status"]) for r in rows})
+        self.assertIn(("codex KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
+
+    def test_session_hook_always_checks_its_own_client(self):
+        (self.home / ".codex/config.toml").unlink()
+        shutil.rmtree(self.home / ".agents")
+        (self.home / ".claude.json").unlink()
+        with mock.patch.object(d, "detect_clients", return_value=[]):
+            out = io_capture(lambda: d.hook_main(["--host", "devbox", "--hook", "claude", "--home", str(self.home),
+                                                  "--root", str(self.root), "--db", str(self.db)]))
+        line = json.loads(out)["systemMessage"]
+        self.assertNotIn("FAIL", line)
+        self.assertNotIn("codex", line)
+
     def test_unfired_hook_warns(self):
         self.receipt("claude")
         _, rows = self.statuses()
         self.assertIn(("codex receipts", "WARN"), rows)
         self.assertIn(("claude receipts", "OK"), rows)
 
-    def test_retired_and_missing_safety_hooks_warn(self):
+    def test_retired_hook_warns_and_owner_safety_hooks_are_info_only(self):
         (self.hooks / "agent-work-session-ticket.py").write_text("")
         self.write_claude(extra=str(self.hooks / "agent-work-session-ticket.py"))
         (self.home / ".claude/settings.json").write_text((self.home / ".claude/settings.json").read_text()
@@ -149,7 +254,9 @@ class DoctorTests(unittest.TestCase):
         report, _ = self.statuses()
         details = [r["detail"] for r in report.rows if r["status"] == "WARN"]
         self.assertTrue(any("agent-work-session-ticket.py" in x for x in details))
-        self.assertTrue(any("read-size-guard.sh not wired" in x for x in details))
+        # DevStack ships no safety hooks, so a missing owner-specific one is never a WARN.
+        self.assertFalse([r for r in report.rows if r["check"] == "claude safety hook" and r["status"] != "INFO"])
+        self.assertIn(("claude safety hook", "INFO"), {(r["check"], r["status"]) for r in report.rows})
 
     def test_closed_outcome_without_verified_success_warns(self):
         snapshot = {"id": "t1", "revision": 1, "workflow": "bugfix", "topic": "x", "mode": "full_send",
@@ -165,10 +272,32 @@ class DoctorTests(unittest.TestCase):
         _, rows = self.statuses("kpi outcomes")
         self.assertEqual(rows, {("kpi outcomes", "OK")})
 
+    def test_unticketed_once_requests_do_not_keep_the_outcome_warning(self):
+        task_kpi = KPI_SOURCE.with_name("task_kpi.py")
+        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "once", "--id", "req-a", "--workflow",
+                        "discussion", "--topic", "devstack", "--host", "devbox",
+                        "--started-at", "2026-10-01T10:00:00+00:00"], check=True, capture_output=True)
+        old = {"id": "req-old", "revision": 1, "workflow": "research", "topic": "x", "mode": "other",  # pre-marker store
+               "status": "completed", "started_at": "2026-10-01T10:00:00+00:00",
+               "updated_at": "2026-10-01T11:00:00+00:00", "ended_at": "2026-10-01T11:00:00+00:00"}
+        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "record"], input=json.dumps(old),
+                       text=True, check=True, capture_output=True)
+        _, rows = self.statuses("kpi outcomes")
+        self.assertEqual(rows, {("kpi outcomes", "OK")})
+        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "start", "--id", "TKT-7", "--workflow",
+                        "research", "--topic", "devstack", "--mode", "full_send", "--host", "devbox"], check=True,
+                       capture_output=True)
+        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "finish", "--id", "TKT-7", "--status",
+                        "completed", "--verified", "unknown", "--handoff", "none", "--pack", "none"], check=True, capture_output=True)
+        report, _ = self.statuses("kpi outcomes")
+        warned = [r["detail"] for r in report.rows if r["check"] == "kpi outcomes" and r["status"] == "WARN"]
+        self.assertEqual(1, len(warned))
+        self.assertTrue(warned[0].startswith("1 completed"))
+
     def test_per_skill_links_are_accepted(self):
         os.unlink(self.home / ".claude/skills")
         (self.home / ".claude/skills").mkdir()
-        os.symlink(self.root / "skills/patstack", self.home / ".claude/skills/patstack")  # published layout
+        os.symlink(self.root / "skills/devstack", self.home / ".claude/skills/devstack")  # published layout
         _, rows = self.statuses("skills .claude")
         self.assertEqual(rows, {("skills .claude", "OK")})
 
@@ -183,7 +312,7 @@ class DoctorTests(unittest.TestCase):
         (self.root / "skills/review/SKILL.md").write_text("# Review\n")
         os.unlink(self.home / ".claude/skills")
         (self.home / ".claude/skills").mkdir()
-        os.symlink(self.root / "skills/patstack", self.home / ".claude/skills/patstack")  # review not linked
+        os.symlink(self.root / "skills/devstack", self.home / ".claude/skills/devstack")  # review not linked
         report, rows = self.statuses("skills .claude")
         self.assertTrue(report.failed)
         self.assertEqual(rows, {("skills .claude", "FAIL")})
@@ -205,21 +334,21 @@ class DoctorTests(unittest.TestCase):
     def test_windows_mirrors_are_checked_for_freshness(self):
         self.windows_mirrors()
         self.assertEqual(self.windows_rows(), {("skills .claude", "OK"), ("skills .agents", "OK")})
-        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack v2\n")  # source changes, mirrors do not
+        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack v2\n")  # source changes, mirrors do not
         self.assertEqual(self.windows_rows(), {("skills .claude", "WARN"), ("skills .agents", "WARN")})
-        os.remove(self.home / ".agents/skills/patstack/SKILL.md")
+        os.remove(self.home / ".agents/skills/devstack/SKILL.md")
         self.assertIn(("skills .agents", "FAIL"), self.windows_rows())
 
     def test_windows_unsupported_source_link_warns(self):
         mirrors = self.windows_mirrors()
-        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n[x](../patstack/SKILL.md 'unterminated\n")
+        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n[x](../devstack/SKILL.md 'unterminated\n")
         mirrors.apply((self.root / "skills").resolve(), self.home, self.home / "mirror-backup")
         details = [r["detail"] for r in d.run(self.root, self.home, "windows", self.db).rows if r["check"] == "skills .claude"]
         self.assertTrue(details[0].startswith("1 source link(s) use syntax the mirror tool cannot rewrite"), details)
 
     def test_windows_mirror_with_broken_link_warns(self):
         mirrors = self.windows_mirrors()
-        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n[gone](missing.md)\n")
+        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n[gone](missing.md)\n")
         mirrors.apply((self.root / "skills").resolve(), self.home, self.home / "mirror-backup")  # fresh, but the link is dead
         self.assertEqual(self.windows_rows(), {("skills .claude", "WARN"), ("skills .agents", "WARN")})
 
@@ -250,7 +379,7 @@ class DoctorTests(unittest.TestCase):
     def test_session_hook_reports_status_for_claude_and_context_only_for_codex(self):
         self.receipt("claude")
         claude = self.hook("claude")
-        self.assertTrue(claude["systemMessage"].startswith("📈 Patstack monitoring on (1 claude receipts)"), claude)
+        self.assertTrue(claude["systemMessage"].startswith("📈 DevStack monitoring on (1 claude receipts)"), claude)
         self.assertIn("WARN codex receipts", claude["systemMessage"])
         self.assertNotIn("codex trust", claude["systemMessage"])  # INFO rows stay out of the session line
         self.assertIn("--host devbox", claude["systemMessage"])
@@ -261,7 +390,7 @@ class DoctorTests(unittest.TestCase):
 
     def test_session_hook_flags_broken_setup_and_never_fails(self):
         (self.home / ".claude/settings.json").write_text("{not json")
-        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ Patstack setup broken"))
+        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ DevStack setup broken"))
         original, d.run = d.run, lambda *a: 1 / 0
         try:
             with mock.patch("sys.stdout") as out:
@@ -300,7 +429,7 @@ class DoctorTests(unittest.TestCase):
         report, rows = self.statuses("claude settings")
         self.assertEqual(rows, {("claude settings", "FAIL")})
         started = time.monotonic()
-        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ Patstack setup broken"))
+        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ DevStack setup broken"))
         self.assertLess(time.monotonic() - started, 5)
 
     def test_hook_mode_survives_bad_arguments_and_encoding(self):
@@ -345,13 +474,13 @@ class DoctorTests(unittest.TestCase):
 
     def test_every_accepted_flag_really_runs_both_hooks(self):
         doctor = self.root / "scripts/setup_doctor.py"
-        kpi = self.root / "monitoring/patstack/kpi_monitor.py"
+        kpi = self.root / "monitoring/devstack/kpi_monitor.py"
         for number, flag in enumerate(sorted(d.FLAGS)):
             self.assertIsNotNone(d.status_runtime(f"{FWD(sys.executable)} {flag} {FWD(doctor)} --host devbox --hook claude", "devbox"))
             out = subprocess.run([sys.executable, flag, str(doctor), "--host", "devbox", "--home", str(self.home),
                                   "--db", str(self.db), "--hook", "claude"], capture_output=True, text=True)
             line = json.loads(out.stdout)["systemMessage"]
-            self.assertTrue(line.startswith("📈 Patstack monitoring on"), (flag, line))  # not the "could not run" fallback
+            self.assertTrue(line.startswith("📈 DevStack monitoring on"), (flag, line))  # not the "could not run" fallback
             db = self.home / f"flag{number}.sqlite3"  # -s/-S collide on case-insensitive macOS file systems
             subprocess.run([sys.executable, flag, str(kpi), "--db", str(db), "audit-hook", "--host", "devbox",
                             "--runtime", "claude", "--event", "Stop"], input='{"session_id": "s1"}', text=True, check=True)
@@ -366,7 +495,7 @@ class DoctorTests(unittest.TestCase):
         settings.write_text(json.dumps(data))
         report, _ = self.statuses()
         warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/patstack/install.py"])
+        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/devstack/install.py"])
 
     def test_duplicate_tool_counters_warn(self):
         settings = self.home / ".claude/settings.json"
@@ -376,7 +505,7 @@ class DoctorTests(unittest.TestCase):
         settings.write_text(json.dumps(data))
         report, _ = self.statuses()
         warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["2 PostToolUseFailure counters would double-count; rerun monitoring/patstack/install.py"])
+        self.assertEqual(warns, ["2 PostToolUseFailure counters would double-count; rerun monitoring/devstack/install.py"])
 
     def test_missing_tool_counter_warns(self):
         settings = self.home / ".claude/settings.json"
@@ -385,7 +514,7 @@ class DoctorTests(unittest.TestCase):
         settings.write_text(json.dumps(data))
         report, _ = self.statuses()
         warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/patstack/install.py"])
+        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/devstack/install.py"])
 
     def test_echo_kpi_command_is_not_a_kpi_hook(self):
         settings = self.home / ".claude/settings.json"
@@ -394,7 +523,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(rows, {("claude KPI hook", "FAIL")})
 
     def test_only_the_installer_form_is_recognised(self):
-        py, kpi, doc = FWD(sys.executable), FWD(self.root / "monitoring/patstack/kpi_monitor.py"), FWD(self.root / "scripts/setup_doctor.py")
+        py, kpi, doc = FWD(sys.executable), FWD(self.root / "monitoring/devstack/kpi_monitor.py"), FWD(self.root / "scripts/setup_doctor.py")
         kpi_args, doc_args = "audit-hook --host devbox --runtime claude --event Stop", "--host devbox --hook claude"
         self.assertEqual(d.kpi_runtime(f"{py} {kpi} {kpi_args}", "devbox"), "claude")
         self.assertEqual(d.kpi_runtime(f"{py} -B -u {kpi} {kpi_args}", "devbox"), "claude")
@@ -404,7 +533,7 @@ class DoctorTests(unittest.TestCase):
             f"{py} -X utf8=2 {kpi} {kpi_args}", f"pyenv {kpi} {kpi_args}", f"/usr/bin/env python3 {kpi} {kpi_args}",
             f"VAR=1 {py} {kpi} {kpi_args}", f"{py} {kpi} {kpi_args} --bogus", f"{py} {kpi} {kpi_args} --help",
             f"{py} {kpi.replace('kpi_monitor.py', 'not_kpi_monitor.py')} {kpi_args}", f"{py} {kpi}.missing {kpi_args}",
-            f"{py} monitoring/patstack/kpi_monitor.py {kpi_args}", f"/no/such/python3 {kpi} {kpi_args}",
+            f"{py} monitoring/devstack/kpi_monitor.py {kpi_args}", f"/no/such/python3 {kpi} {kpi_args}",
             f"{py} {kpi} {kpi_args.replace('devbox', 'mac')}", f"{py} {kpi} {kpi_args.replace('Stop', 'SessionEnd')}",
             f"{py} {kpi} {kpi_args.replace(' Stop', chr(10) + 'Stop')}", f"{py}  {kpi} {kpi_args}", f"{py}\t{kpi} {kpi_args}",
             f"{py} {kpi} {kpi_args} ; true", f"{py} '{kpi}' {kpi_args}"]

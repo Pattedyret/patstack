@@ -1,0 +1,1 @@
+{"id": "B18", "title": "Påminnelser som driver over sommertid og månedsslutt", "family": "tid og data", "prompt_lang": "nb", "timeout_min": 35, "canaries": [], "verify_patterns": ["unittest", "run_due", "list_reminders"]}

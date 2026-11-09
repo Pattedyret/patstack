@@ -1,0 +1,1 @@
+{"id": "B03", "title": "Skalagrense som skjules av små data", "family": "skala og grenser", "prompt_lang": "nb", "timeout_min": 25, "canaries": [], "verify_patterns": ["unittest", "show_dropdown"]}

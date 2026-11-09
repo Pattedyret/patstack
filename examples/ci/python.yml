@@ -1,0 +1,68 @@
+# Minimal CI template for a Python project (GitHub Actions).
+# Copy to .github/workflows/ci.yml in the target repo through its normal PR, after its owner agrees.
+# Review before use: the Python version, the default branch and which checks must run.
+# Action versions are pinned to a major release; check each action's releases page for the current major.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: the job only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install from the lockfile
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f uv.lock ]; then
+            pip install uv && uv sync --frozen && echo "RUN=uv run" >> "$GITHUB_ENV"
+          elif [ -f poetry.lock ]; then
+            pip install poetry && poetry install --no-interaction --sync && echo "RUN=poetry run" >> "$GITHUB_ENV"
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt  # pin exact versions; add hashes and --require-hashes where the project has them
+            echo "RUN=" >> "$GITHUB_ENV"
+          elif [ -f pyproject.toml ] || [ -f setup.py ]; then
+            echo "No lockfile (uv.lock, poetry.lock, requirements.txt); refusing an unpinned install." >&2
+            exit 1
+          else
+            echo "Standard library only; nothing to install."
+            echo "RUN=" >> "$GITHUB_ENV"
+          fi
+      - name: Lint when configured
+        run: |
+          if [ -f ruff.toml ] || [ -f .ruff.toml ] || grep -qs '^\[tool\.ruff' pyproject.toml; then
+            $RUN ruff check .
+          else
+            echo "No ruff configuration; lint skipped."
+          fi
+      - name: Typecheck when configured
+        run: |
+          if [ -f mypy.ini ] || grep -qs '^\[tool\.mypy' pyproject.toml; then
+            $RUN mypy .
+          else
+            echo "No mypy configuration; typecheck skipped."
+          fi
+      - name: Test
+        run: |
+          if [ -f pytest.ini ] || grep -qs '^\[tool\.pytest' pyproject.toml; then
+            $RUN pytest
+          else
+            $RUN python -m unittest discover
+          fi

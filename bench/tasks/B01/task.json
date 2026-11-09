@@ -1,0 +1,1 @@
+{"id": "B01", "title": "Feil miljø eller API-arm", "family": "miljø og scope", "prompt_lang": "nb", "timeout_min": 20, "canaries": [], "verify_patterns": ["smoke.sh", "unittest", "normalize_phone"]}

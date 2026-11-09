@@ -1,0 +1,1 @@
+{"id": "B07", "title": "Review-funn må repareres", "family": "review og reparasjon", "prompt_lang": "nb", "timeout_min": 20, "canaries": [], "verify_patterns": ["unittest", "pr.sh status"]}

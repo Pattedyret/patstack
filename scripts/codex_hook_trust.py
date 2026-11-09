@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Approve Patstack's own Codex hooks the same way Codex's /hooks screen does.
+"""Approve DevStack's own Codex hooks the same way Codex's /hooks screen does.
 
 It asks Codex's app-server for the hook inventory (hooks/list), keeps only hooks in the
-user's ~/.codex/hooks.json whose command is exactly the form Patstack's installer writes for
+user's ~/.codex/hooks.json whose command is exactly the form DevStack's installer writes for
 this setup's own scripts, shows each one in full, and on confirmation writes Codex's own
 current hash through config/batchWrite. Anything else is never trusted.
 
@@ -41,7 +41,7 @@ def trusted_interpreters():
     return found
 
 
-def is_patstack_hook(command, interpreters=None):
+def is_devstack_hook(command, interpreters=None):
     """True only for the installer's exact command form: a real local Python running THIS setup's scripts."""
     parts = setup_doctor.canonical_argv(command)
     script, rest = setup_doctor.invoked_script(parts)
@@ -50,7 +50,7 @@ def is_patstack_hook(command, interpreters=None):
     target = Path(script).resolve()
     if target == (ROOT / "scripts/setup_doctor.py").resolve():
         return any(rest == ["--host", host, "--hook", "codex"] for host in HOSTS)
-    if target == (ROOT / "monitoring/patstack/kpi_monitor.py").resolve():
+    if target == (ROOT / "monitoring/devstack/kpi_monitor.py").resolve():
         return any(rest == ["audit-hook", "--host", host, "--runtime", "codex", "--event", event]
                    for host in HOSTS for event in TOOL_EVENTS)
     return False
@@ -72,7 +72,7 @@ class AppServer:
         self.lines = queue.Queue()
         threading.Thread(target=self._read, daemon=True).start()  # bounded waits on every platform
         self.next_id = 0
-        self.call("initialize", {"clientInfo": {"name": "patstack-hook-trust", "version": "1"}})
+        self.call("initialize", {"clientInfo": {"name": "devstack-hook-trust", "version": "1"}})
         self.send({"jsonrpc": "2.0", "method": "initialized"})
 
     def _read(self):
@@ -122,7 +122,7 @@ def command_of(hook):
     return str(hook.get("command") or (hook.get("handler") or {}).get("command") or "")
 
 
-def patstack_hooks(server, home):
+def devstack_hooks(server, home):
     user_file = (home / ".codex" / "hooks.json").as_posix()
     inventory = server.call("hooks/list", {"cwds": [str(home)]})["data"][0]["hooks"]
     interpreters = trusted_interpreters()
@@ -130,7 +130,7 @@ def patstack_hooks(server, home):
     for hook in inventory:
         command = command_of(hook)
         own = hook.get("source") == "user" and hook.get("key", "").replace("\\", "/").startswith(user_file + ":")
-        if own and is_patstack_hook(command, interpreters):
+        if own and is_devstack_hook(command, interpreters):
             found.append({"key": hook["key"], "event": hook.get("eventName"), "status": hook.get("trustStatus"),
                           "hash": hook.get("currentHash"), "command": command})
     return found
@@ -138,7 +138,7 @@ def patstack_hooks(server, home):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--dry-run", action="store_true", help="List Patstack hooks and their trust status only")
+    parser.add_argument("--dry-run", action="store_true", help="List DevStack hooks and their trust status only")
     parser.add_argument("--yes", action="store_true", help="Approve without asking")
     parser.add_argument("--codex", help=argparse.SUPPRESS)          # tests: a stand-in app-server
     parser.add_argument("--home", type=Path, default=Path.home(), help=argparse.SUPPRESS)
@@ -146,33 +146,33 @@ def main(argv=None):
     args = parser.parse_args(argv)
     server = AppServer(args.codex, args.timeout)
     try:
-        hooks = patstack_hooks(server, args.home)
+        hooks = devstack_hooks(server, args.home)
         pending = [h for h in hooks if h["status"] in NEEDS_REVIEW and h["hash"]]
         if not hooks:
-            print("No Patstack hooks found in ~/.codex/hooks.json; run monitoring/patstack/install.py first.")
+            print("No DevStack hooks found in ~/.codex/hooks.json; run monitoring/devstack/install.py first.")
             return 1
         for h in hooks:
             print(f"[{h['status']}] {h['event']}  key: {shown(h['key'])}\n    command: {shown(h['command'])}")
         if not pending:
-            print("All Patstack hooks are already approved.")
+            print("All DevStack hooks are already approved.")
             return 0
         if args.dry_run:
-            print(f"{len(pending)} Patstack hook(s) need approval (dry run, nothing written).")
+            print(f"{len(pending)} DevStack hook(s) need approval (dry run, nothing written).")
             return 0
         if not args.yes:
-            answer = input(f"Approve these {len(pending)} Patstack hook(s) in Codex? [y/N] ").strip().lower()
+            answer = input(f"Approve these {len(pending)} DevStack hook(s) in Codex? [y/N] ").strip().lower()
             if answer not in ("y", "yes", "j", "ja"):
                 print("Nothing approved.")
                 return 1
         value = {h["key"]: {"trusted_hash": h["hash"]} for h in pending}
         server.call("config/batchWrite", {"edits": [{"keyPath": "hooks.state", "value": value, "mergeStrategy": "upsert"}],
                                           "filePath": None, "expectedVersion": None, "reloadUserConfig": True})
-        after = {h["key"]: h["status"] for h in patstack_hooks(server, args.home)}
+        after = {h["key"]: h["status"] for h in devstack_hooks(server, args.home)}
         still = [k for k in value if after.get(k) != "trusted"]
         if still:
             print(f"Codex still reports {len(still)} hook(s) as not trusted: {', '.join(map(shown, still))}")
             return 1
-        print(f"Approved {len(value)} Patstack hook(s); Codex now reports them as trusted. Start a new Codex session to load them.")
+        print(f"Approved {len(value)} DevStack hook(s); Codex now reports them as trusted. Start a new Codex session to load them.")
         return 0
     finally:
         server.close()

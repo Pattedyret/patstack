@@ -5,9 +5,9 @@ description: Synthesize an agreed brief into a versioned spec - problem, goal an
 
 # To spec
 
-Synthesize what is already known; do not interview. Facts come from the repo, tools and prior tasks. Only a genuinely unsettled choice that is Patrick's goes to [grilling](../grilling/SKILL.md).
+Synthesize what is already known; do not interview. Facts come from the repo, tools and prior tasks. Only a genuinely unsettled choice that is the owner's goes to [grilling](../grilling/SKILL.md).
 
-**Context.** Under a Patstack lead, reuse an accepted spec instead of writing a new one; this skill fills what is missing and versions changes. Invoked directly, write the spec the user asked for; it creates no task and no implementation authority.
+**Context.** Under a DevStack lead, reuse an accepted spec instead of writing a new one; this skill fills what is missing and versions changes. Invoked directly, write the spec the user asked for; it creates no task and no implementation authority.
 
 ## When a spec is needed
 
@@ -18,8 +18,8 @@ Synthesize what is already known; do not interview. Facts come from the repo, to
 ## Write it
 
 1. Explore the affected code. Use the project's domain vocabulary and respect ADRs in the area.
-2. Choose test seams: prefer existing ones, as high as possible, as few as possible. In Full Stop, confirm a new seam with Patrick only if it changes product behavior; otherwise decide.
-3. Derive missing quality targets before implementation from project evidence ([quality](../patstack/references/quality.md)). New features include their UI/UX/performance/data proof as acceptance items. Freeze the measurement protocol now so BEFORE can be captured.
+2. Choose test seams: prefer existing ones, as high as possible, as few as possible. In Full Stop, confirm a new seam with the owner only if it changes product behavior; otherwise decide.
+3. Derive missing quality targets before implementation from project evidence ([quality](../devstack/references/quality.md)). New features include their UI/UX/performance/data proof as acceptance items. Freeze the measurement protocol now so BEFORE can be captured.
 4. Preserve user-selected behavior and any approved visual direction. Significant new visual direction is a browser-options approval point, not something a spec decides.
 5. Fill the template; keep it as short as the work allows.
 

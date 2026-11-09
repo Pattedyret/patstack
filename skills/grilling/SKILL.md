@@ -1,23 +1,23 @@
 ---
 name: grilling
-description: Sharpen a plan, design or decision by interviewing Patrick - one batched, numbered list of questions, each with a recommended answer, asked only about choices that are genuinely his. Use for grill me, poke holes in my plan, have I thought this through, a Full Stop decision checkpoint, or before an approach that is costly to reverse. For model critique of finished work use review or council.
+description: Sharpen a plan, design or decision by interviewing the owner - one batched, numbered list of questions, each with a recommended answer, asked only about choices that are genuinely the owner's. Use for grill me, poke holes in my plan, have I thought this through, a Full Stop decision checkpoint, or before an approach that is costly to reverse. For model critique of finished work use review or council.
 ---
 
 # Grilling
 
 The goal is shared understanding in as few round trips as possible. Asking the wrong kind of question costs more than asking many.
 
-**Context.** Under a Patstack task, this is how Full Stop checkpoints and genuine product decisions reach Patrick. Invoked directly, it is unticketed discussion.
+**Context.** Under a DevStack task, this is how Full Stop checkpoints and genuine product decisions reach the owner. Invoked directly, it is unticketed discussion.
 
 ## Filter every draft question
 
-1. **Has he already decided it?** Re-read his messages. Preserve his framing and vocabulary verbatim; a stated definition is the definition, not a starting position.
+1. **Has the owner already decided it?** Re-read the owner's messages. Preserve the owner's framing and vocabulary verbatim; a stated definition is the definition, not a starting position.
 2. **Can a tool answer it?** Facts are your job: code, history, configs, running apps, prior tasks, a subagent. A pending lookup blocks only the questions downstream of it.
 3. **Does the answer change what gets built?** If both branches lead to the same work, pick one, say which, move on.
 
 A structured bug report (environment, area, severity, steps) is a complete spec; act on it.
 
-## What is his call
+## What is the owner's call
 
 Ask about: target environment when not established, anything user-visible or deployed (copy, behavior), money (paid tiers, new services), creating repos or infrastructure, launch timing, product rules (who may do what, what counts as correct), significant new visual direction.
 
@@ -41,14 +41,14 @@ State the approach in a short paragraph, the questions that matter, and what you
 - Interpret an explicit reply within its clear scope. A numbered answer settles that item; clear approval of the entire described batch settles that batch. Do not re-confirm a decision already made.
 - Unanswered human-gated product, permission or visual choices remain pending. Silence creates no approval. Ordinary implementation defaults may proceed under existing authority; state the assumption and keep independent work moving.
 - A scope redirect is a decision, not an objection to argue with.
-- If he contradicts what you believe, his environment statement outranks your inference. Verify against the live system; if you were right, show the evidence.
+- If the owner contradicts what you believe, the owner's environment statement outranks your inference. Verify against the live system; if you were right, show the evidence.
 
-## When he is unavailable
+## When the owner is unavailable
 
 Record the open question, recommendation and next action on the task as a block, and continue independent work within scope. A missing answer grants no product authority.
 
 ## Stop
 
-The interview ends when nothing is both unsettled and his to settle. Say so and start work.
+The interview ends when nothing is both unsettled and the owner's to settle. Say so and start work.
 
 When changing approval interpretation, replay the [approval scenarios](references/approval-scenarios.md).

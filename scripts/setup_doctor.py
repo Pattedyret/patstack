@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Read-only Patstack setup check for one host.
+"""Read-only DevStack setup check for one host.
 
-Checks the source, client skill links, global instructions, ticket-ref, Claude and
-Codex hooks (including Codex trust) and KPI hook receipts/outcome coverage. Changes no
+Checks the source, client skill links, global instructions (and whether the shipped
+template is installed), the bundled project pack, its shared product vault checkout (found,
+right remote, revision, freshness; never fetched here) and benchmark folders, ticket-ref, Claude
+and Codex hooks (including Codex trust) and KPI hook receipts/outcome coverage. Changes no
 configuration; reading the private KPI store may let SQLite create its usual -wal/-shm
-sidecar files. FAIL means broken setup; WARN means working but incomplete; INFO is unverifiable here. A green
+sidecar files. Only clients in use are checked (binary on PATH or the client's own state; --clients
+overrides); an unused client's rows are INFO, never FAIL. FAIL means broken setup; WARN means working but incomplete; INFO is unverifiable here. A green
 result proves configuration and recorded receipts, not that a client loaded a hook in
 the current session.
 """
 import argparse
 import contextlib
+import importlib.util
 import io
 import json
 import os
@@ -27,9 +31,17 @@ except ModuleNotFoundError:  # Python < 3.11
     tomllib = None
 
 SELF_ROOT = Path(__file__).resolve().parent.parent  # source setup or published checkout
-SAFETY_HOOKS = ("block-destructive.py", "read-size-guard.sh", "supabase-deploy-gate.sh", "bash-batch-nudge.sh")
+CLIENTS = ("claude", "codex")
+# Each client's own files (written by the client itself, never by DevStack's installer), so an install
+# that wrote hooks for both clients does not make an unused client look set up.
+CLIENT_STATE = {"claude": (".claude.json", ".claude/.credentials.json", ".claude/projects"),
+                "codex": (".codex/config.toml", ".codex/auth.json", ".codex/sessions")}
 RETIRED_HOOK = re.compile(r"agent-work-[a-z-]+\.py")
 SCRIPT = re.compile(r"\.(py|sh|cmd|ps1)\Z")
+# The bundled pack's read-only vault tool owns the vault rules; the doctor only shows its rows.
+PACK_VAULT_TOOL = "project-packs/*/tools/vault_context.py"
+# First line of examples/global-instructions/AGENTS.md; kept when the template is merged by hand.
+TEMPLATE_MARKER = "<!-- devstack-global-instructions -->"
 
 
 class Report:
@@ -151,9 +163,20 @@ def load_json(path, report, check):
     return None
 
 
-def check_source(root, home, host, report):
-    if not (root / "skills/patstack/SKILL.md").is_file():
-        report.add("FAIL", "source", f"{root}/skills/patstack/SKILL.md is missing")
+def detect_clients(home, which=shutil.which):
+    """Clients in use on this host: the client's binary on PATH or its own state in HOME."""
+    found = [name for name in CLIENTS
+             if which(name) or any((Path(home) / marker).exists() for marker in CLIENT_STATE[name])]
+    return found
+
+
+def not_set_up(report, check, client):
+    report.add("INFO", check, f"{client} not set up on this host; not checked (use --clients to check it anyway)")
+
+
+def check_source(root, home, host, report, clients=CLIENTS):
+    if not (root / "skills/devstack/SKILL.md").is_file():
+        report.add("FAIL", "source", f"{root}/skills/devstack/SKILL.md is missing")
         return
     report.add("OK", "source", str(root))
     names = sorted(p.parent.name for p in (root / "skills").glob("*/SKILL.md"))
@@ -166,8 +189,11 @@ def check_source(root, home, host, report):
             mirrors = None
         finally:
             sys.path.pop(0)
-    for link in (home / ".claude/skills", home / ".agents/skills"):
+    for link, client in ((home / ".claude/skills", "claude"), (home / ".agents/skills", "codex")):
         name = f"skills {link.parent.name}"
+        if client not in clients:
+            not_set_up(report, name, client)
+            continue
         if host == "windows" and not link.is_symlink():
             missing = [n for n in names if not (link / n / "SKILL.md").is_file()]
             if missing:
@@ -194,21 +220,55 @@ def check_source(root, home, host, report):
             report.add("FAIL", name, f"{len(wrong)} of {len(names)} skills do not resolve to {root / 'skills'}: {', '.join(wrong[:4])}")
         else:
             report.add("OK", name, f"all {len(names)} skills -> {root / 'skills'}")
-    for path in (home / ".claude/CLAUDE.md", home / ".codex/AGENTS.md"):
+    for path, client in ((home / ".claude/CLAUDE.md", "claude"), (home / ".codex/AGENTS.md", "codex")):
         name = f"instructions {path.parent.name}"
+        if client not in clients:
+            not_set_up(report, name, client)
+            continue
         text = path.read_text(encoding="utf-8", errors="replace") if path.is_file() else None
-        if text is None or "patstack" not in text.lower():
-            report.add("FAIL", name, f"{path} missing or does not select Patstack")
-        elif "monitoring/patstack" not in text:
-            report.add("WARN", name, "no KPI pointer; run monitoring/patstack/install.py")
+        if text is None or "devstack" not in text.lower():
+            report.add("FAIL", name, f"{path} missing or does not select DevStack")
+        elif "monitoring/devstack" not in text:
+            report.add("WARN", name, "no KPI pointer; run monitoring/devstack/install.py")
         else:
-            report.add("OK", name, "selects Patstack and points to KPI contract")
+            report.add("OK", name, "selects DevStack and points to KPI contract")
+        if text is not None and "devstack" in text.lower():
+            if TEMPLATE_MARKER in text:
+                report.add("OK", f"template {path.parent.name}", "DevStack global instructions template installed")
+            else:
+                report.add("INFO", f"template {path.parent.name}",
+                           "hand-written instructions; compare with examples/global-instructions/AGENTS.md")
+    packs = sorted(root.glob("project-packs/*/INDEX.md"))
+    report.add("OK" if packs else "INFO", "project pack",
+               ", ".join(str(pack) for pack in packs) if packs else "no bundled project pack; configure private packs as needed")
+    bench = root / "bench/bench.py"
+    report.add("OK" if bench.is_file() else "INFO", "bench",
+               str(bench) if bench.is_file() else f"{bench} not in this tree; optional")
     tool = home / ".local/bin" / ("ticket-ref.cmd" if host == "windows" else "ticket-ref")
     report.add("OK" if tool.is_file() else "WARN", "ticket-ref", str(tool) if tool.is_file() else f"{tool} missing; see tools/ticket-ref/README.md")
 
 
+def check_pack_vault(root, home, env, report):
+    """Pack vault: OK/WARN when it is configured or found, INFO when unused; never FAIL."""
+    for tool in sorted(root.glob(PACK_VAULT_TOOL)):
+        previous = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True  # no __pycache__ in the checkout from a read-only check
+            spec = importlib.util.spec_from_file_location("devstack_pack_vault", tool)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            rows = module.doctor_rows(home, os.environ if env is None else env)
+        except Exception as exc:  # a broken pack tool must not break the setup check
+            report.add("WARN", "pack vault", f"vault check failed: {exc.__class__.__name__}")
+            return
+        finally:
+            sys.dont_write_bytecode = previous
+        for status, check, detail in rows:
+            report.add(status if status in ("OK", "WARN", "INFO") else "WARN", check, detail)
+
+
 def check_hooks(runtime, settings, host, report):
-    """Shared hook checks; return Patstack hook positions [(label, event, g, h)] and all commands."""
+    """Shared hook checks; return DevStack hook positions [(label, event, g, h)] and all commands."""
     positions, wired = [], []
     for event, g, h, command in hook_commands(settings):
         for path in missing_paths(command):
@@ -227,20 +287,20 @@ def check_hooks(runtime, settings, host, report):
     for event in ("PostToolUse", "PostToolUseFailure"):
         counters = sum(1 for e, g, h, command in hook_commands(settings) if e == event and tool_runtime(command, host, e) == runtime)
         if counters > 1:  # also counts handlers under narrow matchers: each fires for its tools
-            report.add("WARN", f"{runtime} tool hook", f"{counters} {event} counters would double-count; rerun monitoring/patstack/install.py")
+            report.add("WARN", f"{runtime} tool hook", f"{counters} {event} counters would double-count; rerun monitoring/devstack/install.py")
     if "KPI" in labels:
         report.add("OK", f"{runtime} KPI hook", "Stop audit hook configured")
     else:
-        report.add("FAIL", f"{runtime} KPI hook", "Stop audit hook missing or not in the installer's form; run monitoring/patstack/install.py")
+        report.add("FAIL", f"{runtime} KPI hook", "Stop audit hook missing or not in the installer's form; run monitoring/devstack/install.py")
     for event in ("PostToolUse", "PostToolUseFailure") if runtime == "claude" else ("PostToolUse",):
         if event in labels:
             report.add("OK", f"{runtime} tool hook", f"{event} counter configured")
         else:
-            report.add("WARN", f"{runtime} tool hook", f"{event} counter missing; run monitoring/patstack/install.py")
+            report.add("WARN", f"{runtime} tool hook", f"{event} counter missing; run monitoring/devstack/install.py")
     if "status" in labels:
         report.add("OK", f"{runtime} status hook", "SessionStart status hook configured")
     else:
-        report.add("WARN", f"{runtime} status hook", "SessionStart status hook missing or not in the installer's form; run monitoring/patstack/install.py")
+        report.add("WARN", f"{runtime} status hook", "SessionStart status hook missing or not in the installer's form; run monitoring/devstack/install.py")
     return positions, wired
 
 
@@ -251,13 +311,9 @@ def check_claude(home, host, report):
     if settings.get("disableAllHooks") is True:
         report.add("FAIL", "claude hooks", "disableAllHooks is true; no hook runs")
         return False
-    positions, wired = check_hooks("claude", settings, host, report)
-    if host == "windows":
-        report.add("INFO", "claude safety hook", "shell safety hooks are Unix scripts; not checked on Windows")
-        return any(label == "KPI" for label, *_ in positions)
-    for name in SAFETY_HOOKS:
-        if not any(name in command for command in wired):
-            report.add("WARN", "claude safety hook", f"{name} not wired; see README hook inventory")
+    positions, _ = check_hooks("claude", settings, host, report)
+    # DevStack ships no shell safety hooks; owner-specific ones are the user's own and are not judged here.
+    report.add("INFO", "claude safety hook", "optional owner-specific safety hooks are not part of DevStack; not checked")
     return any(label == "KPI" for label, *_ in positions)
 
 
@@ -308,7 +364,7 @@ def trust_state(text):
 
 
 def check_kpi(root, host, runtimes, db, report, timeout):
-    command = [sys.executable, str(root / "monitoring/patstack/kpi_monitor.py")]
+    command = [sys.executable, str(root / "monitoring/devstack/kpi_monitor.py")]
     command += (["--db", str(db)] if db else []) + ["report"]
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
@@ -325,32 +381,57 @@ def check_kpi(root, host, runtimes, db, report, timeout):
         else:
             report.add("WARN", f"{runtime} receipts", "hook configured but never fired; restart the client or check hook trust")
     counts = data.get("overall", {}).get("counts", {})
-    missing = data.get("overall", {}).get("task_completion_rate", {}).get("missing", 0)
+    overall = data.get("overall", {})
+    # Only designated tasks need a verification label; unticketed `once` requests are not counted.
+    missing = overall.get("verification_missing", overall.get("task_completion_rate", {}).get("missing", 0))
     if not counts.get("total"):
         report.add("WARN", "kpi outcomes", "no workflow snapshots recorded yet")
     elif missing:
         report.add("WARN", "kpi outcomes", f"{missing} completed workflow(s) lack verified_success; record it with task_kpi.py finish")
     else:
         report.add("OK", "kpi outcomes", f"{counts['total']} workflow snapshots; completed ones carry verified_success")
+    card = data.get("scorecard")
+    if not card:
+        report.add("INFO", "kpi targets", "none set; copy examples/kpi-targets.example.json to ~/.config/devstack/kpi-targets.json")
+    elif "error" in card:
+        report.add("WARN", "kpi targets", "targets file invalid; kpi_monitor.py scorecard names the problem")
+    else:
+        report.add("OK" if card["met"] == card["total"] else "WARN", "kpi targets", card["line"])
 
 
-def run(root, home, host, db=None, timeout=30):
+def run(root, home, host, db=None, timeout=30, env=None, clients=None, which=shutil.which):
+    """CLIENTS: the clients to check; None detects them (falling back to both when none is found)."""
     report = Report()
-    check_source(root, home, host, report)
-    runtimes = [name for name, active in (("claude", check_claude(home, host, report)), ("codex", check_codex(home, host, report))) if active]
-    if (root / "monitoring/patstack/kpi_monitor.py").is_file():
+    if clients is None:
+        clients = detect_clients(home, which)
+        if not clients:
+            clients = list(CLIENTS)
+            report.add("INFO", "clients", "no Claude Code or Codex binary or state found; checking both")
+        else:
+            report.add("INFO", "clients", f"checking {' and '.join(clients)} (detected; --clients overrides)")
+    check_source(root, home, host, report, clients)
+    check_pack_vault(root, home, env, report)
+    active = []
+    for name, check in (("claude", check_claude), ("codex", check_codex)):
+        if name not in clients:
+            not_set_up(report, f"{name} hooks", name)
+        elif check(home, host, report):
+            active.append(name)
+    runtimes = active
+    if (root / "monitoring/devstack/kpi_monitor.py").is_file():
         check_kpi(root, host, runtimes, db, report, timeout)
     else:
-        report.add("FAIL", "kpi monitor", "monitoring/patstack/kpi_monitor.py is missing")
+        report.add("FAIL", "kpi monitor", "monitoring/devstack/kpi_monitor.py is missing")
     return report
 
 
 def summary(report):
     """One short status line for the session-start hook."""
-    issues = [row for row in report.rows if row["status"] in ("WARN", "FAIL")]
+    # KPI targets belong in a finished development task's report (task_kpi.py finish), not in every session
+    issues = [row for row in report.rows if row["status"] in ("WARN", "FAIL") and row["check"] != "kpi targets"]
     receipts = [row["detail"].split(" Stop")[0] + " " + row["check"].split()[0]
                 for row in report.rows if row["check"].endswith("receipts") and row["status"] == "OK"]
-    head = ("⚠ Patstack setup broken" if report.failed else "📈 Patstack monitoring on")
+    head = ("⚠ DevStack setup broken" if report.failed else "📈 DevStack monitoring on")
     head += f" ({', '.join(receipts)} receipts)" if receipts else ""
     if not issues:
         return head + " · all checks OK"
@@ -360,8 +441,8 @@ def summary(report):
 
 
 def hook_output(runtime, line):
-    context = (f"Patstack session status: {line}. Show this line once, verbatim, near the top of your "
-               "first reply; do not act on it unless Patrick asks.")
+    context = (f"DevStack session status: {line}. Do not repeat it in replies unless it starts with ⚠ (setup broken) "
+               "or the user asks about the setup; do not act on it unless the user asks.")
     output = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}
     if runtime == "claude":
         output["systemMessage"] = line  # shown directly by Claude Code; Codex keeps the proven context-only shape
@@ -371,7 +452,7 @@ def hook_output(runtime, line):
 def hook_main(argv):
     """Session-start mode: always one JSON line, exit 0, within the client's 5 s budget."""
     runtime = "codex" if "codex" in argv else "claude"
-    line = "⚠ Patstack setup check could not run; try setup_doctor.py manually"
+    line = "⚠ DevStack setup check could not run; try setup_doctor.py manually"
     try:
         with contextlib.redirect_stdout(io.StringIO()):  # --help or usage must not precede the JSON
             args = build_parser().parse_args(argv)
@@ -381,14 +462,18 @@ def hook_main(argv):
 
         def work():
             try:
-                result["line"] = summary(run(root, args.home, args.host, args.db, timeout=3)).replace("HOST", args.host)
+                clients = chosen(args.clients)
+                if clients is None:  # the client running this hook is set up by definition
+                    clients = [c for c in CLIENTS if c in detect_clients(args.home) or c == runtime]
+                result["line"] = summary(run(root, args.home, args.host, args.db, timeout=3,
+                                             clients=clients)).replace("HOST", args.host)
             except BaseException:
                 result["line"] = line  # crashed, not slow
 
         worker = threading.Thread(target=work, daemon=True)
         worker.start()
         worker.join(4)
-        line = result.get("line", "⚠ Patstack setup check timed out; try setup_doctor.py manually")
+        line = result.get("line", "⚠ DevStack setup check timed out; try setup_doctor.py manually")
     except BaseException:  # includes argparse's SystemExit; telemetry must never trap a session
         pass
     try:
@@ -400,14 +485,21 @@ def hook_main(argv):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Read-only Patstack setup check for one host.")  # -OO strips __doc__
+    parser = argparse.ArgumentParser(description="Read-only DevStack setup check for one host.")  # -OO strips __doc__
     parser.add_argument("--host", choices=("mac", "devbox", "windows"), required=True)
     parser.add_argument("--home", type=Path, default=Path.home(), help="Home directory to inspect (tests)")
-    parser.add_argument("--root", type=Path, help="Setup source or Patstack checkout (default: the tree containing this script)")
+    parser.add_argument("--root", type=Path, help="Setup source or DevStack checkout (default: the tree containing this script)")
     parser.add_argument("--db", type=Path, help="Private KPI store (default from kpi_monitor.py)")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--hook", choices=("claude", "codex"), help="SessionStart output; never fails the session")
+    parser.add_argument("--clients", choices=("auto", "claude", "codex", "both"), default="auto",
+                        help="Clients to check (default: auto, the clients whose binary or own state is found)")
     return parser
+
+
+def chosen(option):
+    """None for auto-detection, else the explicit client list."""
+    return {"auto": None, "both": list(CLIENTS), "claude": ["claude"], "codex": ["codex"]}[option]
 
 
 def main(argv=None):
@@ -416,7 +508,7 @@ def main(argv=None):
         return hook_main(argv)
     args = build_parser().parse_args(argv)
     root = args.root or SELF_ROOT
-    report = run(root, args.home, args.host, args.db)
+    report = run(root, args.home, args.host, args.db, clients=chosen(args.clients))
     if args.json:
         print(json.dumps(report.rows, indent=2))
     else:

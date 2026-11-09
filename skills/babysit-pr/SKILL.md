@@ -5,7 +5,7 @@ description: Watch an open PR through CI and review using native PR wakeups, rou
 
 # Babysit PR
 
-**Context.** Under a Patstack lead, only the PR-owning lead watches; the task keeps ownership and the exact next action while waiting. Invoked directly on a PR, watch it within the user's request; if fixes are needed, that is development work and follows Patstack's entry.
+**Context.** Under a DevStack lead, only the PR-owning lead watches; the task keeps ownership and the exact next action while waiting. Invoked directly on a PR, watch it within the user's request; if fixes are needed, that is development work and follows DevStack's entry.
 
 ## Wait natively
 
@@ -24,6 +24,8 @@ Inspect current checks and handle existing review comments before waiting; T3 co
 
 ## Readiness verdict
 
-Ready only when, on the current head: required CI passes, the selected review level covers the incremental diff, required acceptance/quality evidence is current, and no blocking finding is unresolved. Then follow the mode: [Full Send](../full-send/SKILL.md) continues to merge/test delivery within its grant; [Full Stop](../full-stop/SKILL.md) hands off the ready unmerged PR.
+Ready only when, on the current head: required CI passes, the selected review level covers the incremental diff and its `DevStack-Review` records are on the PR, required acceptance/quality evidence is current, and no blocking finding is unresolved. Then merge through the merge gate in either mode (`python3 tools/merge_gate.py merge --repo OWNER/NAME --pr N`, [merge rule](../devstack/references/coordination.md#merge)): it confirms the mode line, the review records for the head at the mode's minimum (Full Send R1, Full Stop R2) and CI before it merges that head. [Full Send](../full-send/SKILL.md) continues test delivery within its grant; [Full Stop](../full-stop/SKILL.md) reports its handoff.
 
-Call the exposed `unwatch_pull_request` at handoff or completion so the thread returns to Patrick. Model verdicts are not human GitHub approvals.
+Repairs push to the slice's existing worktree and branch. After the PR merges, remove that worktree (`python3 tools/worktrees.py <repo> --apply` removes only merged, clean and pushed ones). For a [change set](../devstack/references/change-sets.md), check the declared merge order with `tools/changeset.py` before each merge.
+
+Call the exposed `unwatch_pull_request` at handoff or completion so the thread returns to the owner. Model verdicts are not human GitHub approvals.

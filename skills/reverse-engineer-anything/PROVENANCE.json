@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/morluto/rea",
+  "commit": "5679ed66f43ece7a568843b92b3a2c77935d6236",
+  "license": "MIT",
+  "mode": "upstream-skill-copy",
+  "upstream_path": ".agents/skills/reverse-engineer-anything/",
+  "upstream_files": {
+    "LICENSE": "798f9e4d18e49b30bf2f12696c8ced73dc4e1413da375a333d01281543a1ea8b"
+  },
+  "local_paths": {
+    "LICENSE": "skills/reverse-engineer-anything/LICENSE"
+  },
+  "unchanged": [
+    "LICENSE"
+  ],
+  "changes": [
+    "The local SKILL.md and six references are an earlier upstream revision of this skill (metadata version 37); the commit above (version 60) is where the MIT license was verified and the notice copied.",
+    "Upstream's later environments.md reference and AgentEnv description are not included in this copy."
+  ]
+}
