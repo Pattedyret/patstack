@@ -247,6 +247,12 @@ class PublicationControls(unittest.TestCase):
             self.assertTrue(any("coverage differs" in message for message in check.failures))
             self.assertTrue(any("missing actual entrypoint" in message for message in check.failures))
 
+    def test_shipped_private_guards_stay_in_place(self):
+        # Hashes only: the guarded names and paths are asserted in plain form by the private export tests.
+        self.assertLessEqual({'97683eaa94b4560d33e3daa6ff734885474fc5a508b5026784b22a7a0e439afc', '44edd410d3cc163201f7bbc09cc6210e52543f1fb413338ac65533293eff16d9', '23ddda4810068cc44360dffd31b6c5a9ad13fb9e6a69c9354a5d1b07f1b9843f'}, check.PERSONAL_NAME_HASHES)
+        self.assertLessEqual({'7ad5f749dbf71e52e6ee8da9a48239e3c9a40dc3ae544737e335caf1986d9143', '73550989116704f5ce33d5d1f05ef9a2d6b003e09769edbe8f9ccc0ad54236c9'}, check.PRIVATE_PATH_HASHES)
+        self.assertIn('3318a69ad31e3f18ec2ccea4041e8d59fe52ea6b1147a9c3f000d35174d53f8b', check.PRIVATE_WORD_HASHES)
+
     def test_personal_names_only_allowed_in_exact_credit_lines(self):
         guards = patch.multiple(check, **FIXTURE_GUARDS)
         guards.start()

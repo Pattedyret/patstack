@@ -55,9 +55,21 @@ DevStack expects a short global instruction block that loads the coordinator for
 2. **No existing file:** install it for each client you use.
 
    ```bash
-   mkdir -p ~/.claude ~/.codex
-   [ -e ~/.claude/CLAUDE.md ] || [ -L ~/.claude/CLAUDE.md ] || cp "$global" ~/.claude/CLAUDE.md
-   [ -e ~/.codex/AGENTS.md ]  || [ -L ~/.codex/AGENTS.md ] || cp "$global" ~/.codex/AGENTS.md
+   python3 - "$global" <<'PY'
+   import os, sys
+   text = open(sys.argv[1]).read()
+   for name in ("~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"):
+       path = os.path.expanduser(name)
+       os.makedirs(os.path.dirname(path), exist_ok=True)
+       try:  # O_EXCL: never replace or follow an existing file or link
+           fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+       except FileExistsError:
+           print("kept your existing", name)
+           continue
+       with os.fdopen(fd, "w") as out:
+           out.write(text)
+       print("installed", name)
+   PY
    ```
 
    To keep one copy, place it once (for example `~/.codex/AGENTS.md`) and make the other path a symlink to it, which is how the upstream setup shares one file between both clients. On Windows, copy instead of linking.

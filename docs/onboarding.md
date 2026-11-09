@@ -57,9 +57,21 @@ Rerun `--apply` after every `git pull`, or Windows agents keep reading the old t
 ```bash
 global=$(mktemp)
 python3 -c 'import os, sys; sys.stdout.write(open(sys.argv[1]).read().replace("<DEVSTACK>", os.getcwd()))' examples/global-instructions/AGENTS.md > "$global"
-mkdir -p ~/.claude ~/.codex
-[ -e ~/.claude/CLAUDE.md ] || [ -L ~/.claude/CLAUDE.md ] || cp "$global" ~/.claude/CLAUDE.md
-[ -e ~/.codex/AGENTS.md ]  || [ -L ~/.codex/AGENTS.md ] || cp "$global" ~/.codex/AGENTS.md
+python3 - "$global" <<'PY'
+import os, sys
+text = open(sys.argv[1]).read()
+for name in ("~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"):
+    path = os.path.expanduser(name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:  # O_EXCL: never replace or follow an existing file or link
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError:
+        print("kept your existing", name)
+        continue
+    with os.fdopen(fd, "w") as out:
+        out.write(text)
+    print("installed", name)
+PY
 ```
 
 The `[ -e … ] ||` guard copies only where no file exists yet. **If you already have one,** back it up (`cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak`) and merge by hand: keep your own rules, add the template's sections, drop any older workflow block that names another router, and keep the template's first line `<!-- devstack-global-instructions -->` so the setup check recognises it. Where rules disagree, the stricter authority rule wins. Details: [setup step 3](setup.md#3-add-your-global-instructions).
