@@ -427,7 +427,7 @@ def grade(ws, transcript):
     fx = _fixture(ws)
     with tempfile.TemporaryDirectory() as tmp:
         tree = Path(tmp) / "tree"
-        shutil.copytree(ws, tree, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".devstack", ".claude"))
+        shutil.copytree(ws, tree, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".patstack", ".claude"))
         nonce = secrets.token_hex(16)
         out = _run(tree, "-c", HIDDEN, feed=nonce + "\n")
         lines = [line for line in out.stdout.splitlines() if nonce in line]

@@ -54,7 +54,7 @@ class ReferencesOnly(unittest.TestCase):
     def test_cli_needs_no_agent_model_role_project_or_claim(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'counter.sqlite3'
-            env = {**os.environ, 'DEVSTACK_TICKET_DB': str(path)}
+            env = {**os.environ, 'PATSTACK_TICKET_DB': str(path)}
             subprocess.run([sys.executable, str(SCRIPT), 'init', '--slot', '42', '--after', '9827'],
                            env=env, check=True, capture_output=True)
             result = subprocess.run([sys.executable, str(SCRIPT), 'new'], env=env,
@@ -77,11 +77,11 @@ class ReferencesOnly(unittest.TestCase):
 
 class SlotTable(unittest.TestCase):
     def cli(self, tmp, *args, table=None):
-        env = {**os.environ, 'DEVSTACK_TICKET_DB': str(Path(tmp) / 'counter.sqlite3')}
+        env = {**os.environ, 'PATSTACK_TICKET_DB': str(Path(tmp) / 'counter.sqlite3')}
         if table is not None:
             registry = Path(tmp) / 'slots.json'
             registry.write_text(table if isinstance(table, str) else json.dumps({'slots': table}), encoding='utf-8')
-            env['DEVSTACK_TICKET_SLOTS'] = str(registry)
+            env['PATSTACK_TICKET_SLOTS'] = str(registry)
         return subprocess.run([sys.executable, str(SCRIPT), 'init', *args], env=env, text=True, capture_output=True)
 
     def test_a_slot_listed_for_someone_else_is_refused(self):

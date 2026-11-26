@@ -38,6 +38,16 @@ def snapshot(repo):
     return git(repo, "rev-parse", "HEAD"), git(repo, "status", "--porcelain"), git(repo, "show-ref"), files
 
 
+class FileIoTests(unittest.TestCase):
+    def test_low_level_reads_preserve_crlf_and_control_bytes(self):
+        sync = load_module()
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "bytes.txt"
+            data = b"first\r\nsecond\x1a\x00last\n"
+            path.write_bytes(data)
+            self.assertEqual(sync.read_file(path)[0], data)
+
+
 class PackSyncTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -323,6 +333,7 @@ class PackSyncTests(unittest.TestCase):
         self.assertEqual(self.tree(), before)
         self.assertFalse((self.root.parent / "escaped").exists())
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_config_under_a_symlinked_package_parent_is_normalized(self):
         alias = self.root.parent / "alias"
         alias.symlink_to(self.root, target_is_directory=True)
@@ -355,6 +366,7 @@ class PackSyncTests(unittest.TestCase):
         self.assertEqual(out.returncode, 2)
         self.assertIn("inside the upstream checkout", out.stderr)
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_symlinked_skill_folder_is_refused(self):
         outside = self.root.parent / "outside"
         outside.mkdir()
@@ -370,6 +382,7 @@ class PackSyncTests(unittest.TestCase):
         self.assertIn("symlink", err)
         self.assertEqual((outside / "SKILL.md").read_text(), "# Demo\n\nStep one.\n")
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_symlinked_ancestor_folder_is_refused(self):
         outside = self.root.parent / "outside"
         outside.mkdir()
@@ -382,6 +395,7 @@ class PackSyncTests(unittest.TestCase):
         self.assertIn("symlink in the destination path", err)
         self.assertEqual(list(outside.iterdir()), [])
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_temporary_file_never_follows_a_planted_symlink(self):
         victim = self.root.parent / "victim.txt"
         victim.write_text("untouched\n")
@@ -396,6 +410,7 @@ class PackSyncTests(unittest.TestCase):
 
     # --- modes and deletions -----------------------------------------------------------------
 
+    @unittest.skipIf(os.name == "nt", "Windows does not expose POSIX executable bits")
     def test_mode_change_is_tracked_and_applied(self):
         script = self.source / "Skills/demo/run.sh"
         script.write_text("echo ok\n")
@@ -429,6 +444,7 @@ class PackSyncTests(unittest.TestCase):
         code, report, _ = self.tool("status")
         self.assertEqual((code, self.actions(report)["references/notes.md"]), (1, "pull"))
 
+    @unittest.skipIf(os.name == "nt", "Windows does not enforce POSIX directory mode bits")
     def test_failed_empty_folder_cleanup_after_commit_is_a_warning(self):
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             self.skipTest("root ignores folder permissions")

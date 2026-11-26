@@ -114,9 +114,6 @@ def evaluate(ticket, steps, fetch=gh_prs):
         repo.pop("merges")
     notes = [f"{r['repo']}: {r['open_prs']} open PRs for one ticket; keep one PR per repo"
              for r in repos if r["open_prs"] > 1] + sorted(set(notes_open))
-    notes += [f"{r['repo']}: no CI checks reported; proof is local only (a stated risk, not N/A)" for r in repos
-              if r["prs"] and all(p["checks"] == "none" for p in r["prs"] if p["state"] != "CLOSED")
-              and any(p["state"] != "CLOSED" for p in r["prs"])]
     complete = all(r["state"] == "merged" for r in repos)
     return {"ticket": ticket, "order_ok": not violations and not unresolved, "complete": complete,
             "repos": repos, "violations": violations, "unresolved": unresolved, "notes": notes}
@@ -126,7 +123,7 @@ def render(report):
     lines = [f"{report['ticket']}: order {'OK' if report['order_ok'] else 'VIOLATED'}, "
              f"set {'complete' if report['complete'] else 'incomplete'}"]
     for repo in report["repos"]:
-        prs = ", ".join(f"#{p['number']} {p['state'].lower()}{' draft' if p['draft'] else ''} checks={p['checks']}"
+        prs = ", ".join(f"#{p['number']} {p['state'].lower()}{' draft' if p['draft'] else ''} github-checks={p['checks']}"
                         for p in repo["prs"]) or "no PR"
         lines.append(f"  {repo['step']}. {repo['repo']}: {repo['state']} ({prs})")
     lines += [f"  VIOLATION: {v}" for v in report["violations"]]

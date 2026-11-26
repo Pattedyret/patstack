@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
-"""Set a DevStack task's status: print its thread title and ping the owner when it matters.
+"""Set a Patstack task's status: ping the owner when it matters and update the board and ticket.
 
   python3 tools/task_status.py TKT-… "DEPLOYED ON STAGE" --title "New invoice flow" --url URL
   python3 tools/task_status.py TKT-… "IN PROGRESS" --title "New invoice flow" --ping --note "Stage check failed, do not test yet"
   python3 tools/task_status.py TKT-… "REVIEW" --title "New invoice flow" --pr owner/repo#12
-  python3 tools/task_status.py sweep --older-than-hours 24
 
-The printed line is the thread title; the lead sets it in its own native thread. A status
-names where the work is, and only the task's lead sets it. WAITING ON YOU, DEPLOYED ON STAGE,
-DEPLOYED ON PROD and DONE ping; the others stay quiet unless --ping asks. A quiet status still
+The printed line is a one-line summary; the thread title keeps only `[TKT-…] Short title`, and
+the lead's native task list shows the steps. A status names the phase the work is in, and only the task's lead sets it. WAITING ON YOU, DEPLOYED ON STAGE,
+DEPLOYED ON PROD and DONE ping; the others stay quiet unless --ping asks. PARKED puts a task aside
+on purpose and needs --note saying why and what resumes it. A quiet status still
 reaches a client that shows the whole board: it goes to the `<topic>-board` topic, which the stock
-apps do not subscribe to. DONE is refused until the KPI store shows verified success, so "done"
-never reaches the owner without proof.
-`sweep` sends one summary of tasks still open past the age limit, for a daily timer, because a
-task that died cannot report itself.
+apps do not subscribe to. Set DONE only after the endpoint's proof is reported.
 
-Pings go to the owner's private ntfy server, named in ~/.config/devstack/notify.json
-(DEVSTACK_NOTIFY overrides; examples/notify.example.json shows the shape). With no such file
+Pings go to the owner's private ntfy server, named in ~/.config/patstack/notify.json
+(PATSTACK_NOTIFY overrides; examples/notify.example.json shows the shape). With no such file
 the title still prints and nothing is sent, so a copy without a server works unchanged. A
 configured server that fails exits 1 with the reason; the status itself stays valid and the
 task continues. Titles and notes are metadata: no secrets. Python 3.9+, standard library only.
@@ -25,24 +22,18 @@ Each status message is readable as it stands and also carries typed fields, so a
 to parse the display title: the message is the task title, then the note on a second line, and the
 tags are `ds:1`, `task:`, `status:` (the status in lower case with hyphens), `at:` (sender time in
 milliseconds, because ntfy keeps whole seconds) and, when known, `project:`, `host:`, `thread:` and
-`pr:`. Project comes from the KPI store, host from `host` in notify.json or else the KPI store,
-and thread from --thread or T3CODE_THREAD_ID. Unknown fields are left out, never guessed.
+`pr:`. Project comes from --project, host from `host` in notify.json, and thread from --thread or
+T3CODE_THREAD_ID. Unknown fields are left out, never guessed.
 """
 import argparse
-from contextlib import closing
-from datetime import datetime, timedelta, timezone
 import http.client
 import json
 import os
 from pathlib import Path
 import re
-import sqlite3
 import sys
 import time
 import urllib.request
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "monitoring/devstack"))
-import task_kpi  # noqa: E402
 
 # status -> (colour, ntfy priority when it pings, or None when it stays quiet)
 STATUSES = {
@@ -53,6 +44,7 @@ STATUSES = {
     "REVIEW": ("🟣", None),
     "RETRO": ("⚪", None),
     "DONE": ("🟢", 2),
+    "PARKED": ("⏸", None),
 }
 FORCED_PRIORITY = 3
 BOARD_PRIORITY = 1
@@ -64,11 +56,10 @@ HOST = re.compile(r"[A-Za-z0-9_-]{1,32}")
 PROJECT = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 DEPLOYED = ("DEPLOYED ON STAGE", "DEPLOYED ON PROD")
 MAX_TITLE, MAX_NOTE = 120, 300
-SWEEP_LIST = 8
 
 
 def config_path():
-    return Path(os.environ.get("DEVSTACK_NOTIFY") or Path.home() / ".config/devstack/notify.json")
+    return Path(os.environ.get("PATSTACK_NOTIFY") or Path.home() / ".config/patstack/notify.json")
 
 
 def load_config():
@@ -107,7 +98,7 @@ def send(config, title, message, priority, click=None, tags=None, topic=None):
         pass
 
 
-def deliver(title, message, priority, click=None, tags=None, quiet=False, known_host=None):
+def deliver(title, message, priority, click=None, tags=None, quiet=False):
     """Send one message. 0 when sent or not configured; 1 with the reason on stderr otherwise."""
     try:
         config = load_config()
@@ -115,7 +106,7 @@ def deliver(title, message, priority, click=None, tags=None, quiet=False, known_
             if not quiet:
                 print("notifications not configured; nothing sent", file=sys.stderr)
             return 0
-        host = config["host"] or known_host
+        host = config["host"]
         if tags and host:
             tags = [*tags, f"host:{host}"]
         send(config, title, message, priority, click, tags,
@@ -126,28 +117,24 @@ def deliver(title, message, priority, click=None, tags=None, quiet=False, known_
     return 0
 
 
-def has_proof(task_id, db):
-    return known_task(task_id, db).get("verified_success") is True
-
-
-def known_task(task_id, db):
-    """What the KPI store knows about this task, or {}: a bad store must never cost a ping."""
-    try:
-        snapshot = task_kpi.latest_snapshot(db, task_id)
-    except (sqlite3.Error, ValueError, TypeError, OSError):
-        return {}
-    return snapshot if isinstance(snapshot, dict) else {}
-
-
-def clean(value, pattern):
-    return value if isinstance(value, str) and pattern.fullmatch(value) else None
-
-
-def typed_fields(args, task, thread):
-    fields = {"project": clean(task.get("topic"), PROJECT), "thread": thread, "pr": args.pr}
+def typed_fields(args, thread):
+    fields = {"project": args.project, "thread": thread, "pr": args.pr}
     tags = ["ds:1", f"task:{args.task}", f"status:{args.status.lower().replace(' ', '-')}",
             f"at:{int(time.time() * 1000)}"]
     return tags + [f"{name}:{value}" for name, value in fields.items() if value]
+
+
+def mirror_to_monday(task, status):
+    """After the status is accepted and sent: set it on the Monday ticket, in order and with a short time
+    limit (seconds, not minutes), and return the line to show. A failure is reported, never raised."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import monday_ticket
+        return monday_ticket.sync_status(task, status)
+    except Exception as error:  # the board is a convenience; the status has already gone out
+        return f"monday: {task} NOT updated ({error.__class__.__name__})"
+    finally:
+        sys.path.pop(0)
 
 
 def set_status(args):
@@ -161,55 +148,27 @@ def set_status(args):
         return usage("--thread is not a thread id")
     if args.pr and not PULL_REQUEST.fullmatch(args.pr):
         return usage("--pr must look like owner/repo#12")
-    if args.status == "DONE" and not has_proof(args.task, args.db):
-        return usage(f"{args.task} has no recorded proof. Record it with task_kpi.py finish "
-                     "--verified yes, or set WAITING ON YOU and say what is missing.")
+    if args.project and not PROJECT.fullmatch(args.project):
+        return usage("--project must be a repo or project slug")
     colour, priority = STATUSES[args.status]
     title = one_line(args.title, MAX_TITLE)
     print(f"{colour} [{args.task} · {args.status}] {title}")
+    if args.status == "PARKED" and not (args.note or "").strip():
+        return usage("nothing sent: PARKED needs --note saying why it is parked and what resumes it.")
     if args.status in DEPLOYED and not (args.url or args.how):
         return usage(f"nothing sent: {args.status} needs --url, or --how when there is no web page to test.")
     quiet = priority is None and not args.ping
     note = " ".join(part for part in (args.how, args.note) if part)
     message = f"{title}\n{one_line(note, MAX_NOTE)}" if note else title
-    task = known_task(args.task, args.db)
     inherited = os.environ.get("T3CODE_THREAD_ID", "")
     thread = args.thread or (inherited if THREAD.fullmatch(inherited) else None)
-    return deliver(f"{colour} {args.status} · {args.task}", message,
+    code = deliver(f"{colour} {args.status} · {args.task}", message,
                    BOARD_PRIORITY if quiet else priority or FORCED_PRIORITY, args.url,
-                   typed_fields(args, task, thread), quiet, clean(task.get("host"), HOST))
-
-
-def open_tasks(db, older_than_hours, now=None):
-    """[(ticket, topic, age in hours)] oldest first: tasks whose latest snapshot is still open."""
-    if not Path(db).is_file():
-        return []
-    with closing(sqlite3.connect(Path(db).resolve().as_uri() + "?mode=ro", uri=True)) as con:
-        try:
-            rows = con.execute("SELECT id, body FROM snapshots ORDER BY id, revision").fetchall()
-        except sqlite3.OperationalError:  # store exists but has no snapshots yet
-            return []
-    latest = {task: json.loads(body) for task, body in rows if TICKET.fullmatch(task)}
-    now = now or datetime.now(timezone.utc)
-    found = []
-    for task, snapshot in latest.items():
-        started = datetime.fromisoformat(snapshot["started_at"].replace("Z", "+00:00"))
-        if snapshot.get("status") == "open" and now - started >= timedelta(hours=older_than_hours):
-            found.append((started, task, snapshot.get("topic", "?")))
-    return [(task, topic, int((now - started).total_seconds() // 3600))
-            for started, task, topic in sorted(found)]
-
-
-def sweep(args):
-    found = open_tasks(args.db, args.older_than_hours)
-    if not found:
-        return 0
-    lines = [f"{task} {topic} {age}h" for task, topic, age in found[:SWEEP_LIST]]
-    if len(found) > SWEEP_LIST:
-        lines.append(f"and {len(found) - SWEEP_LIST} more")
-    print("\n".join(lines))
-    return deliver(f"⚫ {len(found)} open past {args.older_than_hours}h, may be stalled",
-                   "\n".join(lines), FORCED_PRIORITY)
+                   typed_fields(args, thread), quiet)
+    line = mirror_to_monday(args.task, args.status)
+    if line:
+        print(line, file=sys.stderr)
+    return code
 
 
 def usage(message):
@@ -222,12 +181,6 @@ def main(argv=None):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("--db", default=task_kpi.DEFAULT_DB, help=argparse.SUPPRESS)
-    argv = list(sys.argv[1:] if argv is None else argv)
-    if argv[:1] == ["sweep"]:
-        sub = argparse.ArgumentParser(prog="task_status.py sweep", parents=[parser], add_help=False)
-        sub.add_argument("--older-than-hours", type=int, default=24)
-        return sweep(sub.parse_args(argv[1:]))
     parser.add_argument("task", help="TKT-… reference")
     parser.add_argument("status", help=", ".join(STATUSES))
     parser.add_argument("--title", required=True, help="Short task title, without the reference")
@@ -237,6 +190,7 @@ def main(argv=None):
     parser.add_argument("--ping", action="store_true", help="Ping even for a status that stays quiet")
     parser.add_argument("--thread", help="T3 thread id, when T3CODE_THREAD_ID does not name the right one")
     parser.add_argument("--pr", help="The task's pull request, as owner/repo#12")
+    parser.add_argument("--project", help="Repo or project slug, for example auth-api")
     return set_status(parser.parse_args(argv))
 
 

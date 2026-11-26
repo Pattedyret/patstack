@@ -287,7 +287,7 @@ class Pack:
 
 def read_file(path):
     """(bytes, st) of the regular file PATH, never following a final symlink."""
-    fd = os.open(str(path), os.O_RDONLY | NOFOLLOW)
+    fd = os.open(str(path), os.O_RDONLY | NOFOLLOW | getattr(os, "O_BINARY", 0))
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode):
@@ -309,7 +309,10 @@ def atomic_write(target, data, mode):
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
             handle.flush()
-            os.fchmod(handle.fileno(), mode)
+            if hasattr(os, "fchmod"):
+                os.fchmod(handle.fileno(), mode)
+            else:
+                os.chmod(temp, mode)
         os.replace(temp, target)
     except BaseException:
         if os.path.lexists(temp):

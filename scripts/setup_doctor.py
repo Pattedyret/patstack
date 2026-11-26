@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
-"""Read-only DevStack setup check for one host.
+"""Read-only Patstack setup check for one host.
 
 Checks the source, client skill links, global instructions (and whether the shipped
 template is installed), the bundled project pack, its shared product vault checkout (found,
-right remote, revision, freshness; never fetched here) and benchmark folders, ticket-ref, Claude
-and Codex hooks (including Codex trust) and KPI hook receipts/outcome coverage. Changes no
-configuration; reading the private KPI store may let SQLite create its usual -wal/-shm
-sidecar files. Only clients in use are checked (binary on PATH or the client's own state; --clients
+right remote, revision, freshness; never fetched here) and benchmark folders, ticket-ref, the
+merge guard hook, and hooks that point to missing files or retired Patstack tools. Changes no
+configuration. Only clients in use are checked (binary on PATH or the client's own state; --clients
 overrides); an unused client's rows are INFO, never FAIL. FAIL means broken setup; WARN means working but incomplete; INFO is unverifiable here. A green
-result proves configuration and recorded receipts, not that a client loaded a hook in
-the current session.
+result proves configuration, not that a client loaded a hook in the current session.
 """
 import argparse
-import contextlib
+import hashlib
 import importlib.util
-import io
 import json
 import os
 from pathlib import Path
@@ -23,25 +20,21 @@ import shlex
 import shutil
 import subprocess
 import sys
-import threading
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python < 3.11
-    tomllib = None
 
 SELF_ROOT = Path(__file__).resolve().parent.parent  # source setup or published checkout
 CLIENTS = ("claude", "codex")
-# Each client's own files (written by the client itself, never by DevStack's installer), so an install
+# Each client's own files (written by the client itself, never by Patstack's installer), so an install
 # that wrote hooks for both clients does not make an unused client look set up.
 CLIENT_STATE = {"claude": (".claude.json", ".claude/.credentials.json", ".claude/projects"),
                 "codex": (".codex/config.toml", ".codex/auth.json", ".codex/sessions")}
-RETIRED_HOOK = re.compile(r"agent-work-[a-z-]+\.py")
+# Retired Patstack hooks: the old task registry, the KPI recorder and the session status line.
+RETIRED_HOOK = re.compile(r"agent-work-[a-z-]+\.py|kpi_monitor\.py|setup_doctor\.py\b.*--hook")
+MERGE_GUARD = re.compile(r"merge_guard\.py")
 SCRIPT = re.compile(r"\.(py|sh|cmd|ps1)\Z")
 # The bundled pack's read-only vault tool owns the vault rules; the doctor only shows its rows.
 PACK_VAULT_TOOL = "project-packs/*/tools/vault_context.py"
 # First line of examples/global-instructions/AGENTS.md; kept when the template is merged by hand.
-TEMPLATE_MARKER = "<!-- devstack-global-instructions -->"
+TEMPLATE_MARKER = "<!-- patstack-global-instructions -->"
 
 
 class Report:
@@ -78,84 +71,15 @@ def missing_paths(command):
     return [p for p in candidates if Path(p).is_absolute() and not Path(p).is_file()]
 
 
-def canonical_argv(command):
-    """argv only when COMMAND is exactly the installer's shlex.join of it (no newlines, ;, odd quoting)."""
-    try:
-        parts = shlex.split(command)
-    except ValueError:
-        return []
-    return parts if shlex.join(parts) == command else []
-
-
-INTERPRETER = re.compile(r"(python(\d+(\.\d+)*)?|py)(\.exe)?", re.IGNORECASE)
-FLAGS = {"-B", "-E", "-I", "-O", "-OO", "-s", "-S", "-u"}
-LAUNCHER_VERSION = re.compile(r"-\d+(\.\d+)?(-\d+)?")
-
-
-def invoked_script(parts):
-    """The script a hook argv runs, using a closed grammar: PYTHON [-3.N] [flags] /abs/SCRIPT.py ARGS.
-
-    PYTHON must resolve to an executable (absolute path or on PATH) and SCRIPT must be an existing
-    absolute file. Callers pass argv from canonical_argv(), so shell syntax never reaches here.
-    Anything else (env, VAR=1, -c, -m, -X, relative or missing paths) is unrecognised and returns
-    ("", []): that errs towards a WARN or a duplicate hook, never towards calling a dead command OK.
-    Callers then compare ARGS exactly with the form the installer writes.
-    """
-    if not parts or not INTERPRETER.fullmatch(Path(parts[0]).name):
-        return "", []
-    if not (os.access(parts[0], os.X_OK) and Path(parts[0]).is_file() if Path(parts[0]).is_absolute() else shutil.which(parts[0])):
-        return "", []
-    launcher = Path(parts[0]).name.lower() in ("py", "py.exe")
-    i = 1
-    while i < len(parts) and parts[i].startswith("-"):
-        if parts[i] in FLAGS or (launcher and LAUNCHER_VERSION.fullmatch(parts[i])):
-            i += 1
-        else:  # includes -X/-W, whose values can stop Python before the script runs
-            return "", []
-    if i < len(parts) and Path(parts[i]).is_absolute() and Path(parts[i]).is_file():
-        return parts[i], parts[i + 1:]
-    return "", []
-    if i < len(parts) and parts[i].endswith(".py"):
-        return parts[i], parts[i + 1:]
-    return "", []
-
-
-def kpi_runtime(command, host):
-    """Return the runtime of a KPI Stop audit hook in the installer's exact form, else None."""
-    script, rest = invoked_script(canonical_argv(command))
-    for runtime in ("claude", "codex"):
-        if Path(script).name == "kpi_monitor.py" and rest == ["audit-hook", "--host", host, "--runtime", runtime, "--event", "Stop"]:
-            return runtime
-    return None
-
-
-ALL_TOOLS = (None, "", "*", ".*")  # a narrower matcher would count only some tools
-
-
-def tool_runtime(command, host, event):
-    """Return the runtime of a KPI tool-count hook for EVENT in the installer's exact form, else None."""
-    script, rest = invoked_script(canonical_argv(command))
-    for runtime in ("claude", "codex"):
-        if Path(script).name == "kpi_monitor.py" and rest == ["audit-hook", "--host", host, "--runtime", runtime, "--event", event]:
-            return runtime
-    return None
-
-
-def status_runtime(command, host):
-    """Return the runtime of a session status hook in the installer's exact form, else None."""
-    script, rest = invoked_script(canonical_argv(command))
-    for runtime in ("claude", "codex"):
-        if Path(script).name == "setup_doctor.py" and rest == ["--host", host, "--hook", runtime]:
-            return runtime
-    return None
-
-
 def load_json(path, report, check):
     if path.exists() and not path.is_file():  # a FIFO or device would block the read
         report.add("FAIL", check, f"{path} is not a regular file")
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        if raw.startswith(b"\xef\xbb\xbf"):  # Windows PowerShell 5 and Notepad can write one
+            report.add("WARN", check, f"{path} starts with a byte-order mark; save it as UTF-8 without BOM")
+        return json.loads(raw.decode("utf-8-sig"))
     except FileNotFoundError:
         report.add("FAIL", check, f"{path} is missing")
     except (OSError, ValueError) as exc:
@@ -175,8 +99,8 @@ def not_set_up(report, check, client):
 
 
 def check_source(root, home, host, report, clients=CLIENTS):
-    if not (root / "skills/devstack/SKILL.md").is_file():
-        report.add("FAIL", "source", f"{root}/skills/devstack/SKILL.md is missing")
+    if not (root / "skills/patstack/SKILL.md").is_file():
+        report.add("FAIL", "source", f"{root}/skills/patstack/SKILL.md is missing")
         return
     report.add("OK", "source", str(root))
     names = sorted(p.parent.name for p in (root / "skills").glob("*/SKILL.md"))
@@ -226,15 +150,13 @@ def check_source(root, home, host, report, clients=CLIENTS):
             not_set_up(report, name, client)
             continue
         text = path.read_text(encoding="utf-8", errors="replace") if path.is_file() else None
-        if text is None or "devstack" not in text.lower():
-            report.add("FAIL", name, f"{path} missing or does not select DevStack")
-        elif "monitoring/devstack" not in text:
-            report.add("WARN", name, "no KPI pointer; run monitoring/devstack/install.py")
+        if text is None or "patstack" not in text.lower():
+            report.add("FAIL", name, f"{path} missing or does not select Patstack")
         else:
-            report.add("OK", name, "selects DevStack and points to KPI contract")
-        if text is not None and "devstack" in text.lower():
+            report.add("OK", name, "selects Patstack")
+        if text is not None and "patstack" in text.lower():
             if TEMPLATE_MARKER in text:
-                report.add("OK", f"template {path.parent.name}", "DevStack global instructions template installed")
+                report.add("OK", f"template {path.parent.name}", "Patstack global instructions template installed")
             else:
                 report.add("INFO", f"template {path.parent.name}",
                            "hand-written instructions; compare with examples/global-instructions/AGENTS.md")
@@ -254,7 +176,7 @@ def check_pack_vault(root, home, env, report):
         previous = sys.dont_write_bytecode
         try:
             sys.dont_write_bytecode = True  # no __pycache__ in the checkout from a read-only check
-            spec = importlib.util.spec_from_file_location("devstack_pack_vault", tool)
+            spec = importlib.util.spec_from_file_location("patstack_pack_vault", tool)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             rows = module.doctor_rows(home, os.environ if env is None else env)
@@ -267,139 +189,276 @@ def check_pack_vault(root, home, env, report):
             report.add(status if status in ("OK", "WARN", "INFO") else "WARN", check, detail)
 
 
-def check_hooks(runtime, settings, host, report):
-    """Shared hook checks; return DevStack hook positions [(label, event, g, h)] and all commands."""
-    positions, wired = [], []
+def check_hooks(runtime, settings, report):
+    """Hooks that point to missing files or to retired Patstack tools."""
     for event, g, h, command in hook_commands(settings):
         for path in missing_paths(command):
             report.add("FAIL", f"{runtime} hook", f"{event} command points to missing {path}")
-        if event == "Stop" and kpi_runtime(command, host) == runtime:
-            positions.append(("KPI", event, g, h))
-        if event == "SessionStart" and status_runtime(command, host) == runtime:
-            positions.append(("status", event, g, h))
-        matcher = ((settings.get("hooks") or {}).get(event) or [{}])[g].get("matcher")
-        if event in ("PostToolUse", "PostToolUseFailure") and matcher in ALL_TOOLS and tool_runtime(command, host, event) == runtime:
-            positions.append((event, event, g, h))
-        wired.append(command)
-        if RETIRED_HOOK.search(command):
-            report.add("WARN", f"{runtime} hook", f"retired registry hook still wired in {event}: {RETIRED_HOOK.search(command).group()}")
-    labels = {label for label, *_ in positions}
-    for event in ("PostToolUse", "PostToolUseFailure"):
-        counters = sum(1 for e, g, h, command in hook_commands(settings) if e == event and tool_runtime(command, host, e) == runtime)
-        if counters > 1:  # also counts handlers under narrow matchers: each fires for its tools
-            report.add("WARN", f"{runtime} tool hook", f"{counters} {event} counters would double-count; rerun monitoring/devstack/install.py")
-    if "KPI" in labels:
-        report.add("OK", f"{runtime} KPI hook", "Stop audit hook configured")
-    else:
-        report.add("FAIL", f"{runtime} KPI hook", "Stop audit hook missing or not in the installer's form; run monitoring/devstack/install.py")
-    for event in ("PostToolUse", "PostToolUseFailure") if runtime == "claude" else ("PostToolUse",):
-        if event in labels:
-            report.add("OK", f"{runtime} tool hook", f"{event} counter configured")
-        else:
-            report.add("WARN", f"{runtime} tool hook", f"{event} counter missing; run monitoring/devstack/install.py")
-    if "status" in labels:
-        report.add("OK", f"{runtime} status hook", "SessionStart status hook configured")
-    else:
-        report.add("WARN", f"{runtime} status hook", "SessionStart status hook missing or not in the installer's form; run monitoring/devstack/install.py")
-    return positions, wired
+        retired = RETIRED_HOOK.search(command)
+        if retired:
+            report.add("WARN", f"{runtime} hook", f"retired Patstack hook still wired in {event}: {retired.group()}; remove it")
 
 
-def check_claude(home, host, report):
+def check_claude(home, report):
     settings = load_json(home / ".claude/settings.json", report, "claude settings")
     if settings is None:
-        return False
+        return
     if settings.get("disableAllHooks") is True:
-        report.add("FAIL", "claude hooks", "disableAllHooks is true; no hook runs")
-        return False
-    positions, _ = check_hooks("claude", settings, host, report)
-    # DevStack ships no shell safety hooks; owner-specific ones are the user's own and are not judged here.
-    report.add("INFO", "claude safety hook", "optional owner-specific safety hooks are not part of DevStack; not checked")
-    return any(label == "KPI" for label, *_ in positions)
+        report.add("FAIL", "claude hooks", "disableAllHooks is true; the merge guard cannot run")
+        return
+    check_hooks("claude", settings, report)
+    groups = (settings.get("hooks") or {}).get("PreToolUse") or []
+    found = [(groups[g].get("matcher"), command) for event, g, _, command in hook_commands(settings)
+             if event == "PreToolUse" and MERGE_GUARD.search(command)]
+    if any(covers_bash(matcher) and runs_guard(command) for matcher, command in found):
+        report.add("OK", "claude merge guard", "PreToolUse merge guard runs for Bash")
+    elif found:
+        report.add("WARN", "claude merge guard", "merge guard hook found, but its matcher misses Bash or its interpreter "
+                                                  "or guard file is missing; see docs/setup.md")
+    else:
+        report.add("WARN", "claude merge guard", "merge guard not wired; add tools/merge_guard.py as a PreToolUse Bash hook (docs/setup.md)")
 
 
-def check_codex(home, host, report):
-    if not (home / ".codex").is_dir():
-        report.add("WARN", "codex", f"{home / '.codex'} missing; Codex checks skipped")
+def covers_bash(matcher):
+    """Claude Code runs a hook for every tool when the matcher is empty or *, else when it matches the tool name."""
+    if matcher in (None, "", "*"):
+        return True
+    try:
+        return re.fullmatch(matcher, "Bash") is not None
+    except (re.error, TypeError):
         return False
+
+
+INTERPRETER = re.compile(r"(python(\d+(\.\d+)*)?|py)(\.exe)?", re.IGNORECASE)
+SAFE_FLAGS = {"-B", "-E", "-I", "-O", "-OO", "-s", "-S", "-u"}  # flags that still run the script operand
+
+
+def runs_guard(command):
+    """Only the documented form: PYTHON [safe flags] /abs/merge_guard.py, with both files present.
+
+    Anything else (-c, -m, another program, shell syntax) is unrecognised, so the check WARNs rather
+    than calling a guard OK that never runs."""
+    # Windows splits without POSIX rules, so "C:\\path with quotes" keeps its quotes; drop them.
+    parts = [part[1:-1] if len(part) > 1 and part[0] == part[-1] == '"' else part for part in split(command)]
+    if not parts or not INTERPRETER.fullmatch(Path(parts[0]).name):
+        return False
+    head = Path(parts[0])
+    if not ((head.is_file() and os.access(head, os.X_OK)) if head.is_absolute() else shutil.which(parts[0])):
+        return False
+    i = 1
+    while i < len(parts) and parts[i] in SAFE_FLAGS:
+        i += 1
+    rest = parts[i:]
+    if not (len(rest) == 1 and Path(rest[0]).name == "merge_guard.py" and Path(rest[0]).is_absolute() and Path(rest[0]).is_file()):
+        return False
+    # The interpreter must really start: on Windows `python3` is often only the Store placeholder,
+    # which exits 9009, so the hook would never block anything.
+    try:
+        # probe with the hook's own flags, so -E/-I start Python exactly as the hook will
+        return subprocess.run([*parts[:i], "-c", "pass"], capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def check_preferences(home, report, env=None):
+    """The person's own preferences from the start-here interview: present and well formed. Model ids are
+    not checked against the catalogs here (the interview did that); this check stays offline and fast."""
+    env = os.environ if env is None else env
+    path = Path(env.get("PATSTACK_PREFERENCES") or home / ".config/patstack/preferences.json")
+    try:
+        present = os.lstat(path) is not None  # lstat: a dangling link exists, and reads as unreadable below
+    except (FileNotFoundError, NotADirectoryError):
+        present = False
+    except OSError as error:  # for example a config folder this user cannot read
+        report.add("WARN", "preferences", f"cannot look for {path} ({error.__class__.__name__}); fix the folder's permissions")
+        return
+    if not present:
+        report.add("INFO", "preferences", "not set: run /start-here (it asks how you work and ranks your models)")
+        return
+    try:
+        regular = path.is_file()  # a FIFO or device would block the read below
+    except OSError:
+        regular = False
+    if not regular:
+        report.add("WARN", "preferences", f"{path} is not a readable regular file; rerun /start-here")
+        return
+    try:
+        prefs = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as error:
+        report.add("WARN", "preferences", f"{path} is unreadable ({error.__class__.__name__}); rerun /start-here")
+        return
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import preferences
+        found = preferences.problems(prefs, [])
+    finally:
+        sys.path.pop(0)
+    if found:
+        report.add("WARN", "preferences", f"{path}: {found[0]}; rerun /start-here")
+        return
+    pair = " + ".join(prefs["models"]["reviewPair"])
+    report.add("OK", "preferences", f"set {prefs.get('updated', '?')}: language {prefs['language']}, "
+                                    f"review pair {pair}, lead {prefs['models']['ranking']['lead'][0]}")
+
+
+def check_codex(home, report):
     hooks_file = home / ".codex/hooks.json"
+    if not hooks_file.exists():
+        report.add("WARN", "codex merge guard", f"{hooks_file} absent; add the merge guard with "
+                                                "scripts/start_here.py --apply (docs/setup.md step 6)")
+        return
     settings = load_json(hooks_file, report, "codex hooks")
     if settings is None:
-        return False
-    positions, _ = check_hooks("codex", settings, host, report)
-    if not positions:
-        return False
-    active = any(label == "KPI" for label, *_ in positions)
-    config = home / ".codex/config.toml"
-    if not config.is_file():
-        report.add("WARN", "codex trust", "config.toml unavailable; trust not checked")
-        return active
-    try:
-        state = trust_state(config.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        report.add("WARN", "codex trust", f"config.toml unreadable: {exc.__class__.__name__}")
-        return active
-    for label, event, g, h in positions:
-        key = f"{hooks_file}:{re.sub(r'(?<!^)(?=[A-Z])', '_', event).lower()}:{g}:{h}"
-        if (state.get(key) or {}).get("trusted_hash"):
-            # Codex's hash cannot be recomputed here and a stale entry can remain at a reused position.
-            report.add("INFO", "codex trust", f"{label} hook has a trust entry (unverifiable here); approve it if /hooks lists it as new")
-        else:
-            report.add("WARN", "codex trust", f"{label} hook not trusted; open Codex and approve it in /hooks")
-    return active
-
-
-def trust_state(text):
-    """Codex's hooks.state tables; without tomllib (Python < 3.11, e.g. macOS's python3) only the form Codex writes."""
-    if tomllib is not None:
-        return tomllib.loads(text).get("hooks", {}).get("state", {})
-    state, table = {}, None
-    for line in text.splitlines():
-        line = line.strip()
-        if line.startswith("["):
-            m = re.fullmatch(r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]', line)
-            table = state.setdefault(json.loads(m.group(1)), {}) if m else None
-        elif table is not None and re.match(r'trusted_hash\s*=\s*"[^"]+"', line):
-            table["trusted_hash"] = True
-    return state
-
-
-def check_kpi(root, host, runtimes, db, report, timeout):
-    command = [sys.executable, str(root / "monitoring/devstack/kpi_monitor.py")]
-    command += (["--db", str(db)] if db else []) + ["report"]
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
-        data = json.loads(result.stdout)
-    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
-        report.add("WARN", "kpi report", f"report unavailable: {exc.__class__.__name__}")
         return
-    receipts = {row.get("runtime"): row.get("receipts", 0) for row in data.get("audit_hook_coverage", [])
-                if row.get("host") == host and row.get("event") == "Stop"}
-    for runtime in runtimes:
-        count = receipts.get(runtime, 0)
-        if count:
-            report.add("OK", f"{runtime} receipts", f"{count} Stop receipts recorded on {host}")
+    check_hooks("codex", settings, report)
+    wired = guard_positions(settings)
+    if not wired:
+        report.add("WARN", "codex merge guard", f"not wired in {hooks_file}; scripts/start_here.py --apply adds it")
+        return
+    state = codex_guard_state(home, hooks_file, settings, wired)
+    if state == "trusted":
+        report.add("OK", "codex merge guard", "PreToolUse merge guard runs for Bash; Codex trusts this exact hook")
+    else:
+        report.add("WARN", "codex merge guard", CODEX_STATE_ADVICE[state])
+
+
+def guard_positions(settings):
+    """(group, hook) indexes of PreToolUse hooks that run the merge guard for Bash."""
+    groups = (settings.get("hooks") or {}).get("PreToolUse") or []
+    return [(g, h) for event, g, h, command in hook_commands(settings)
+            if event == "PreToolUse" and MERGE_GUARD.search(command)
+            and covers_bash(groups[g].get("matcher")) and runs_guard(command)]
+
+
+TRUST_START = "Start `codex` in a terminal and choose 'Trust all and continue' (or review it under /hooks)"
+CODEX_STATE_ADVICE = {
+    "untrusted": "wired but not trusted: Codex skips an untrusted hook without a word. " + TRUST_START,
+    "changed": "trusted before, but the hook changed since: Codex skips it until it is trusted again. " + TRUST_START,
+    "disabled": "wired but turned off in Codex (enabled = false): turn it on under /hooks",
+    "unreadable": "trust unknown: ~/.codex/config.toml is not readable TOML here, or this Python is older than 3.11 "
+                  "(no TOML reader). " + TRUST_START + ", then check it under /hooks",
+}
+DEFAULT_CONTEXT_LIMIT = 2500  # Codex's default additionalContext limit, left out of the trust hash
+
+
+def codex_hook_hash(event, matcher, hook):
+    """Codex 0.167's trust hash for one command hook (hooks/src/engine/discovery.rs hook_hash and
+    config/src/fingerprint.rs version_for_toml): sha256 over the sorted, compact JSON of the normalized
+    identity {event_name, matcher, hooks: [handler]}, where the handler has its timeout defaulted to 600
+    and absent optional fields left out. Checked against hashes Codex itself recorded."""
+    timeout = hook.get("timeout")
+    timeout = 600 if timeout is None else timeout  # Codex: timeout_sec.unwrap_or(600).max(1)
+    if isinstance(timeout, bool) or not isinstance(timeout, int):
+        return None  # Codex rejects such a hook; it can never be trusted as written
+    handler = {"type": "command", "command": hook.get("command", ""),
+               "timeout": max(1, timeout), "async": bool(hook.get("async", False))}
+    if hook.get("statusMessage") is not None:
+        handler["statusMessage"] = hook["statusMessage"]
+    limit = hook.get("additionalContextLimit")
+    if limit is not None and limit != DEFAULT_CONTEXT_LIMIT:
+        handler["additionalContextLimit"] = limit
+    identity = {"event_name": event, "hooks": [handler]}
+    if matcher is not None:
+        identity["matcher"] = matcher
+    data = json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def codex_hook_states(text):
+    """{state key: {"trusted_hash", "enabled"}} from config.toml text; None when it cannot be read as TOML.
+    Needs tomllib (Python 3.11+); on older Pythons there is no safe way to read every valid TOML form, so the
+    answer is "unknown" (WARN), never a guess."""
+    try:
+        import tomllib
+    except ImportError:
+        return None
+    try:
+        table = (tomllib.loads(text).get("hooks") or {}).get("state") or {}
+    except tomllib.TOMLDecodeError:
+        return None
+    return {k: {"trusted_hash": v.get("trusted_hash"), "enabled": v.get("enabled")}
+            for k, v in table.items() if isinstance(v, dict)}
+
+
+def codex_guard_state(home, hooks_file, settings, wired):
+    """trusted | changed | untrusted | disabled | unreadable, by Codex's own rule: the stored trusted_hash must
+    equal the current hash of that exact hook, and a hook with enabled = false never runs. The best wired
+    position wins."""
+    try:
+        states = codex_hook_states((home / ".codex/config.toml").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        states = {}
+    except OSError:
+        states = None
+    if states is None:
+        return "unreadable"
+    groups = (settings.get("hooks") or {}).get("PreToolUse") or []
+    found = []
+    for g, h in wired:
+        state = states.get(f"{hooks_file}:pre_tool_use:{g}:{h}") or {}
+        hook = groups[g]["hooks"][h]
+        if state.get("enabled") is False:
+            found.append("disabled")
+        elif not isinstance(state.get("trusted_hash"), str):
+            found.append("untrusted")
+        elif state["trusted_hash"] == codex_hook_hash("pre_tool_use", groups[g].get("matcher"), hook):
+            found.append("trusted")
         else:
-            report.add("WARN", f"{runtime} receipts", "hook configured but never fired; restart the client or check hook trust")
-    counts = data.get("overall", {}).get("counts", {})
-    overall = data.get("overall", {})
-    # Only designated tasks need a verification label; unticketed `once` requests are not counted.
-    missing = overall.get("verification_missing", overall.get("task_completion_rate", {}).get("missing", 0))
-    if not counts.get("total"):
-        report.add("WARN", "kpi outcomes", "no workflow snapshots recorded yet")
-    elif missing:
-        report.add("WARN", "kpi outcomes", f"{missing} completed workflow(s) lack verified_success; record it with task_kpi.py finish")
-    else:
-        report.add("OK", "kpi outcomes", f"{counts['total']} workflow snapshots; completed ones carry verified_success")
-    card = data.get("scorecard")
-    if not card:
-        report.add("INFO", "kpi targets", "none set; copy examples/kpi-targets.example.json to ~/.config/devstack/kpi-targets.json")
-    elif "error" in card:
-        report.add("WARN", "kpi targets", "targets file invalid; kpi_monitor.py scorecard names the problem")
-    else:
-        report.add("OK" if card["met"] == card["total"] else "WARN", "kpi targets", card["line"])
+            found.append("changed")
+    return min(found, key=["trusted", "changed", "disabled", "untrusted"].index)
 
 
-def run(root, home, host, db=None, timeout=30, env=None, clients=None, which=shutil.which):
+def monday_tool():
+    """tools/monday_ticket.py from the tree this doctor belongs to, or None when that tree ships none."""
+    tool = SELF_ROOT / "tools/monday_ticket.py"
+    if not tool.is_file():
+        return None
+    previous = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True  # a read-only check leaves no __pycache__ behind
+        spec = importlib.util.spec_from_file_location("patstack_monday_ticket", tool)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.dont_write_bytecode = previous
+
+
+def check_monday(root, home, env, report):
+    """Offline: is a team board configured, is its config usable, and is the token in place and private?
+    tools/monday_ticket.py decides what is absent and what is broken, so the doctor, start-here and the ticket
+    tool always agree. The token is read to prove it is usable and is never shown. Live check:
+    `monday_ticket.py check`."""
+    monday = monday_tool()
+    if monday is None:
+        return
+    env = os.environ if env is None else env
+    try:
+        monday.load_config(root, home=home, env=env)
+    except monday.NoConfig:
+        return  # no team board in this setup: no row
+    except monday.MondayError as error:
+        report.add("WARN", "ticket board", f"the team board configuration is broken: {error}")
+        return
+    token = monday.token_path(home, env)
+    try:
+        monday.read_token(home=home, env=env)
+        open_to_others = os.name != "nt" and bool(token.stat().st_mode & 0o077)
+    except monday.NoToken:
+        report.add("WARN", "ticket board", f"no token at {token}; run start-here, or the agent sets it up the first "
+                                           "time it needs a ticket")
+        return
+    except (OSError, monday.MondayError) as error:
+        detail = error if isinstance(error, monday.MondayError) else error.__class__.__name__
+        report.add("WARN", "ticket board", f"the stored Monday token cannot be used: {detail}")
+        return
+    if open_to_others:
+        report.add("WARN", "ticket board", f"{token} is readable by others; chmod 600 it")
+        return
+    report.add("OK", "ticket board", f"config and token in place ({token}); live check: python3 tools/monday_ticket.py check")
+
+
+def run(root, home, host, env=None, clients=None, which=shutil.which):
     """CLIENTS: the clients to check; None detects them (falling back to both when none is found)."""
     report = Report()
     if clients is None:
@@ -411,87 +470,22 @@ def run(root, home, host, db=None, timeout=30, env=None, clients=None, which=shu
             report.add("INFO", "clients", f"checking {' and '.join(clients)} (detected; --clients overrides)")
     check_source(root, home, host, report, clients)
     check_pack_vault(root, home, env, report)
-    active = []
+    check_monday(root, home, env, report)
+    check_preferences(home, report, env)
     for name, check in (("claude", check_claude), ("codex", check_codex)):
         if name not in clients:
             not_set_up(report, f"{name} hooks", name)
-        elif check(home, host, report):
-            active.append(name)
-    runtimes = active
-    if (root / "monitoring/devstack/kpi_monitor.py").is_file():
-        check_kpi(root, host, runtimes, db, report, timeout)
-    else:
-        report.add("FAIL", "kpi monitor", "monitoring/devstack/kpi_monitor.py is missing")
+        else:
+            check(home, report)
     return report
 
 
-def summary(report):
-    """One short status line for the session-start hook."""
-    # KPI targets belong in a finished development task's report (task_kpi.py finish), not in every session
-    issues = [row for row in report.rows if row["status"] in ("WARN", "FAIL") and row["check"] != "kpi targets"]
-    receipts = [row["detail"].split(" Stop")[0] + " " + row["check"].split()[0]
-                for row in report.rows if row["check"].endswith("receipts") and row["status"] == "OK"]
-    head = ("⚠ DevStack setup broken" if report.failed else "📈 DevStack monitoring on")
-    head += f" ({', '.join(receipts)} receipts)" if receipts else ""
-    if not issues:
-        return head + " · all checks OK"
-    names = ", ".join(f"{row['status']} {row['check']}" for row in issues[:4])
-    more = f" +{len(issues) - 4}" if len(issues) > 4 else ""
-    return f"{head} · {names}{more} · details: setup_doctor.py --host HOST"
-
-
-def hook_output(runtime, line):
-    context = (f"DevStack session status: {line}. Do not repeat it in replies unless it starts with ⚠ (setup broken) "
-               "or the user asks about the setup; do not act on it unless the user asks.")
-    output = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}
-    if runtime == "claude":
-        output["systemMessage"] = line  # shown directly by Claude Code; Codex keeps the proven context-only shape
-    return json.dumps(output)  # ASCII escapes: safe in any console encoding
-
-
-def hook_main(argv):
-    """Session-start mode: always one JSON line, exit 0, within the client's 5 s budget."""
-    runtime = "codex" if "codex" in argv else "claude"
-    line = "⚠ DevStack setup check could not run; try setup_doctor.py manually"
-    try:
-        with contextlib.redirect_stdout(io.StringIO()):  # --help or usage must not precede the JSON
-            args = build_parser().parse_args(argv)
-        runtime = args.hook
-        root = args.root or SELF_ROOT
-        result = {}
-
-        def work():
-            try:
-                clients = chosen(args.clients)
-                if clients is None:  # the client running this hook is set up by definition
-                    clients = [c for c in CLIENTS if c in detect_clients(args.home) or c == runtime]
-                result["line"] = summary(run(root, args.home, args.host, args.db, timeout=3,
-                                             clients=clients)).replace("HOST", args.host)
-            except BaseException:
-                result["line"] = line  # crashed, not slow
-
-        worker = threading.Thread(target=work, daemon=True)
-        worker.start()
-        worker.join(4)
-        line = result.get("line", "⚠ DevStack setup check timed out; try setup_doctor.py manually")
-    except BaseException:  # includes argparse's SystemExit; telemetry must never trap a session
-        pass
-    try:
-        sys.stdout.write(hook_output(runtime, line) + "\n")
-        sys.stdout.flush()
-    except BaseException:
-        pass
-    return 0
-
-
 def build_parser():
-    parser = argparse.ArgumentParser(description="Read-only DevStack setup check for one host.")  # -OO strips __doc__
+    parser = argparse.ArgumentParser(description="Read-only Patstack setup check for one host.")  # -OO strips __doc__
     parser.add_argument("--host", choices=("mac", "devbox", "windows"), required=True)
     parser.add_argument("--home", type=Path, default=Path.home(), help="Home directory to inspect (tests)")
-    parser.add_argument("--root", type=Path, help="Setup source or DevStack checkout (default: the tree containing this script)")
-    parser.add_argument("--db", type=Path, help="Private KPI store (default from kpi_monitor.py)")
+    parser.add_argument("--root", type=Path, help="Setup source or Patstack checkout (default: the tree containing this script)")
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--hook", choices=("claude", "codex"), help="SessionStart output; never fails the session")
     parser.add_argument("--clients", choices=("auto", "claude", "codex", "both"), default="auto",
                         help="Clients to check (default: auto, the clients whose binary or own state is found)")
     return parser
@@ -503,12 +497,9 @@ def chosen(option):
 
 
 def main(argv=None):
-    argv = sys.argv[1:] if argv is None else argv
-    if any(a == "--hook" or a.startswith("--hook=") for a in argv):
-        return hook_main(argv)
     args = build_parser().parse_args(argv)
     root = args.root or SELF_ROOT
-    report = run(root, args.home, args.host, args.db, clients=chosen(args.clients))
+    report = run(root, args.home, args.host, clients=chosen(args.clients))
     if args.json:
         print(json.dumps(report.rows, indent=2))
     else:

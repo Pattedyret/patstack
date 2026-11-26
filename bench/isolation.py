@@ -49,6 +49,30 @@ def check_binds(roots, read_only=(), protect=()):
     return roots
 
 
+def interpreter_paths():
+    """The grader's Python folders, at both their linked and their real location.
+
+    Python finds its standard library next to the executable path it was started with. When that path runs
+    through a linked install folder (uv links cpython-3.13-… to cpython-3.13.13-…) while sys.prefix names the
+    real folder, the linked install root must be visible too, or the sandboxed interpreter has only bin/. A venv
+    reaches that linked root one link further (venv/bin/python -> cpython-3.13-…/bin/python3.13), so every step of
+    the executable's link chain is checked. A root is added only when it resolves to the prefix already exposed,
+    so no other folder becomes visible."""
+    paths = set()
+    for path in (Path(sys.base_prefix), Path(sys.prefix), Path(sys.executable).parent):
+        paths |= {Path(os.path.abspath(path)), path.resolve()}  # both the linked and the real location
+    prefixes = {Path(sys.base_prefix).resolve(), Path(sys.prefix).resolve()}
+    step = os.path.abspath(sys.executable)
+    for _ in range(40):  # the OS's own symlink limit is in this range; a loop simply stops here
+        root = Path(step).parent.parent
+        if root.resolve() in prefixes:
+            paths.add(root)
+        if not os.path.islink(step):
+            break
+        step = os.path.abspath(os.path.join(os.path.dirname(step), os.readlink(step)))
+    return paths
+
+
 def command(cmd, cwd, binds, env=None, home=None, read_only=()):
     """The bubblewrap argv for CMD with write access only to BINDS."""
     bwrap = shutil.which("bwrap")
@@ -57,9 +81,7 @@ def command(cmd, cwd, binds, env=None, home=None, read_only=()):
     for hidden in (*HIDDEN, str(home)):
         if os.path.isdir(hidden) and not os.path.islink(hidden):
             args += ["--tmpfs", hidden]
-    python = set()
-    for path in (Path(sys.base_prefix), Path(sys.prefix), Path(sys.executable).parent):
-        python |= {Path(os.path.abspath(path)), path.resolve()}  # both the linked and the real location
+    python = interpreter_paths()
     # Writable binds first, read-only binds last: a later mount wins, so read-only always prevails.
     for path in sorted(binds):
         if path.exists():

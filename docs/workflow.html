@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DevStack workflow walkthrough</title>
+<title>Patstack workflow walkthrough</title>
 <style>
   :root{
     --paper:#fbfaf7;--ink:#1d2329;--muted:#5b6670;--line:#d5d9dd;--card:#fff;--soft:#f2f0ea;
@@ -79,8 +79,8 @@
 </head>
 <body>
 <main>
-  <h1>DevStack, step by step</h1>
-  <p class="lede">DevStack coordinates 19 callable skills under one lead. Pick a route and watch it move from intake to proof. Each step names what the agent does, the evidence it leaves behind and any gate a human keeps. This walkthrough illustrates the rules; it contains no measured results.</p>
+  <h1>Patstack, step by step</h1>
+  <p class="lede">Patstack coordinates 19 callable skills under one lead. Pick a route and watch it move from intake to proof. Each step names what the agent does, the evidence it leaves behind and any gate a human keeps. This walkthrough illustrates the rules; it contains no measured results.</p>
 
   <span class="label" id="scLabel">Route</span>
   <div class="scenarios" role="group" aria-labelledby="scLabel" id="scenarios"></div>
@@ -108,7 +108,7 @@
 
   <div class="legend">
     <div><h3>Full Send (default)</h3><p>The lead researches, makes routine choices and records them, then continues through PR, CI and review, merges its own PR through the merge gate after at least R1, and goes on to the established test target and a live check. Sensitive work gets deeper review and proof, not a stop.</p></div>
-    <div><h3>Full Stop</h3><p>When the owner asks, or a revert cannot undo the change (production, destructive or irreversible data operations, a very large high-impact intake), the owner joins the decisions. The change gets an in-depth R2 or R3 review, and the lead merges it through the merge gate once the review records and CI cover the exact head.</p></div>
+    <div><h3>Full Stop</h3><p>When the owner asks, or a revert cannot undo the change (production, destructive or irreversible data operations, a very large high-impact intake), the owner joins the decisions. The change gets an in-depth R2 or R3 review, and once the review records and CI cover the exact head the lead stops at the ready PR; a human merges it.</p></div>
     <div><h3>R1 · R2 · R3</h3><p>Focused author check, one fresh opposite-model reviewer, or an independent council of the two configured model families (default: Opus and Sol). Chosen by behavior and blast radius.</p></div>
     <div><h3>One repair flow</h3><p>PR and live failures return to the same task with a cumulative attempt count and clock. At most three normal cycles, then deep diagnosis.</p></div>
   </div>
@@ -134,7 +134,7 @@ const S = {
     {p: 4, r: true, t: "Live check fails", b: "Completion stops. The failure records its layer, criterion, exact release and evidence. Follow the project target procedure before code repair. Attempts and clock carry over.", e: "Failure record: live · criterion · release · next action."},
     {p: 2, r: true, t: "Smallest repair", b: "Fix on the same open PR, or a new linked PR if the first was merged. A fresh non-author reviews the incremental diff.", e: "Repair attempt 1 of at most 3 normal cycles."},
     {p: 4, t: "Retest on the verified release", b: "Live proof is bound to the release actually deployed, checked for drift across the run. The Full Send endpoint is reached.", e: "Release SHA, steps, expected vs actual."},
-    {p: 5, t: "Retro with evidence", b: "Read the KPI report, then check the underlying evidence. Only causal, tested improvements are promoted, with a rollback record.", e: "Lessons on the ticket; workflow version pinned."}
+    {p: 5, t: "Retro with evidence", b: "Read the task's own PR, Issue, CI and review history and check the underlying evidence. Only causal, tested improvements are promoted, with a rollback record.", e: "Lessons on the ticket; workflow version pinned."}
   ]},
   critical: {name: "Critical", mode: "send", review: "R2", steps: [
     {p: 0, t: "Short recovery contract", b: "Impact, affected environment, expected behavior, reproduction, authorized target and success check. No long spec. The response target is a route decision within about five minutes, not a promise of resolution.", e: "Incident contract on the existing task."},
@@ -148,7 +148,7 @@ const S = {
     {p: 1, h: true, t: "Human checkpoint", b: "One focused decision: the question, evidence, recommendation, consequences and the work that continues meanwhile. Facts and routine details are still resolved by the agent.", e: "Owner's decision quoted on the task."},
     {p: 2, t: "Build to the agreed approach", b: "Same build discipline: smallest complete change, tests, owned scopes.", e: "Candidate head."},
     {p: 3, t: "R3 council", b: "Fresh sessions from the two configured model families (default: Opus and Sol) judge independently first, then cross-examine with claim, severity, evidence and resolution.", e: "Both judgments and resolved objections."},
-    {p: 4, h: true, t: "Gated merge after R2/R3", b: "The merge gate checks the mode line, the R2/R3 review records and CI on the exact head; then the lead merges. Handoff states Done / Verified / Unresolved / Next.", e: "DevStack-Review records for the head, required checks green."},
+    {p: 4, h: true, t: "Ready PR after R2/R3, human merge", b: "The merge gate's check confirms the mode line, the R2/R3 review records and CI on the exact head; the lead stops at the ready PR and a human merges. Handoff states Done / Verified / Unresolved / Next.", e: "Patstack-Review records for the head, required checks green."},
     {p: 5, t: "Proportionate retro", b: "Lessons recorded once the endpoint is actually reached.", e: "Retro note."}
   ]},
   takeover: {name: "Takeover / Modernize", mode: "send", review: "R2", steps: [

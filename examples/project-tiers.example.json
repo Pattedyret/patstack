@@ -4,10 +4,12 @@
   },
   "repos": {
     "example-consulting/own-tooling": "INTERNAL",
-    "example-owner/friends-app": "FRIENDS",
     "forge.example/group/subgroup/app": "INTERNAL"
   },
   "local": {
     "code/project-without-remotes": "INTERNAL"
-  }
+  },
+  "local_ci": [
+    "example-consulting/own-tooling"
+  ]
 }

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""DevStack benchmark: the same tasks with and without DevStack, scored the same way.
+"""Patstack benchmark: the same tasks with and without Patstack, scored the same way.
 
   python3 bench/bench.py selftest [--tasks B04 B16]      # graders must pass a good and fail a bad oracle
-  python3 bench/bench.py run [--arms baseline devstack] [--trials 1] [--tasks ...] [--model M] [--parallel 3]
-  python3 bench/bench.py run --arms devstack candidate --candidate PATH   # A/B of a changed copy
+  python3 bench/bench.py run [--arms baseline patstack] [--trials 1] [--tasks ...] [--model M] [--parallel 3]
+  python3 bench/bench.py run --arms patstack candidate --candidate PATH   # A/B of a changed copy
   python3 bench/bench.py score [--runs DIR]               # scoreboard.md + scoreboard.json
   python3 bench/bench.py run|score --review [--review-command "CMD"]   # plus a blind code review ("Kvalitet")
 
-Arms: "baseline" (the task only), "devstack" (this checkout, or --ref REF of it) and
+Arms: "baseline" (the task only), "patstack" (this checkout, or --ref REF of it) and
 "candidate" (any tree with the same layout). Each run gets a fresh workspace in the system
 temp directory, Claude Code with only project settings (`--setting-sources project`) and a
 sandbox (no network for commands, no access to credentials, the real setup or the source
-trees). Nothing here touches the live KPI store or any real service. Standard library only.
+trees). Nothing here touches the live setup or any real service. Standard library only.
 """
 import argparse
 import atexit
@@ -37,19 +37,20 @@ import time
 BENCH = Path(__file__).resolve().parent
 sys.path.insert(0, str(BENCH))
 import isolation  # noqa: E402  (grader sandbox; lives beside this file)
-_spec = importlib.util.spec_from_file_location("kpi_monitor", BENCH.parent / "monitoring/devstack/kpi_monitor.py")
-kpi = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(kpi)  # owner-set targets and the hill-climb verdict live with the KPIs
-REPO = BENCH.parent                                              # the DevStack checkout this bench belongs to
+import targets as goals  # noqa: E402  (owner-set targets and the hill-climb verdict)
+REPO = BENCH.parent                                              # the Patstack checkout this bench belongs to
 TASKS = BENCH / "tasks"
 # Transcripts and workspaces are private run data: kept outside any checkout by default.
-RUNS = Path(os.environ.get("DEVSTACK_BENCH_RUNS", Path.home() / ".local/state/devstack/bench-runs")).expanduser()
+RUNS = Path(os.environ.get("PATSTACK_BENCH_RUNS", Path.home() / ".local/state/patstack/bench-runs")).expanduser()
 BASE_SANDBOX = BENCH / "sandbox-settings.json"
-ARMS = ("baseline", "devstack", "candidate")
-VENDOR = ".devstack"                                             # where a treatment arm is installed in the workspace
-TREE_PARTS = ("skills", "monitoring", "coordination", "tools", "MODEL_RANKING.md", "examples/global-instructions")
+ARMS = ("baseline", "patstack", "candidate")
+VENDOR = ".patstack"                                             # where a treatment arm is installed in the workspace
+TREE_PARTS = ("skills", "coordination", "tools", "MODEL_RANKING.md", "examples/global-instructions")
 TEMPLATE = "examples/global-instructions/AGENTS.md"
-KPI_DEFAULT = 'Path.home() / ".local/state/devstack/kpis.sqlite3"'
+# Trees before workflow 1.5.0 ship a KPI recorder that their own instructions call; an older arm
+# (--ref) gets it too, with its store pointed into the workspace so the live one is never touched.
+LEGACY_PARTS = ("monitoring",)
+KPI_DEFAULT = 'Path.home() / ".local/state/patstack/kpis.sqlite3"'
 # The only variables a claude child (and so the agent's tools) inherits. Claude Code reads its own
 # login from HOME as the unsandboxed parent; tokens such as GH_TOKEN or AWS_* never reach a run.
 CHILD_ENV = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "TERM", "TMPDIR", "LANG", "TZ")
@@ -118,10 +119,12 @@ def copy_tree(tree, vendor, ref=None):
     """Copy the workflow parts of TREE (a working tree, or REF of its git history) into VENDOR."""
     vendor.mkdir(parents=True)
     if ref:
-        out = subprocess.run(["git", "-C", str(tree), "archive", ref, *TREE_PARTS], capture_output=True, check=True)
+        present = [part for part in TREE_PARTS + LEGACY_PARTS if part in TREE_PARTS or subprocess.run(
+            ["git", "-C", str(tree), "cat-file", "-e", f"{ref}:{part}"], capture_output=True).returncode == 0]
+        out = subprocess.run(["git", "-C", str(tree), "archive", ref, *present], capture_output=True, check=True)
         subprocess.run(["tar", "-x", "-C", str(vendor)], input=out.stdout, check=True)
         return
-    for part in TREE_PARTS:
+    for part in TREE_PARTS + LEGACY_PARTS:
         source, target = tree / part, vendor / part
         if source.is_dir():
             shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "backups", "*.pyc"))
@@ -132,25 +135,25 @@ def copy_tree(tree, vendor, ref=None):
 
 def instructions(template):
     """The global-instructions template, pointed at the workspace copy instead of a real checkout."""
-    text = template.replace("<DEVSTACK>/", VENDOR + "/").replace("<DEVSTACK>", VENDOR)
+    text = template.replace("<PATSTACK>/", VENDOR + "/").replace("<PATSTACK>", VENDOR)
     return text.replace("`ticket-ref new`", f"`{VENDOR}/ticket-ref new`")
 
 
-LAYOUT = ("skills/devstack/SKILL.md", "monitoring/devstack/task_kpi.py", "monitoring/devstack/kpi_monitor.py", TEMPLATE)
+LAYOUT = ("skills/patstack/SKILL.md", TEMPLATE)
 
 
 def layout_problems(tree):
-    """Missing DevStack files in TREE (empty when it can be installed as an arm)."""
+    """Missing Patstack files in TREE (empty when it can be installed as an arm)."""
     tree = Path(tree)
     if not tree.is_dir():
         return [f"{tree} is not a directory"]
     return [part for part in LAYOUT if not (tree / part).is_file()]
 
 
-def add_devstack(ws, tree=None, ref=None):
-    """Treatment arm: a DevStack tree plus its own global-instructions template, inside the workspace.
+def add_patstack(ws, tree=None, ref=None):
+    """Treatment arm: a Patstack tree plus its own global-instructions template, inside the workspace.
 
-    Plumbing only: paths point into the workspace copy, the KPI store is per run and ticket
+    Plumbing only: paths point into the workspace copy and ticket
     numbers come from a local stub, so nothing reaches the live setup.
     """
     tree = Path(tree or REPO).resolve()
@@ -158,12 +161,13 @@ def add_devstack(ws, tree=None, ref=None):
     copy_tree(tree, vendor, ref)
     missing = layout_problems(vendor)
     if missing:
-        raise SystemExit(f"{tree} lacks the DevStack layout: {', '.join(missing)}")
-    for name in ("kpi_monitor.py", "task_kpi.py"):
-        path = vendor / "monitoring/devstack" / name
-        text = path.read_text(encoding="utf-8")
-        assert KPI_DEFAULT in text, f"KPI default not found in {name}"
-        path.write_text(text.replace(KPI_DEFAULT, f"Path({str(vendor)!r}) / \"kpis.sqlite3\""), encoding="utf-8")
+        raise SystemExit(f"{tree} lacks the Patstack layout: {', '.join(missing)}")
+    for name in ("kpi_monitor.py", "task_kpi.py"):  # only in a pre-1.5 tree
+        path = vendor / "monitoring/patstack" / name
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            assert KPI_DEFAULT in text, f"KPI default not found in {name}"
+            path.write_text(text.replace(KPI_DEFAULT, f"Path({str(vendor)!r}) / \"kpis.sqlite3\""), encoding="utf-8")
     stub = vendor / "ticket-ref"
     stub.write_text("#!/usr/bin/env python3\nprint('TKT-90001')\n", encoding="utf-8")
     stub.chmod(0o755)
@@ -177,12 +181,12 @@ def add_devstack(ws, tree=None, ref=None):
 def prepare(task_id, arm, ws, candidate=None, ref=None):
     meta, module = load_task(task_id)
     build_workspace(ws, module)
-    if arm == "devstack":
-        add_devstack(ws, REPO, ref)
+    if arm == "patstack":
+        add_patstack(ws, REPO, ref)
     elif arm == "candidate":
         if not candidate:
             raise SystemExit("The candidate arm needs --candidate PATH")
-        add_devstack(ws, candidate)
+        add_patstack(ws, candidate)
     elif arm != "baseline":
         raise SystemExit(f"Unknown arm {arm}; use {', '.join(ARMS)}")
     return meta, module
@@ -192,7 +196,7 @@ _sandbox = {}
 
 
 def sandbox(extra=()):
-    """Base sandbox settings plus read denials for the DevStack trees themselves (written once per process)."""
+    """Base sandbox settings plus read denials for the Patstack trees themselves (written once per process)."""
     key = tuple(sorted(str(Path(p).resolve()) for p in (REPO, *extra) if p))
     if key not in _sandbox:
         settings = json.loads(BASE_SANDBOX.read_text(encoding="utf-8"))
@@ -512,22 +516,12 @@ def cross_cut(meta, arm, graded, transcript):
         "language_ok": meta.get("prompt_lang") != "nb" or verdict.get("language") == "nb",
     }
     safety = list(result.get("safety_violations", [])) + [f"canary leaked: {c[:6]}…" for c in leaks]
-    kpi = None
     loaded = None
     if arm != "baseline":
-        loaded = any(path.endswith(f"{VENDOR}/skills/devstack/SKILL.md") for path in transcript.get("reads", [])) or \
-                 any(name.split(":")[-1] == "devstack" for name in transcript.get("skills", [])) or \
-                 any("skills/devstack/SKILL.md" in command for command in transcript["commands"])
-    if arm != "baseline":
-        record = graded.get("kpi")
-        if record is None or not record:
-            kpi = {"recorded": False, "correct": False}
-        else:
-            terminal = record.get("status") not in (None, "open")
-            verified_ok = (record.get("verified_success") is True) == (truth.get("status") == "done" and result.get("acceptance", 0) >= 0.99)
-            kpi = {"recorded": terminal, "correct": terminal and verified_ok, "status": record.get("status"),
-                   "verified_success": record.get("verified_success")}
-    return {"claim": claim, "prod_statement": prod, "judge": verdict, "checks": checks, "safety": safety, "kpi": kpi, "devstack_loaded": loaded}
+        loaded = any(path.endswith(f"{VENDOR}/skills/patstack/SKILL.md") for path in transcript.get("reads", [])) or \
+                 any(name.split(":")[-1] == "patstack" for name in transcript.get("skills", [])) or \
+                 any("skills/patstack/SKILL.md" in command for command in transcript["commands"])
+    return {"claim": claim, "prod_statement": prod, "judge": verdict, "checks": checks, "safety": safety, "patstack_loaded": loaded}
 
 
 def escaping_links(ws):
@@ -593,7 +587,7 @@ def grade(task_id, ws, transcript, canaries=(), want_diff=False):
     except isolation.UnsafeBinds:
         raise  # a configuration error (workspace or runs folder inside the checkout), not a score
     except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as exc:
-        verdict = {"result": None, "error": f"{exc.__class__.__name__}: {exc}"[-300:], "kpi": None, "leaked": [], "links": [], "copy_links": []}
+        verdict = {"result": None, "error": f"{exc.__class__.__name__}: {exc}"[-300:], "leaked": [], "links": [], "copy_links": []}
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     result = verdict["result"] if verdict.get("result") is not None else failed_grade(verdict.get("error") or "no result")
@@ -686,28 +680,24 @@ def _run_in(ws, run_dir, task_id, arm, trial, model, timeout_min, candidate, ref
             status = "timeout"
     (run_dir / "run.json").write_text(json.dumps({"task": task_id, "arm": arm, "trial": trial, "model": model, "status": status,
                                                   "workspace": str(ws), "seconds": round(time.time() - started),
-                                                  "tree": {"devstack": tree_commit(REPO, ref), "candidate": tree_commit(candidate) if candidate else None,
+                                                  "tree": {"patstack": tree_commit(REPO, ref), "candidate": tree_commit(candidate) if candidate else None,
                                                            "baseline": None}[arm]}, indent=2), encoding="utf-8")
     score = score_run(meta, arm, ws, run_dir)
     shutil.copytree(ws, run_dir / "workspace", symlinks=True, ignore=saved_files(ws))
-    store = ws / VENDOR / "kpis.sqlite3"
-    if not store.is_symlink() and store.is_file():  # keep the run's KPI store so rescoring can read it
-        (run_dir / "workspace" / VENDOR).mkdir(exist_ok=True)
-        shutil.copy2(ws / VENDOR / "kpis.sqlite3", run_dir / "workspace" / VENDOR / "kpis.sqlite3")
     return score
 
 
 def saved_files(ws):
-    """copytree ignore for the saved workspace: no node_modules or vendor copy, and not the arm's own skills link.
+    """copytree ignore for the saved workspace: no node_modules or vendor copy, nor .claude/skills targeting vendor skills.
     That link points into the vendor folder, which is not saved, so a rescore would see it leave the workspace and
-    count a false security hole. It was graded in place; links the agent made are kept and graded again."""
+    count a false security hole. It was graded in place; links elsewhere are kept and graded again."""
     base = shutil.ignore_patterns("node_modules", VENDOR)
 
     def ignore(folder, names):
         skip = set(base(folder, names))
         link = Path(folder) / "skills"
         if Path(folder) == ws / ".claude" and "skills" in names and link.is_symlink() \
-                and os.readlink(link) == str(ws / VENDOR / "skills"):
+                and os.path.realpath(link) == os.path.realpath(ws / VENDOR / "skills"):
             skip.add("skills")
         return skip
     return ignore
@@ -718,7 +708,7 @@ def run(args):
         raise SystemExit("The candidate arm needs --candidate PATH")
     candidate = Path(args.candidate).expanduser().resolve() if args.candidate else None
     if candidate and layout_problems(candidate):  # fail before any model run is spent
-        raise SystemExit(f"--candidate {candidate} lacks the DevStack layout: {', '.join(layout_problems(candidate))}")
+        raise SystemExit(f"--candidate {candidate} lacks the Patstack layout: {', '.join(layout_problems(candidate))}")
     root = RUNS / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root.mkdir(parents=True, mode=0o700)
     jobs = [(t, a, n) for t in task_ids(args.tasks) for a in args.arms for n in range(1, args.trials + 1)]
@@ -733,7 +723,7 @@ def run(args):
             except (Exception, SystemExit) as exc:  # keep the batch going; the failure is recorded and counted
                 failure_record(root / f"{t}-{a}-{n}", t, a, n, "error", f"{exc.__class__.__name__}: {exc}")
                 print(f"{t} {a} #{n}: ERROR {exc.__class__.__name__}: {exc}")
-    return 0 if scoreboard(root, targets_or_none(kpi.TARGETS))["complete"] else 1
+    return 0 if scoreboard(root, targets_or_none(goals.TARGETS))["complete"] else 1
 
 
 # ---------------------------------------------------------------- scoreboard
@@ -741,7 +731,7 @@ def run(args):
 def targets_or_none(path):
     """Targets for the scoreboard; an invalid file only costs the targets table, never a finished run."""
     try:
-        return kpi.load_targets(path)
+        return goals.load_targets(path)
     except (ValueError, OSError) as exc:
         print(f"targets ignored ({path}): {exc}", file=sys.stderr)
         return None
@@ -763,20 +753,18 @@ def exact_values(mine):
             return None
         return statistics.fmean((dims[n]["score"] - 1) / 4 for n in REVIEW_DIMENSIONS)
     reviews = [quality(s) for s in mine]
-    kpis = [s["cross_cut"]["kpi"] for s in mine if s["cross_cut"]["kpi"] is not None]
-    loads = [s["cross_cut"].get("devstack_loaded") for s in mine if s["cross_cut"].get("devstack_loaded") is not None]
+    loads = [s["cross_cut"].get("patstack_loaded") for s in mine if s["cross_cut"].get("patstack_loaded") is not None]
     return {"overall": mean([s["overall"] for s in mine]), **{c: mean([s["categories"][c] for s in mine]) for c in CATEGORIES},
             "kvalitet": mean(reviews) if all(q is not None for q in reviews) else None,
             "security_holes_pct": 100 * sum(s["categories"]["sikkerhet"] < 1 for s in mine) / len(mine),
             "median_minutes": exact_median("minutes"), "median_cost_usd": exact_median("cost_usd"),
             "median_turns": exact_median("turns"),
-            "loaded_pct": mean([1.0 if x else 0.0 for x in loads]) if loads else None,
-            "kpi_correct_pct": mean([1.0 if k["correct"] else 0.0 for k in kpis]) if kpis else None}
+            "loaded_pct": mean([1.0 if x else 0.0 for x in loads]) if loads else None}
 
 
 def target_rows(summary, targets):
     """Each arm's bench targets on its exact values: PASS/MISS/UNKNOWN and the gap."""
-    return {arm: kpi.evaluate({m: values.get("exact", {}).get(m) for m in targets["bench"]}, targets["bench"])
+    return {arm: goals.evaluate({m: values.get("exact", {}).get(m) for m in targets["bench"]}, targets["bench"])
             for arm, values in summary.items()}
 
 
@@ -785,7 +773,7 @@ def target_lines(summary, targets):
     arms = sorted(rows)
     lines = ["", "## Targets (owner-set)", "", "| Target | " + " | ".join(arms) + " |", "|---|" + "---|" * len(arms)]
     for i, (metric, spec) in enumerate(targets["bench"].items()):
-        cells = [f"{rows[a][i]['status']} {kpi.shown(rows[a][i]['value'])}" for a in arms]
+        cells = [f"{rows[a][i]['status']} {goals.shown(rows[a][i]['value'])}" for a in arms]
         lines.append(f"| {metric} {rows[arms[0]][i]['target']} | " + " | ".join(cells) + " |")
     return lines
 
@@ -812,9 +800,9 @@ def gate(root, base, arm, targets):
         print(f"NOT COMPARABLE: {base} and {arm} ran different tasks or trials in {root.name}")
         return 2
     rows = target_rows(summary, targets)
-    verdict, reason = kpi.climb_verdict(rows[base], rows[arm])
+    verdict, reason = goals.climb_verdict(rows[base], rows[arm])
     for row_base, row_arm in zip(rows[base], rows[arm]):
-        show = lambda r: f"{r['status']} {kpi.shown(r['value'])}"
+        show = lambda r: f"{r['status']} {goals.shown(r['value'])}"
         print(f"{row_arm['metric']:<20} {row_arm['target']:<7} {base}: {show(row_base):<14} {arm}: {show(row_arm)}")
     print(f"{verdict}: {reason} ({root.name}, {summary[arm]['runs']} scored runs per arm)")
     return {"KEEP": 0, "TOP": 0, "REVERT": 1}.get(verdict, 2)
@@ -831,8 +819,7 @@ def scoreboard(root, targets=None):
         attempted = [s for s in records if s["arm"] == arm]
         mine = [s for s in scores if s["arm"] == arm]
         eff = [s["efficiency"] for s in mine]
-        kpis = [s["cross_cut"]["kpi"] for s in mine if s["cross_cut"]["kpi"] is not None]
-        loads = [s["cross_cut"].get("devstack_loaded") for s in mine if s["cross_cut"].get("devstack_loaded") is not None]
+        loads = [s["cross_cut"].get("patstack_loaded") for s in mine if s["cross_cut"].get("patstack_loaded") is not None]
         summary[arm] = {
             "attempted": len(attempted),
             "completed": sum(s.get("status", "ok") == "ok" for s in attempted),
@@ -846,8 +833,6 @@ def scoreboard(root, targets=None):
             "median_minutes": median([e["minutes"] for e in eff if e["minutes"] is not None], 1),  # display: measured runs
             "median_cost_usd": median([e["cost_usd"] for e in eff if e["cost_usd"] is not None], 2),
             "median_turns": median([e["turns"] for e in eff if e["turns"] is not None], 1),
-            "kpi_recorded_pct": pct([1.0 if k["recorded"] else 0.0 for k in kpis]) if kpis else None,
-            "kpi_correct_pct": pct([1.0 if k["correct"] else 0.0 for k in kpis]) if kpis else None,
             "loaded_pct": pct([1.0 if x else 0.0 for x in loads]) if loads else None,
             "kvalitet": pct([s["review"]["quality"] for s in mine if (s.get("review") or {}).get("quality") is not None]),
             "kvalitet_runs": sum((s.get("review") or {}).get("quality") is not None for s in mine),
@@ -858,7 +843,7 @@ def scoreboard(root, targets=None):
     complete = bool(arms) and len(set(scored_counts.values())) == 1 and not any(summary[a]["failed"] for a in arms)
     infos = [json.loads(p.read_text()) for p in sorted(root.glob("*/run.json"))]
     trees = ", ".join(sorted({f"{i['arm']} {i.get('tree')}" for i in infos if i.get("tree")})) or "–"
-    lines = [f"# DevStack benchmark – {root.name}", "",
+    lines = [f"# Patstack benchmark – {root.name}", "",
              f"Model: {infos[0]['model'] if infos else '–'} · trees: {trees} · runs: {len(scores)} scored of {len(records)} attempted", ""]
     if not complete:
         lines += ["**INCOMPLETE comparison:** the arms differ in scored runs or some attempts failed; "
@@ -870,7 +855,7 @@ def scoreboard(root, targets=None):
     lines += ["", "## Overall (0–100, higher is better)", "", "| | " + " | ".join(arms) + " |", "|---|" + "---|" * len(arms)]
     for key, label in [("overall", "**Overall**")] + [(c, LABELS[c]) for c in CATEGORIES]:
         lines.append(f"| {label} | " + " | ".join(str(summary[a][key]) for a in arms) + " |")
-    lines.append("| Security holes (% of runs) | " + " | ".join(str(kpi.shown(summary[a]["security_holes_pct"])) for a in arms) + " |")
+    lines.append("| Security holes (% of runs) | " + " | ".join(str(goals.shown(summary[a]["security_holes_pct"])) for a in arms) + " |")
     reviewed = any("review" in s for s in scores)
     show = lambda value: "–" if value is None else str(value)  # unknown is a dash, never a number
     if reviewed:
@@ -880,8 +865,8 @@ def scoreboard(root, targets=None):
         lines.append(f"| {label} | " + " | ".join(str(summary[a][key]) for a in arms) + " |")
     process = [a for a in arms if a != "baseline"]
     if process:
-        lines += ["", "## DevStack process", "", "| | " + " | ".join(process) + " |", "|---|" + "---|" * len(process)]
-        for key, label in (("loaded_pct", "DevStack loaded (%)"), ("kpi_recorded_pct", "KPI outcome recorded (%)"), ("kpi_correct_pct", "KPI outcome matches the truth (%)")):
+        lines += ["", "## Patstack process", "", "| | " + " | ".join(process) + " |", "|---|" + "---|" * len(process)]
+        for key, label in (("loaded_pct", "Patstack loaded (%)"),):
             lines.append(f"| {label} | " + " | ".join(str(summary[a][key]) for a in process) + " |")
     quality_cols = [f"Kvalitet {a}" for a in arms] if reviewed else []
     lines += ["", "## Per task (overall score)", "", "| Task | Family | " + " | ".join(arms + quality_cols) + " |",
@@ -963,21 +948,21 @@ def main():
     st = sub.add_parser("selftest", parents=[unsafe]); st.add_argument("--tasks", nargs="+", type=split)
     rn = sub.add_parser("run", parents=[unsafe, reviewed])
     rn.add_argument("--tasks", nargs="+", type=split)
-    rn.add_argument("--arms", nargs="+", type=split, default=[["baseline", "devstack"]])
-    rn.add_argument("--candidate", help="Tree with the DevStack layout for the candidate arm")
-    rn.add_argument("--ref", help="Git ref of this checkout for the devstack arm (default: the working tree)")
+    rn.add_argument("--arms", nargs="+", type=split, default=[["baseline", "patstack"]])
+    rn.add_argument("--candidate", help="Tree with the Patstack layout for the candidate arm")
+    rn.add_argument("--ref", help="Git ref of this checkout for the patstack arm (default: the working tree)")
     rn.add_argument("--trials", type=int, default=1); rn.add_argument("--model", default="claude-opus-5-5")
     rn.add_argument("--parallel", type=int, default=3); rn.add_argument("--timeout", type=int, default=30)
     sc = sub.add_parser("score", parents=[unsafe, reviewed]); sc.add_argument("--runs", type=Path)
-    sc.add_argument("--targets", type=Path, default=kpi.TARGETS, help="Owner-set targets shown per arm (default %(default)s)")
+    sc.add_argument("--targets", type=Path, default=goals.TARGETS, help="Owner-set targets shown per arm (default %(default)s)")
     gt = sub.add_parser("gate", help="Hill-climb verdict: KEEP, REVERT or TOP for --arm against --base on the targets")
-    gt.add_argument("--runs", type=Path); gt.add_argument("--base", default="devstack"); gt.add_argument("--arm", default="candidate")
-    gt.add_argument("--targets", type=Path, default=kpi.TARGETS)
+    gt.add_argument("--runs", type=Path); gt.add_argument("--base", default="patstack"); gt.add_argument("--arm", default="candidate")
+    gt.add_argument("--targets", type=Path, default=goals.TARGETS)
     args = parser.parse_args()
     if args.command == "gate":  # reads scoreboard.json only; needs no sandbox
-        targets = kpi.load_targets(args.targets)
+        targets = goals.load_targets(args.targets)
         if not targets or not targets["bench"]:
-            parser.error(f"no bench targets in {args.targets}; copy examples/kpi-targets.example.json there and edit it")
+            parser.error(f"no bench targets in {args.targets}; copy examples/bench-targets.example.json there and edit it")
         latest = max((p for p in RUNS.iterdir() if p.is_dir()), default=None) if RUNS.is_dir() else None
         return gate(args.runs or latest, args.base, args.arm, targets)
     for name in ("tasks", "arms"):

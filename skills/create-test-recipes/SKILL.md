@@ -32,7 +32,20 @@ Write `SKILL.md` with frontmatter naming the app, surface and verification trigg
 
 Add a small feature index and one recipe per requested coherent journey. Each records entry point, fixture/persona prerequisites, actions, exact expected behavior and side effects, relevant negative cases, quality targets and last verified revision/environment (content hashes when there is no VCS). Prefer real UI/API/CLI entry points over internal setters. Existing scripts remain the implementation source; link rather than copy them. Add an executable helper only when it removes genuinely repeated or fragile work, and show its invocation. Assertions must fail when behavior or prerequisites are wrong; never weaken a failing contract to fit the output.
 
-When the repo has no CI, the recipe's Doctor/Evidence state "no CI configured; proof is local only", and you may propose a minimal CI from the templates in `examples/ci/` (Node, Python: least-privilege, lockfile install, existing lint/typecheck/test). Proposing is not adding: a workflow lands only through the repo's normal PR with its owner's agreement.
+## The repo's CI script
+
+Every repo's CI is one script, `scripts/ci-local.sh` (or `scripts/ci_local.py`), which the lead runs on the task's PR with `tools/local_ci.py` ([CI](../patstack/references/coordination.md#merge)). Never add a GitHub Actions workflow. When the script is missing, write it in the task's PR without asking. In a repo the tier map lists under `local_ci`, which runs no GitHub Actions at all, also move the checks of any workflow file that is left into the script and delete the file; elsewhere leave other contributors' workflows as they are. The script stops at the first failure and runs, with the repo's own commands:
+
+1. the install from the lockfile (`npm ci`, `uv sync --frozen`);
+2. lint, format check and type check;
+3. the whole test suite: unit, integration and every end-to-end test that runs headless without a shared environment;
+4. the build;
+5. a dependency audit at the project's threshold (`npm audit --audit-level=high`, `pip-audit`). Where the base branch already carries advisories, the step compares with the base: it fails on every advisory the change adds, prints the existing ones on each run, and fails closed when the audit output cannot be read. The existing advisories become a task of their own, reported to the owner;
+6. a secret scan of the tree;
+7. the repo's permission and [privacy](../patstack/references/quality.md#privacy-gdpr) tests, and its accessibility checks where it has UI;
+8. every check its old workflow files ran.
+
+The script must not need credentials and must not contact a shared environment: tests that need a deployed target belong to [verify](../verify/SKILL.md), not to CI. `tools/local_ci.py` drops credential-like variables from the environment, but that is not isolation: the script and every install hook it triggers run as the person running it, with their files and stored logins in reach, so a script is trusted like the team's own code. A tool missing on the host is a failure the script names, never a skipped step. Prefer the repo's existing package scripts over new ones, and leave out a step only when the repo has nothing for it, with a comment that says so.
 
 For performance/API recipes, read [quality checks](references/quality-checks.md). Load only relevant journeys; a button-colour change does not need a service benchmark.
 

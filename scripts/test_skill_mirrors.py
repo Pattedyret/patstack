@@ -135,6 +135,7 @@ class MirrorTests(unittest.TestCase):
         m.apply(self.source, self.home, self.base / "backup")
         self.assertEqual(m.broken_links(self.home / ".claude/skills", self.source), [])
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_writes_never_follow_links_out_of_the_mirror(self):
         outside = self.base / "outside.txt"
         outside.write_text("keep\n", encoding="utf-8")
@@ -158,6 +159,7 @@ class MirrorTests(unittest.TestCase):
         mirror.write_bytes(mirror.read_bytes() + b"[gone](../nowhere/SKILL.md)\r\n")
         self.assertEqual(m.broken_links(self.home / ".claude/skills", self.source), [("alpha/SKILL.md", "../nowhere/SKILL.md")])
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_per_skill_links_are_never_written_through(self):
         os.symlink(self.source / "alpha", self.home / ".claude/skills/alpha")  # linked, not mirrored
         before = (self.source / "alpha/SKILL.md").read_bytes()
@@ -179,6 +181,7 @@ class MirrorTests(unittest.TestCase):
         m.apply(self.source, self.home, backup)
         self.assertEqual((backup / ".claude/skills/beta/SKILL.md").read_bytes(), b"Beta\r\n")  # previous mirror kept
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_linked_client_folder_is_not_a_mirror(self):
         os.rmdir(self.home / ".agents/skills")
         os.symlink(self.source, self.home / ".agents/skills")

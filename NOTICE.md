@@ -18,7 +18,7 @@ Original author credit: the original author, upstream revision `cf51380af2e2d132
 
 ## Design sources (read, not copied)
 
-The workflow was designed after reading the projects listed in [`skills/devstack/references/sources.md`](skills/devstack/references/sources.md): Theo's tstack, Matt Pocock's skills, Poteto's pstack, Zeroshot's review loop and Ponytail. The adapted material listed above keeps its own license status; the remaining names and links acknowledge design sources, not endorsement. No blanket MIT license is applied to copied third-party material.
+The workflow was designed after reading the projects listed in [`skills/patstack/references/sources.md`](skills/patstack/references/sources.md): Theo's tstack, Matt Pocock's skills, Poteto's pstack, Zeroshot's review loop and Ponytail. The adapted material listed above keeps its own license status; the remaining names and links acknowledge design sources, not endorsement. No blanket MIT license is applied to copied third-party material.
 
 ## Product names
 

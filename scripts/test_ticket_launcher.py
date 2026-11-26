@@ -126,7 +126,7 @@ class FormatTests(unittest.TestCase):
             t.content("cmd", "python", 'D:\\a"b\\ticket_ref.py')
 
     def test_path_advice_only_when_missing(self):
-        self.assertIsNone(t.path_advice(Path("/opt/x/bin"), "sh", "/usr/bin:/opt/x/bin"))
+        self.assertIsNone(t.path_advice(Path("/opt/x/bin"), "sh", os.pathsep.join(("/usr/bin", "/opt/x/bin"))))
         self.assertIn("export PATH=", t.path_advice(Path("/opt/x/bin"), "sh", "/usr/bin"))
         self.assertIsNone(t.path_advice("D:\\Home\\.local\\bin", "cmd", "C:\\Windows;d:\\home\\.local\\bin"))
         self.assertIn("SetEnvironmentVariable", t.path_advice("D:\\Home\\.local\\bin", "cmd", "C:\\Windows"))

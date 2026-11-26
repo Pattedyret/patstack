@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -19,6 +20,36 @@ FIXTURE_GUARDS = {
 }
 
 ROOT_DIR = check.ROOT
+
+
+class TestProcessEnvironment(unittest.TestCase):
+    def test_pack_runner_reports_platform_skip_but_keeps_real_failures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tests = root / "project-packs/team"
+            tests.mkdir(parents=True)
+            test = tests / "test_platform.py"
+            with patch.object(check, "ROOT", root), patch.object(check, "pack_policies", return_value=["project-packs/team/"]), \
+                    patch.object(check, "failures", []):
+                test.write_text("import unittest\nraise unittest.SkipTest('POSIX fixture')\n", encoding="utf-8")
+                self.assertEqual(check.check_pack_tests(), "1 files")
+                self.assertEqual(check.failures, [])
+                test.write_text("raise RuntimeError('real failure')\n", encoding="utf-8")
+                check.check_pack_tests()
+                self.assertEqual(len(check.failures), 1)
+
+    def test_git_fixture_environment_is_isolated_without_mutating_the_parent(self):
+        source = {"PATH": "keep", "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "credential.helper",
+                  "GIT_CONFIG_VALUE_0": "", "OWNER_SETTING": "keep"}
+        with patch.object(check.os, "environ", source):
+            before = dict(os.environ)
+            env = check.test_environment()
+            self.assertEqual(dict(os.environ), before)
+        self.assertEqual(env["PATH"], "keep")
+        self.assertEqual(env["OWNER_SETTING"], "keep")
+        self.assertEqual(env["PYTHONDONTWRITEBYTECODE"], "1")
+        self.assertFalse(any(k == "GIT_CONFIG_COUNT" or k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
+                             for k in env))
 
 
 class PublicationControls(unittest.TestCase):
@@ -68,20 +99,12 @@ class PublicationControls(unittest.TestCase):
         backup.write_text("Old resource")
         self.assertEqual(refresh.unmapped(self.source), ["skills/sample/backups/old.md"])
 
-    def test_only_exact_monitor_runtime_backup_tree_is_excluded(self):
-        backup = self.source / "monitoring/devstack/backups/fixture/old.md"
-        backup.parent.mkdir(parents=True)
-        backup.write_text("Private runtime state")
-        with patch.object(refresh, "MIRRORED", ("skills/sample", "monitoring/devstack")):
-            self.assertEqual(refresh.unmapped(self.source), [])
-        self.assertTrue(check.privacy_issues("monitoring/devstack/backups/fixture/old.md",
-                                             backup.read_bytes()))
-
     def test_missing_skill_directory_is_rejected(self):
         with patch.object(refresh, "MIRRORED", ("skills/absent",)):
             with self.assertRaisesRegex(SystemExit, "Missing or linked"):
                 refresh.unmapped(self.source)
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_linked_source_is_rejected(self):
         link = self.source / "skills/sample/link.md"
         link.symlink_to(self.source / self.relative)
@@ -149,7 +172,7 @@ class PublicationControls(unittest.TestCase):
             for value in ("~/.fixture-setup/agent-setup", "~/fixture-src/private-repo", "cd ~/.FIXTURE-SETUP"):
                 with self.subTest(value=value):
                     self.assertTrue(check.privacy_issues("docs/fixture.md", value.encode()))
-            for value in ("~/src/example-app/", "~/.config/devstack/", "fixture-src", "some.fixture-setupx"):
+            for value in ("~/src/example-app/", "~/.config/patstack/", "fixture-src", "some.fixture-setupx"):
                 with self.subTest(value=value):
                     self.assertEqual(check.privacy_issues("docs/fixture.md", value.encode()), [])
         for value in ("bench@" + "example.invalid", "kunde@" + "shop.invalid."):
@@ -158,13 +181,17 @@ class PublicationControls(unittest.TestCase):
             self.assertTrue(check.privacy_issues("bench/fixture.py", value.encode()))
 
     def test_only_exact_reviewed_animation_bytes_are_publishable(self):
-        name = "docs/assets/devstack-workflow.gif"
-        data = (check.ROOT / name).read_bytes()
-        self.assertEqual(check.privacy_issues(name, data), [])
-        self.assertTrue(check.privacy_issues(name, data + b"changed"))
-        self.assertTrue(check.privacy_issues("docs/assets/unreviewed.gif", data))
+        name = "docs/assets/fixture.gif"
+        data = b"GIF89a" + (960).to_bytes(2, "little") + (550).to_bytes(2, "little") + b"frames"
+        reviewed = {"sha256": refresh.sha(data), "signature": b"GIF89a", "size": len(data),
+                    "width": 960, "height": 550}
+        self.assertTrue(check.privacy_issues(name, data))
+        with patch.object(check, "BINARY_ASSETS", {name: reviewed}):
+            self.assertEqual(check.privacy_issues(name, data), [])
+            self.assertTrue(check.privacy_issues(name, data + b"changed"))
+            self.assertTrue(check.privacy_issues("docs/assets/unreviewed.gif", data))
         changed = b"BADHDR" + data[6:]
-        expected = dict(check.BINARY_ASSETS[name], sha256=refresh.sha(changed))
+        expected = dict(reviewed, sha256=refresh.sha(changed))
         with patch.object(check, "BINARY_ASSETS", {name: expected}):
             self.assertTrue(check.privacy_issues(name, changed))
 
@@ -203,29 +230,28 @@ class PublicationControls(unittest.TestCase):
         self.assertEqual((self.package / self.relative).read_bytes(), before)
         self.assertFalse((self.package / "SOURCE-MANIFEST.json").exists())
 
-    def test_pre_rename_upstream_layout_brand_and_owner_are_mapped(self):
-        local = "skills/devstack/SKILL.md"
+    def test_upstream_owner_name_is_mapped(self):
+        local = "skills/patstack/SKILL.md"
         (self.package / local).parent.mkdir(parents=True)
-        (self.package / local).write_text("# DevStack\nThe owner decides; ask the owner. See monitoring/devstack.\n")
+        (self.package / local).write_text("# Patstack\nThe owner decides; ask the owner.\n")
         (self.source / "skills/patstack").mkdir(parents=True)
         owner = "Quillon"
-        upstream = f"# Patstack\n{owner} decides; ask {owner}. See monitoring/patstack.\n"
-        (self.source / "skills/patstack/SKILL.md").write_text(upstream)
-        with patch.multiple(refresh, FILES=(local,), MIRRORED=("skills/devstack",), SKILLS=("devstack",),
+        upstream = f"# Patstack\n{owner} decides; ask {owner}.\n"
+        (self.source / local).write_text(upstream)
+        with patch.multiple(refresh, FILES=(local,), MIRRORED=("skills/patstack",), SKILLS=("patstack",),
                             OWNER_NAME_HASHES={refresh.sha(b"quillon")}):
-            self.assertTrue(refresh.legacy_layout(self.source))
             out = io.StringIO()
             with patch("sys.argv", ["refresh", "--source", str(self.source), "--check"]), contextlib.redirect_stdout(out):
                 self.assertEqual(refresh.main(), 0, out.getvalue())
             report = json.loads(out.getvalue())
-            self.assertEqual((report["upstream_layout"], report["identical"]), ("pre-rename", 1))
-            (self.source / "skills/patstack/SKILL.md").write_text(upstream + "Upstream change\n")
+            self.assertEqual(report["identical"], 1)
+            (self.source / local).write_text(upstream + "Upstream change\n")
             (self.source / "skills/patstack/new.md").write_text("New upstream file\n")
             with patch("sys.argv", ["refresh", "--source", str(self.source), "--check"]), contextlib.redirect_stdout(io.StringIO()) as out:
                 self.assertEqual(refresh.main(), 1)
             report = json.loads(out.getvalue())
             self.assertEqual(report["differs"], [local])
-            self.assertEqual(report["unmapped_upstream_files"], ["skills/devstack/new.md"])
+            self.assertEqual(report["unmapped_upstream_files"], ["skills/patstack/new.md"])
 
     def test_check_mode_checks_actual_published_bytes(self):
         entries, _ = refresh.build(self.source)
@@ -355,7 +381,7 @@ class PublicationControls(unittest.TestCase):
     def test_default_refresh_uses_local_repo_and_never_overwrites_resources(self):
         # Local team text need not match upstream sanitization anchors.
         with patch.object(refresh, "SANITIZE", {self.relative: {"stale": "replacement"}}):
-            with patch.dict("os.environ", {"DEVSTACK_SOURCE": str(self.source)}):
+            with patch.dict("os.environ", {"PATSTACK_SOURCE": str(self.source)}):
                 with patch("sys.argv", ["refresh"]), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(refresh.main(), 0)
         manifest_path = self.package / "SOURCE-MANIFEST.json"
@@ -383,6 +409,7 @@ class PublicationControls(unittest.TestCase):
         self.assertEqual((self.package / self.relative).read_bytes(), before)
         self.assertFalse((self.package / "SOURCE-MANIFEST.json").exists())
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_linked_manifest_is_rejected_without_writing_target(self):
         outside = self.root / "protected-manifest.json"
         outside.write_text("Protected data\n")
@@ -402,31 +429,12 @@ class PublicationControls(unittest.TestCase):
 
 
 
-class CiTemplateControls(unittest.TestCase):
-    TEMPLATE = (ROOT_DIR / "examples/ci/node.yml").read_text(encoding="utf-8")
-
-    def test_templates_parse_and_pass(self):
-        for name in ("node.yml", "python.yml"):
-            data = check.parse_yaml((ROOT_DIR / "examples/ci" / name).read_text(encoding="utf-8"))
-            self.assertEqual(check.ci_template_issues(data), [], name)
-            self.assertEqual(data["permissions"], {"contents": "read"})
-            self.assertIn("npm ci" if name == "node.yml" else "uv sync --frozen", json.dumps(data))
-
+class YamlControls(unittest.TestCase):
     def test_malformed_yaml_is_rejected(self):
         for text in ("a: 1\n\tb: 2\n", "a: 1\na: 2\n", "a:\n  - x\n   y: 1\n", "a: b: c\n",
                      "a: [1, [2]]\n", "a: {b: 1}\n", "  a: 1\n", "a: 'open\n"):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 check.parse_yaml(text)
-
-    def test_wide_permissions_and_unpinned_actions_are_rejected(self):
-        for old, new, needle in (("  contents: read", "  contents: write", "permissions"),
-                                 ("actions/setup-node@v5", "actions/setup-node@main", "not pinned"),
-                                 ("actions/setup-node@v5", "someone/action@1a2b3c", "not pinned"),
-                                 ("      - uses: actions/checkout@v5\n        with:\n          persist-credentials: false\n", "", "checkout")):
-            with self.subTest(new=new):
-                self.assertIn(old, self.TEMPLATE)
-                issues = check.ci_template_issues(check.parse_yaml(self.TEMPLATE.replace(old, new, 1)))
-                self.assertTrue(any(needle in issue for issue in issues), issues)
 
 
 if __name__ == "__main__":

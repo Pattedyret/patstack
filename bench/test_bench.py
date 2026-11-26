@@ -37,6 +37,7 @@ class Scratch(unittest.TestCase):
 
 
 class TaskWorkspaces(Scratch):
+    @unittest.skipIf(os.name == "nt", "benchmark task fixtures require POSIX shell execution; run on Linux")
     def test_every_task_builds_a_committed_workspace_and_its_good_oracle_passes_the_grader(self):
         tasks = bench.task_ids()
         self.assertEqual(len(tasks), 12, tasks)
@@ -52,7 +53,7 @@ class TaskWorkspaces(Scratch):
                 for name in ("build", "grade", "oracle_good", "oracle_bad"):
                     self.assertTrue(callable(getattr(module, name, None)), name)
                 self.assertFalse((ws / bench.VENDOR).exists())  # the baseline gets no workflow
-                self.assertFalse((ws / "CLAUDE.md").exists() and "devstack" in (ws / "CLAUDE.md").read_text().lower())
+                self.assertFalse((ws / "CLAUDE.md").exists() and "patstack" in (ws / "CLAUDE.md").read_text().lower())
                 transcript = module.oracle_good(ws)
                 transcript.setdefault("edits", []); transcript.setdefault("tool_order", [])
                 transcript.setdefault("results", [""] * len(transcript.get("commands", [])))
@@ -63,6 +64,7 @@ class TaskWorkspaces(Scratch):
                 self.assertFalse(result.get("safety_violations"), result)
 
 
+    @unittest.skipIf(os.name == "nt", "benchmark task fixtures require POSIX shell execution; run on Linux")
     def test_known_grader_bypasses_are_caught(self):
         found = 0
         for task_id in bench.task_ids():
@@ -84,6 +86,47 @@ class TaskWorkspaces(Scratch):
             for patterns in re.findall(r"ignore_patterns\(([^)]*)\)", task.read_text(encoding="utf-8")):
                 if '".bench"' in patterns:
                     self.assertIn(f'"{bench.VENDOR}"', patterns, task.parent.name)
+
+
+class InterpreterPaths(unittest.TestCase):
+    """The sandbox shows the grader's Python where it was started from, not only where it really lives."""
+
+    def layout(self):
+        top = Path(tempfile.mkdtemp(prefix="bench-python-")).resolve()
+        self.addCleanup(shutil.rmtree, top, True)
+        real = top / "cpython-3.13.13"
+        (real / "bin").mkdir(parents=True)
+        (real / "bin/python3.13").write_text("")
+        (top / "cpython-3.13").symlink_to(real, target_is_directory=True)
+        (top / "other").mkdir()
+        return top, real
+
+    def test_linked_install_root_is_exposed_when_prefix_names_the_real_folder(self):
+        top, real = self.layout()  # uv on 3.13: started through the link, prefix is the real folder
+        with mock.patch.object(sys, "executable", str(top / "cpython-3.13/bin/python3.13")), \
+                mock.patch.object(sys, "prefix", str(real)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        # Exactly these, so any over-exposure fails: without the linked root there is no standard library.
+        self.assertEqual(paths, {top / "cpython-3.13", top / "cpython-3.13/bin", real, real / "bin"})
+
+    def test_a_venv_on_a_linked_install_exposes_the_linked_root(self):
+        top, real = self.layout()  # a venv whose python links into the linked folder, as `uv venv` makes it
+        venv = top / "venv"
+        (venv / "bin").mkdir(parents=True)
+        (venv / "bin/python").symlink_to(top / "cpython-3.13/bin/python3.13")
+        with mock.patch.object(sys, "executable", str(venv / "bin/python")), \
+                mock.patch.object(sys, "prefix", str(venv)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        self.assertEqual(paths, {venv, venv / "bin", real, top / "cpython-3.13"})
+
+    def test_an_unrelated_executable_root_is_never_exposed(self):
+        top, real = self.layout()
+        (top / "other/bin").mkdir()
+        with mock.patch.object(sys, "executable", str(top / "other/bin/python3")), \
+                mock.patch.object(sys, "prefix", str(real)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        self.assertNotIn(top / "other", paths)
+        self.assertIn(top / "other/bin", paths)  # the executable's own folder, as before
 
 
 @unittest.skipUnless(bench.isolation.available(), "bubblewrap not installed")
@@ -122,8 +165,7 @@ class GraderSandbox(Scratch):
         self.assertEqual(result.returncode, 0, result.stderr)
         got = json.loads(result.stdout)
         home = Path.home().resolve()
-        interpreter = {Path(p).resolve() for p in (sys.prefix, sys.base_prefix, Path(sys.executable).parent)} | \
-                      {Path(os.path.abspath(p)) for p in (sys.prefix, sys.base_prefix, Path(sys.executable).parent)}
+        interpreter = bench.isolation.interpreter_paths()
         mount_points = {p.relative_to(home).parts[0] for p in interpreter if home in p.parents}
         if isinstance(got["home"], list):  # only the read-only mount points of the grader's own Python may show
             self.assertLessEqual(set(got["home"]), mount_points, got["home"])
@@ -278,11 +320,12 @@ class Scoreboard(Scratch):
         folder = root / f"{task}-{arm}-{trial}"
         folder.mkdir(parents=True)
         score = {"task": task, "family": "f", "arm": arm, "trial": trial, "status": status, "overall": overall,
-                 "categories": {c: overall for c in bench.CATEGORIES}, "cross_cut": {"kpi": None, "devstack_loaded": None},
+                 "categories": {c: overall for c in bench.CATEGORIES}, "cross_cut": {"patstack_loaded": None},
                  "efficiency": {"minutes": 1.0, "cost_usd": 0.1, "turns": 3}}
         (folder / "score.json").write_text(json.dumps(score))
         return score
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
     def test_saved_workspace_drops_only_the_arms_own_skills_link(self):
         ws = self.root / "ws"
         (ws / bench.VENDOR / "skills").mkdir(parents=True)
@@ -295,45 +338,53 @@ class Scoreboard(Scratch):
         self.assertFalse((saved / bench.VENDOR).exists())
         self.assertEqual(bench.escaping_links(saved), ["agent-link"])
 
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
+    def test_saved_workspace_keeps_a_looped_skills_link_without_raising(self):
+        ws = self.root / "ws"
+        (ws / ".claude").mkdir(parents=True)
+        link = ws / ".claude/skills"
+        link.symlink_to(link, target_is_directory=True)
+        self.assertNotIn("skills", bench.saved_files(ws)(link.parent, ["skills"]))
+
     def test_gate_judges_exact_values_full_review_coverage_and_trial_ids(self):
         self.quiet_stdout()
-        targets = {"bench": {"median_minutes": "<=4"}, "bench_arm": "devstack", "work": {}, "work_days": 7}
+        targets = {"bench": {"median_minutes": "<=4"}, "bench_arm": "patstack"}
         root = self.root / "exact"
         for trial in (1, 2, 3):
-            self.record(root, "B04", "devstack", trial)
+            self.record(root, "B04", "patstack", trial)
             self.record(root, "B04", "candidate", trial)
         for score_file in root.glob("B04-candidate-*/score.json"):  # 4.04 minutes: shown as 4.0, still a miss
             score = json.loads(score_file.read_text()); score["efficiency"]["minutes"] = 4.04; score_file.write_text(json.dumps(score))
-        for score_file in root.glob("B04-devstack-*/score.json"):
+        for score_file in root.glob("B04-patstack-*/score.json"):
             score = json.loads(score_file.read_text()); score["efficiency"]["minutes"] = 5.0; score_file.write_text(json.dumps(score))
         board = bench.scoreboard(root, targets)
         self.assertEqual(board["summary"]["candidate"]["median_minutes"], 4.0)          # display
         self.assertEqual(board["summary"]["candidate"]["exact"]["median_minutes"], 4.04)
-        self.assertEqual(bench.gate(root, "devstack", "candidate", targets), 0)      # KEEP (closer), not TOP
+        self.assertEqual(bench.gate(root, "patstack", "candidate", targets), 0)      # KEEP (closer), not TOP
         self.assertIn("KEEP", sys.stdout.getvalue().splitlines()[-1])
         quality = dict(targets, bench={"kvalitet": ">=95"})
-        for score_file in root.glob("B04-devstack-*/score.json"):
+        for score_file in root.glob("B04-patstack-*/score.json"):
             score = json.loads(score_file.read_text()); score["review"] = {"quality": 0.9, "dimensions": {n: {"score": 4.6} for n in bench.REVIEW_DIMENSIONS}}; score_file.write_text(json.dumps(score))
         one = root / "B04-candidate-1/score.json"   # one of three candidate runs reviewed: Kvalitet unmeasured
         score = json.loads(one.read_text()); score["review"] = {"quality": 1.0, "dimensions": {n: {"score": 5} for n in bench.REVIEW_DIMENSIONS}}; one.write_text(json.dumps(score))
         board = bench.scoreboard(root, quality)
         self.assertIsNone(board["summary"]["candidate"]["exact"]["kvalitet"])
-        self.assertEqual(bench.gate(root, "devstack", "candidate", quality), 1)      # REVERT: unmeasured in the candidate
+        self.assertEqual(bench.gate(root, "patstack", "candidate", quality), 1)      # REVERT: unmeasured in the candidate
         legacy = self.root / "legacy"
-        for arm, trial in (("devstack", 1), ("candidate", 2)):
+        for arm, trial in (("patstack", 1), ("candidate", 2)):
             score = self.record(legacy, "B04", arm, trial)
             del score["trial"]   # a score written before scores carried their trial
             (legacy / f"B04-{arm}-{trial}/score.json").write_text(json.dumps(score))
         bench.scoreboard(legacy, targets)
-        self.assertEqual(bench.gate(legacy, "devstack", "candidate", targets), 2)    # no trial ids: rescore first
+        self.assertEqual(bench.gate(legacy, "patstack", "candidate", targets), 2)    # no trial ids: rescore first
 
     def test_missing_efficiency_and_rounded_quality_never_pass_a_target(self):
         self.quiet_stdout()
-        targets = {"bench": {"median_turns": "<=10", "kvalitet": ">=100"}, "bench_arm": "devstack", "work": {}, "work_days": 7}
+        targets = {"bench": {"median_turns": "<=10", "kvalitet": ">=100"}, "bench_arm": "patstack"}
         root = self.root / "gaps"
         review = {"quality": 1.0, "votes": 3, "dimensions": {n: {"score": 4.99984, "votes": 3} for n in bench.REVIEW_DIMENSIONS}}
         for trial in (1, 2):
-            for arm in ("devstack", "candidate"):
+            for arm in ("patstack", "candidate"):
                 score = self.record(root, "B04", arm, trial)
                 score["review"] = review
                 if arm == "candidate" and trial == 1:
@@ -341,50 +392,50 @@ class Scoreboard(Scratch):
                 (root / f"B04-{arm}-{trial}/score.json").write_text(json.dumps(score))
         exact = bench.scoreboard(root, targets)["summary"]
         self.assertIsNone(exact["candidate"]["exact"]["median_turns"])
-        self.assertLess(exact["devstack"]["exact"]["kvalitet"], 100)                  # 99.996, not the cached 1.0
-        self.assertEqual(bench.gate(root, "devstack", "candidate", targets), 1)       # REVERT: candidate unmeasured
+        self.assertLess(exact["patstack"]["exact"]["kvalitet"], 100)                  # 99.996, not the cached 1.0
+        self.assertEqual(bench.gate(root, "patstack", "candidate", targets), 1)       # REVERT: candidate unmeasured
 
     def test_gate_climbs_on_the_owner_targets(self):
         self.quiet_stdout()
-        targets = {"bench": {"security_holes_pct": "<=0", "overall": ">=95"}, "bench_arm": "devstack", "work": {}, "work_days": 7}
+        targets = {"bench": {"security_holes_pct": "<=0", "overall": ">=95"}, "bench_arm": "patstack"}
         root = self.root / "climb"
         for trial, (base, cand) in enumerate(((1.0, 1.0), (0.8, 0.9)), 1):  # both arms: one run with a security hole
-            self.record(root, "B04", "devstack", trial, overall=base)
+            self.record(root, "B04", "patstack", trial, overall=base)
             self.record(root, "B04", "candidate", trial, overall=cand)
         board = bench.scoreboard(root, targets)
         self.assertEqual(board["summary"]["candidate"]["security_holes_pct"], 50)
         self.assertIn("## Targets (owner-set)", (root / "scoreboard.md").read_text(encoding="utf-8"))
-        self.assertEqual(bench.gate(root, "devstack", "candidate", targets), 0)   # KEEP: overall 90 -> 95, holes unchanged
-        self.assertEqual(bench.gate(root, "candidate", "devstack", targets), 1)   # the other way round is worse
-        self.assertEqual(bench.gate(root, "devstack", "baseline", targets), 2)    # arm missing: not comparable
+        self.assertEqual(bench.gate(root, "patstack", "candidate", targets), 0)   # KEEP: overall 90 -> 95, holes unchanged
+        self.assertEqual(bench.gate(root, "candidate", "patstack", targets), 1)   # the other way round is worse
+        self.assertEqual(bench.gate(root, "patstack", "baseline", targets), 2)    # arm missing: not comparable
         other = self.root / "other"
-        self.record(other, "B04", "devstack", 1, overall=0.8)
+        self.record(other, "B04", "patstack", 1, overall=0.8)
         self.record(other, "B16", "candidate", 2, overall=1.0)   # same counts, different workload
         bench.scoreboard(other, targets)
-        self.assertEqual(bench.gate(other, "devstack", "candidate", targets), 2)
-        self.assertEqual(bench.gate(None, "devstack", "candidate", targets), 2)   # no runs at all
+        self.assertEqual(bench.gate(other, "patstack", "candidate", targets), 2)
+        self.assertEqual(bench.gate(None, "patstack", "candidate", targets), 2)   # no runs at all
         top = self.root / "top"
         for trial in (1, 2):
-            self.record(top, "B04", "devstack", trial, overall=0.8)
+            self.record(top, "B04", "patstack", trial, overall=0.8)
             self.record(top, "B04", "candidate", trial, overall=1.0)
         bench.scoreboard(top, targets)
-        self.assertEqual(bench.gate(top, "devstack", "candidate", targets), 0)
+        self.assertEqual(bench.gate(top, "patstack", "candidate", targets), 0)
         self.assertIn("TOP", sys.stdout.getvalue())
         bench.failure_record(top / "B04-candidate-3", "B04", "candidate", 3, "error", "RuntimeError: boom")
         bench.scoreboard(top, targets)
-        self.assertEqual(bench.gate(top, "devstack", "candidate", targets), 2)   # incomplete runs never decide a climb
+        self.assertEqual(bench.gate(top, "patstack", "candidate", targets), 2)   # incomplete runs never decide a climb
 
     def test_failed_trials_are_counted_and_mark_the_comparison_incomplete(self):
         self.quiet_stdout()
         root = self.root / "runs"
-        for arm in ("baseline", "devstack"):
+        for arm in ("baseline", "patstack"):
             self.record(root, "B04", arm, 1)
         self.assertTrue(bench.scoreboard(root)["complete"])
-        bench.failure_record(root / "B04-devstack-2", "B04", "devstack", 2, "error", "RuntimeError: boom")
+        bench.failure_record(root / "B04-patstack-2", "B04", "patstack", 2, "error", "RuntimeError: boom")
         self.record(root, "B04", "baseline", 2, overall=0.0, status="timeout")
         result = bench.scoreboard(root)
         self.assertFalse(result["complete"])
-        self.assertEqual({k: result["summary"]["devstack"][k] for k in ("attempted", "completed", "failed", "runs")},
+        self.assertEqual({k: result["summary"]["patstack"][k] for k in ("attempted", "completed", "failed", "runs")},
                          {"attempted": 2, "completed": 1, "failed": 1, "runs": 1})
         self.assertEqual((result["summary"]["baseline"]["timeouts"], result["summary"]["baseline"]["overall"]), (1, 50))
         board = (root / "scoreboard.md").read_text(encoding="utf-8")
@@ -396,36 +447,36 @@ class Scoreboard(Scratch):
     def test_a_crashing_trial_leaves_a_failure_record(self):
         runs = self.root / "runs"
         def fake(task_id, arm, trial, root, *rest):
-            if arm == "devstack":
+            if arm == "patstack":
                 raise RuntimeError("client crashed")
             return self.record(root, task_id, arm, trial)
-        args = mock.Mock(tasks=["B04"], arms=["baseline", "devstack"], trials=1, parallel=1, model="m", timeout=1,
+        args = mock.Mock(tasks=["B04"], arms=["baseline", "patstack"], trials=1, parallel=1, model="m", timeout=1,
                          candidate=None, ref=None)
         with mock.patch.object(bench, "RUNS", runs), mock.patch.object(bench, "run_one", side_effect=fake), \
                 mock.patch("sys.stdout", new_callable=io.StringIO):
             self.assertEqual(bench.run(args), 1)
-        failure = json.loads(next(runs.glob("*/B04-devstack-1/score.json")).read_text())
+        failure = json.loads(next(runs.glob("*/B04-patstack-1/score.json")).read_text())
         self.assertEqual((failure["status"], failure["error"]), ("error", "RuntimeError: client crashed"))
 
     def test_invalid_candidate_fails_before_any_trial_and_worker_exits_are_recorded(self):
         runs = self.root / "runs"
-        args = mock.Mock(tasks=["B04"], arms=["devstack", "candidate"], trials=1, parallel=1, model="m", timeout=1,
+        args = mock.Mock(tasks=["B04"], arms=["patstack", "candidate"], trials=1, parallel=1, model="m", timeout=1,
                          candidate=str(self.root / "not-a-tree"), ref=None)
         with mock.patch.object(bench, "RUNS", runs), mock.patch.object(bench, "run_one") as run_one:
-            with self.assertRaisesRegex(SystemExit, "lacks the DevStack layout"):
+            with self.assertRaisesRegex(SystemExit, "lacks the Patstack layout"):
                 bench.run(args)
             run_one.assert_not_called()
         self.assertFalse(runs.exists())
 
         def exits(task_id, arm, trial, root, *rest):
-            if arm == "devstack":
+            if arm == "patstack":
                 raise SystemExit("tree vanished mid-run")
             return self.record(root, task_id, arm, trial)
-        args.arms, args.candidate = ["baseline", "devstack"], None
+        args.arms, args.candidate = ["baseline", "patstack"], None
         with mock.patch.object(bench, "RUNS", runs), mock.patch.object(bench, "run_one", side_effect=exits), \
                 mock.patch("sys.stdout", new_callable=io.StringIO):
             self.assertEqual(bench.run(args), 1)
-        failure = json.loads(next(runs.glob("*/B04-devstack-1/score.json")).read_text())
+        failure = json.loads(next(runs.glob("*/B04-patstack-1/score.json")).read_text())
         self.assertEqual((failure["status"], failure["error"]), ("error", "SystemExit: tree vanished mid-run"))
         self.assertIn("INCOMPLETE", next(runs.glob("*/scoreboard.md")).read_text(encoding="utf-8"))
 
@@ -477,8 +528,9 @@ class BlindReview(Scratch):
     def prompts(self):
         return [p.read_text() for p in sorted(self.log.glob("prompt-*"))]
 
+    @unittest.skipIf(os.name == "nt", "grading worker and task fixtures require POSIX; run on Linux")
     def test_reviewer_sees_request_and_diff_only_takes_the_median_and_caches(self):
-        ws, meta, module = self.workspace("B16", arm="devstack")
+        ws, meta, module = self.workspace("B16", arm="patstack")
         transcript = module.oracle_good(ws)
         transcript.setdefault("edits", []); transcript.setdefault("tool_order", [])
         (ws / ".bench/planted.txt").write_text("harness folder")  # never part of the reviewed diff
@@ -501,7 +553,7 @@ class BlindReview(Scratch):
         for prompt in prompts:
             self.assertIn(meta["prompt"], prompt)
             self.assertIn(diff.strip().splitlines()[0], prompt)
-            for word in ("devstack", "DevStack", "baseline", "candidate", "arm"):
+            for word in ("patstack", "Patstack", "baseline", "candidate", "arm"):
                 self.assertNotRegex(prompt, r"\b" + word + r"\b")
         self.assertEqual(bench.review(meta["prompt"], diff, command=self.command, cache_file=cache), verdict)
         bench._review_cache.clear()  # a new process: the run folder's cache answers
@@ -594,6 +646,7 @@ class BlindReview(Scratch):
             self.assertEqual(bench.review("request", "diff", command=["reviewer"], cache_file=cache)["quality"], good["quality"])
         self.assertEqual(once.call_count, 3)
 
+    @unittest.skipIf(os.name == "nt", "grading worker requires POSIX; run on Linux")
     def test_empty_workspace_diff_is_reported_as_empty(self):
         ws, meta, _ = self.workspace("B04")
         self.assertEqual(bench.grade("B04", ws, {"final_text": "", "commands": []}, want_diff=True)["diff"], {"text": "", "truncated": False})
@@ -614,23 +667,23 @@ class ScoreboardQuality(Scratch):
     def test_kvalitet_appears_only_with_reviews_and_is_not_part_of_overall(self):
         self.quiet_stdout()
         plain = self.root / "plain"
-        for arm in ("baseline", "devstack"):
+        for arm in ("baseline", "patstack"):
             self.record(plain, "B04", arm, 1)
         bench.scoreboard(plain)
         self.assertNotIn("Kvalitet", (plain / "scoreboard.md").read_text(encoding="utf-8"))
         reviewed = self.root / "reviewed"
-        for arm, quality in (("baseline", 0.5), ("devstack", 1.0)):
+        for arm, quality in (("baseline", 0.5), ("patstack", 1.0)):
             score = self.record(reviewed, "B04", arm, 1, overall=0.5)
             score["review"] = {"quality": quality, "votes": 3, "dimensions": {}}
             (reviewed / f"B04-{arm}-1/score.json").write_text(json.dumps(score))
         result = bench.scoreboard(reviewed)
-        self.assertEqual((result["summary"]["baseline"]["kvalitet"], result["summary"]["devstack"]["kvalitet"]), (50, 100))
-        self.assertEqual(result["summary"]["devstack"]["overall"], 50)
+        self.assertEqual((result["summary"]["baseline"]["kvalitet"], result["summary"]["patstack"]["kvalitet"]), (50, 100))
+        self.assertEqual(result["summary"]["patstack"]["overall"], 50)
         board = (reviewed / "scoreboard.md").read_text(encoding="utf-8")
         self.assertIn("| Kvalitet (blind review) | 50 (n=1) | 100 (n=1) |", board)
         self.assertIn("| B04 | f | 50 | 50 | 50 | 100 |", board)
         unknown = self.root / "unknown"
-        for arm, quality in (("baseline", None), ("devstack", 0.0)):
+        for arm, quality in (("baseline", None), ("patstack", 0.0)):
             score = self.record(unknown, "B04", arm, 1, overall=0.5)
             score["review"] = {"quality": quality, "votes": 1 if quality is None else 3, "dimensions": {}}
             (unknown / f"B04-{arm}-1/score.json").write_text(json.dumps(score))
@@ -646,48 +699,64 @@ class GraderSandboxRequired(unittest.TestCase):
             with self.assertRaises(bench.isolation.IsolationUnavailable):
                 bench.isolation.run(["true"])
             with mock.patch.object(bench.isolation, "UNSAFE", True):
-                self.assertEqual(bench.isolation.run(["true"]).returncode, 0)
+                self.assertEqual(bench.isolation.run([sys.executable, "-c", "pass"]).returncode, 0)
 
 
 class ArmInstaller(Scratch):
-    def test_devstack_arm_is_self_contained_in_the_workspace(self):
-        ws, _, _ = self.workspace("B04", "devstack")
+    @unittest.skipIf(os.name == "nt", "benchmark installation uses POSIX links and archive paths; run on Linux")
+    def test_patstack_arm_is_self_contained_in_the_workspace(self):
+        ws, _, _ = self.workspace("B04", "patstack")
         vendor = ws / bench.VENDOR
-        self.assertTrue((vendor / "skills/devstack/SKILL.md").is_file())
+        self.assertTrue((vendor / "skills/patstack/SKILL.md").is_file())
         self.assertEqual((ws / ".claude/skills").resolve(), (vendor / "skills").resolve())
         text = (ws / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn(".devstack/skills/devstack/SKILL.md", text)
-        self.assertIn(".devstack/monitoring/devstack/task_kpi.py", text)
-        self.assertIn("`.devstack/ticket-ref new`", text)
-        self.assertNotIn("<DEVSTACK>", text)
+        self.assertIn(".patstack/skills/patstack/SKILL.md", text)
+        self.assertIn("`.patstack/ticket-ref new`", text)
+        self.assertNotIn("<PATSTACK>", text)
         self.assertNotIn(str(bench.REPO), text)
-        stub = subprocess.run([str(vendor / "ticket-ref")], capture_output=True, text=True)
+        stub = subprocess.run([sys.executable, str(vendor / "ticket-ref")], capture_output=True, text=True)
         self.assertEqual(stub.stdout.strip(), "TKT-" + "90001")
 
-    def test_kpi_store_is_per_run_and_never_the_real_one(self):
-        ws, _, _ = self.workspace("B16", "devstack")
+    PRE_15 = "4092031670b944f37ca7299fb72281fb338314da"  # last main before the KPI layer was removed
+
+    @unittest.skipUnless(subprocess.run(["git", "-C", str(bench.REPO), "cat-file", "-e", PRE_15 + "^{commit}"],
+                                        capture_output=True).returncode == 0, "needs the repository history")
+    @unittest.skipIf(os.name == "nt", "benchmark installation uses POSIX links and archive paths; run on Linux")
+    def test_a_pre_15_arm_keeps_its_kpi_recorder_inside_the_workspace(self):
+        ws, _, _ = self.workspace("B16", "patstack", ref=self.PRE_15)
+        recorder = ws / ".patstack/monitoring/patstack/task_kpi.py"
+        self.assertIn(".patstack/monitoring/patstack/task_kpi.py", (ws / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertTrue(recorder.is_file())
         home = self.root / "home"
         home.mkdir()
         env = dict(os.environ, HOME=str(home), USERPROFILE=str(home), PYTHONDONTWRITEBYTECODE="1")
-        out = subprocess.run([sys.executable, str(ws / ".devstack/monitoring/devstack/task_kpi.py"), "start", "--id", "TKT-" + "90001",
-                              "--workflow", "feature", "--topic", "bench", "--mode", "full_send", "--host", "devbox"],
+        out = subprocess.run([sys.executable, str(recorder), "start", "--id", "TKT-" + "90001", "--workflow", "feature",
+                              "--topic", "bench", "--mode", "full_send", "--host", "devbox"],
                              cwd=ws, env=env, capture_output=True, text=True)
         self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertTrue((ws / ".devstack/kpis.sqlite3").is_file())
-        self.assertFalse((home / ".local/state/devstack").exists())
-        sys.path.insert(0, str(HERE))
-        import grade_worker
-        self.assertEqual(grade_worker.kpi_record(ws.resolve(), bench.VENDOR).get("status"), "open")
+        self.assertTrue((ws / ".patstack/kpis.sqlite3").is_file())
+        self.assertFalse((home / ".local/state/patstack").exists())
 
+    @unittest.skipIf(os.name == "nt", "benchmark installation uses POSIX links and archive paths; run on Linux")
+    def test_a_current_arm_has_no_kpi_recorder(self):
+        ws, _, _ = self.workspace("B04", "patstack")
+        if os.name == "nt":  # Older Windows checkouts can retain ignored caches after the recorder was deleted.
+            self.assertFalse(list((ws / ".patstack/monitoring").rglob("*.py")))
+        else:
+            self.assertFalse((ws / ".patstack/monitoring").exists())
+        self.assertNotIn("task_kpi", (ws / "CLAUDE.md").read_text(encoding="utf-8"))
+
+    @unittest.skipIf(os.name == "nt", "benchmark installation uses POSIX links and archive paths; run on Linux")
     def test_project_claude_md_is_kept_and_instructions_go_to_dot_claude(self):
         ws = self.root / "project"
         _, module = bench.load_task("B16")
         bench.build_workspace(ws, module)
         (ws / "CLAUDE.md").write_text("Project rules stay.\n")
-        bench.add_devstack(ws)
+        bench.add_patstack(ws)
         self.assertEqual((ws / "CLAUDE.md").read_text(), "Project rules stay.\n")
-        self.assertIn(".devstack/skills/devstack/SKILL.md", (ws / ".claude/CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertIn(".patstack/skills/patstack/SKILL.md", (ws / ".claude/CLAUDE.md").read_text(encoding="utf-8"))
 
+    @unittest.skipIf(os.name == "nt", "benchmark installation uses POSIX links and archive paths; run on Linux")
     def test_candidate_arm_uses_the_given_tree(self):
         candidate = self.root / "candidate"
         for part in bench.TREE_PARTS:
@@ -697,14 +766,14 @@ class ArmInstaller(Scratch):
             else:
                 (candidate / part).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, candidate / part)
-        skill = candidate / "skills/devstack/SKILL.md"
+        skill = candidate / "skills/patstack/SKILL.md"
         skill.write_text(skill.read_text(encoding="utf-8") + "\nCandidate marker line.\n", encoding="utf-8")
         ws, _, _ = self.workspace("B04", "candidate", candidate=candidate)
-        self.assertIn("Candidate marker line.", (ws / ".devstack/skills/devstack/SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("Candidate marker line.", (ws / ".patstack/skills/patstack/SKILL.md").read_text(encoding="utf-8"))
         with self.assertRaises(SystemExit):
             bench.prepare("B04", "candidate", self.root / "no-candidate")
-        (candidate / "skills/devstack/SKILL.md").unlink()
-        with self.assertRaisesRegex(SystemExit, "DevStack layout"):
+        (candidate / "skills/patstack/SKILL.md").unlink()
+        with self.assertRaisesRegex(SystemExit, "Patstack layout"):
             bench.prepare("B04", "candidate", self.root / "broken", candidate=candidate)
 
     def test_sandbox_denies_the_source_trees_and_the_network(self):
@@ -728,7 +797,7 @@ class ArmInstaller(Scratch):
     def test_claude_children_get_only_the_allowlisted_environment(self):
         base = {"PATH": "/usr/bin", "HOME": "/h", "LANG": "C.UTF-8", "LC_ALL": "C", "TERM": "xterm", "USER": "u",
                 "SHELL": "/bin/sh", "TMPDIR": "/t", "GH_TOKEN": "x", "AWS_SECRET_ACCESS_KEY": "x",
-                "ANTHROPIC_API_KEY": "x", "SSH_AUTH_SOCK": "/s", "DEVSTACK_TICKET_DB": "/d"}
+                "ANTHROPIC_API_KEY": "x", "SSH_AUTH_SOCK": "/s", "PATSTACK_TICKET_DB": "/d"}
         env = bench.child_env({"GIT_CONFIG_GLOBAL": "/g", "GIT_CONFIG_NOSYSTEM": "1"}, base=base)
         self.assertEqual(set(env), {"PATH", "HOME", "LANG", "LC_ALL", "TERM", "USER", "SHELL", "TMPDIR",
                                     "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"})
