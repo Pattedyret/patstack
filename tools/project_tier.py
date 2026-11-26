@@ -18,9 +18,10 @@ examples/project-tiers.example.json shows the shape:
   owners  GitHub owner -> CRITICAL. Only CRITICAL: an owner default never lowers a tier.
   repos   OWNER/NAME for GitHub, or HOST[:PORT]/PATH for another forge -> any tier.
   local   path relative to the home directory, for a project with no remotes -> any tier.
-  local_ci  optional list of GitHub owners or OWNER/NAME whose CI runs in the agent
-            (tools/local_ci.py runs scripts/ci-local.sh), not on GitHub: tools/merge_gate.py
-            ignores their GitHub checks and needs a passing local CI record. It changes no tier.
+  local_ci  optional list of GitHub owners or OWNER/NAME that run no GitHub Actions at all.
+            Every repository's CI runs in the agent (tools/local_ci.py runs scripts/ci-local.sh);
+            for these, tools/merge_gate.py also leaves GitHub checks unread, and workflow files
+            that remain are removed. It changes no tier.
 
 The tier comes from the checkout, never from a name passed in. A project is
 INTERNAL only if every effective fetch and push URL of every remote is positively

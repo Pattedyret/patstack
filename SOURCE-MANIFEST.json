@@ -1,7 +1,7 @@
 {
   "description": "Approved resources maintained in this repository; hashes are local repository bytes.",
   "source_label": ".",
-  "workflow_version": "1.5.0",
+  "workflow_version": "1.6.0",
   "skills": [
     "patstack",
     "ponytail",
@@ -34,8 +34,8 @@
     },
     {
       "path": "skills/to-spec/SKILL.md",
-      "source_sha256": "1e69c545f80769fdeb1910c41b0646e116673cce3077f44e42cbd1e26e871a9f",
-      "published_sha256": "1e69c545f80769fdeb1910c41b0646e116673cce3077f44e42cbd1e26e871a9f",
+      "source_sha256": "f0a6568429936dfeb1cc90b4bf0085289637cefd127731627225c5939fde0451",
+      "published_sha256": "f0a6568429936dfeb1cc90b4bf0085289637cefd127731627225c5939fde0451",
       "sanitized": false
     },
     {
@@ -64,14 +64,14 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "source_sha256": "f00e9465717afeca1df9a5f394d794c89f658f1cd7b5c7467ac796388ad085b1",
-      "published_sha256": "f00e9465717afeca1df9a5f394d794c89f658f1cd7b5c7467ac796388ad085b1",
+      "source_sha256": "510dafc505f129bacc841070ca33d8a97f0d04d8ce9bc51502a96c9aa3377482",
+      "published_sha256": "510dafc505f129bacc841070ca33d8a97f0d04d8ce9bc51502a96c9aa3377482",
       "sanitized": false
     },
     {
       "path": "skills/full-send/SKILL.md",
-      "source_sha256": "5342ae608b7c94174ff9058febfa79124e2ed7a36d371767765c5ec7a8a074aa",
-      "published_sha256": "5342ae608b7c94174ff9058febfa79124e2ed7a36d371767765c5ec7a8a074aa",
+      "source_sha256": "f226b37cf5d61c6db82c295ad3e9c7a98f3054efec1c4a88541d5e703129026f",
+      "published_sha256": "f226b37cf5d61c6db82c295ad3e9c7a98f3054efec1c4a88541d5e703129026f",
       "sanitized": false
     },
     {
@@ -82,14 +82,14 @@
     },
     {
       "path": "skills/file-pr/SKILL.md",
-      "source_sha256": "e0bbe8f2a70586b5c45f68d05a67c4a388a42c2193cf7ae9857c0ca95e6e05ee",
-      "published_sha256": "e0bbe8f2a70586b5c45f68d05a67c4a388a42c2193cf7ae9857c0ca95e6e05ee",
+      "source_sha256": "d821a7998aa5262d2576cc44e0150c40491c389ffd1b616e0c1165bb630b993c",
+      "published_sha256": "d821a7998aa5262d2576cc44e0150c40491c389ffd1b616e0c1165bb630b993c",
       "sanitized": false
     },
     {
       "path": "skills/babysit-pr/SKILL.md",
-      "source_sha256": "bef4fe4ea29ef821ad10f789ba68bcf1635342a906e6dbb578287845c602cef8",
-      "published_sha256": "bef4fe4ea29ef821ad10f789ba68bcf1635342a906e6dbb578287845c602cef8",
+      "source_sha256": "04d3a8e9960208091efb139242afdd5bcf9d0292e323ed2e3f66ba736dcaa025",
+      "published_sha256": "04d3a8e9960208091efb139242afdd5bcf9d0292e323ed2e3f66ba736dcaa025",
       "sanitized": false
     },
     {
@@ -106,14 +106,14 @@
     },
     {
       "path": "skills/retro/SKILL.md",
-      "source_sha256": "8b434087851cba6f8eaabcfd57a939913786be0dfb1180b55bd0950732451afc",
-      "published_sha256": "8b434087851cba6f8eaabcfd57a939913786be0dfb1180b55bd0950732451afc",
+      "source_sha256": "4f0ea3cd62c0ccb7d6ebba0d74ec242f7ba565d92d00630c0c6a5f84a30fbc8d",
+      "published_sha256": "4f0ea3cd62c0ccb7d6ebba0d74ec242f7ba565d92d00630c0c6a5f84a30fbc8d",
       "sanitized": false
     },
     {
       "path": "skills/grilling/SKILL.md",
-      "source_sha256": "2c6e81245fe7300b0497f5fb8a4ca75d64a8861ebd29a3393392563bd0c14dba",
-      "published_sha256": "2c6e81245fe7300b0497f5fb8a4ca75d64a8861ebd29a3393392563bd0c14dba",
+      "source_sha256": "d08b69f05b477c4a6b168822ff16abcb611fc5e757c92629752ec8c4f3636a4c",
+      "published_sha256": "d08b69f05b477c4a6b168822ff16abcb611fc5e757c92629752ec8c4f3636a4c",
       "sanitized": false
     },
     {
@@ -136,8 +136,8 @@
     },
     {
       "path": "skills/patstack/SKILL.md",
-      "source_sha256": "141899d06031f7940660ac5db1b5eb0adf6ebd0b22ff7bda1c7366aacd03a24f",
-      "published_sha256": "141899d06031f7940660ac5db1b5eb0adf6ebd0b22ff7bda1c7366aacd03a24f",
+      "source_sha256": "28beca38cbe0112d6a261d564572e4fc4ad97376d64dbabc04ef9be2968b8c73",
+      "published_sha256": "28beca38cbe0112d6a261d564572e4fc4ad97376d64dbabc04ef9be2968b8c73",
       "sanitized": false
     },
     {
@@ -160,14 +160,14 @@
     },
     {
       "path": "skills/patstack/references/change-sets.md",
-      "source_sha256": "ca9fa7b4c81ae5f2bff020f247c209fd6707444ae64e58933592b787b37e4ff3",
-      "published_sha256": "ca9fa7b4c81ae5f2bff020f247c209fd6707444ae64e58933592b787b37e4ff3",
+      "source_sha256": "9444fb5b6711a6b336a077fec25ea7b0b706c8af364770b2cb03984fa390980e",
+      "published_sha256": "9444fb5b6711a6b336a077fec25ea7b0b706c8af364770b2cb03984fa390980e",
       "sanitized": false
     },
     {
       "path": "skills/patstack/references/coordination.md",
-      "source_sha256": "48140e59d6f8a81ebc8f4c0f6542a3041d79ea3c2187011b368814785aa68f75",
-      "published_sha256": "48140e59d6f8a81ebc8f4c0f6542a3041d79ea3c2187011b368814785aa68f75",
+      "source_sha256": "c037f1e709ea429d6bcd7068ee885aaf523ae705590da697d1398fd803758857",
+      "published_sha256": "c037f1e709ea429d6bcd7068ee885aaf523ae705590da697d1398fd803758857",
       "sanitized": false
     },
     {
@@ -190,8 +190,8 @@
     },
     {
       "path": "skills/patstack/references/quality.md",
-      "source_sha256": "f90f63e77e49d89730a8554bfcb1245a8844d595cb412c0ce59dee1478a0acdf",
-      "published_sha256": "f90f63e77e49d89730a8554bfcb1245a8844d595cb412c0ce59dee1478a0acdf",
+      "source_sha256": "5e3120e3b87a8cb82705fec45a8d1a641833532a14bf6e5c58de02399aab7f57",
+      "published_sha256": "5e3120e3b87a8cb82705fec45a8d1a641833532a14bf6e5c58de02399aab7f57",
       "sanitized": false
     },
     {
@@ -202,8 +202,8 @@
     },
     {
       "path": "skills/patstack/references/sources.md",
-      "source_sha256": "2760e7c6e2de9eaad3f918f52aa59c6235069d3a68605837ef588f57e9649a0a",
-      "published_sha256": "2760e7c6e2de9eaad3f918f52aa59c6235069d3a68605837ef588f57e9649a0a",
+      "source_sha256": "3315847f1dc265dc95f3901cb0f9e228a1bb0d3d741e1454e6ed196372184cfb",
+      "published_sha256": "3315847f1dc265dc95f3901cb0f9e228a1bb0d3d741e1454e6ed196372184cfb",
       "sanitized": false
     },
     {
@@ -298,8 +298,8 @@
     },
     {
       "path": "skills/create-test-recipes/SKILL.md",
-      "source_sha256": "a1e4a9b95ecfc7d88c908f582b25b240fcd76ef788746f0fa9f3ab0160c63ac1",
-      "published_sha256": "a1e4a9b95ecfc7d88c908f582b25b240fcd76ef788746f0fa9f3ab0160c63ac1",
+      "source_sha256": "651f2162a1d235a903de20fb7b230b7f80496b02cd16ac0785d517d035f48b2a",
+      "published_sha256": "651f2162a1d235a903de20fb7b230b7f80496b02cd16ac0785d517d035f48b2a",
       "sanitized": false
     },
     {

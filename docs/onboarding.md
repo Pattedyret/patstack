@@ -183,7 +183,7 @@ Use the reference in branch names, PR titles (`[TKT-…] Short title`) and hando
 | Open PRs, push its own branches, mark its own PR ready, request re-review and merge through the merge gate under the [merge rule](../skills/patstack/references/coordination.md#merge) (Full Send, after at least R1; a Full Stop PR stays ready after R2 or R3 and a human merges it) | Merge directly with `gh pr merge`, merge without a review record for the head, or merge where production, a destructive data operation, the repo's `AGENTS.md`/`DEPLOY.md`, branch protection or a project approval keeps a human gate |
 | Read the product vault, propose vault changes as a PR and merge it under the [merge rule](../skills/patstack/references/coordination.md#merge) (Full Send) | Hand-write `CONTRACT.md` |
 | Deploy to the established test target in Full Send (an auto-deploying merge counts as a deploy) | Force-push, `reset --hard`, reset/reseed shared data or delete outside data the task owns |
-| Report missing CI as a risk ("no CI configured; proof is local only") | Treat missing proof, a green deploy message or model agreement as proof |
+| Run the repo's CI script on the PR yourself (`tools/local_ci.py`), and add the script when the repo has none | Treat missing proof, a green deploy message or model agreement as proof |
 | Stop with one precise request when it needs access, a human gate or a Full Stop decision | Forge approvals, identities or sessions |
 
 ### Giving access safely

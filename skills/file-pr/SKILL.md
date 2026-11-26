@@ -28,13 +28,11 @@ What was wrong or missing and what changed, in two or three sentences. Link the 
 The one check that best shows it works, with its label and head or environment.
 
 Open risks: what is still unresolved, most serious first. Leave out when nothing is.
-
-no CI configured; proof is local only
 ```
 
 Always pass PR bodies, comments and commit messages as files (`gh pr create --body-file`, `gh pr comment --body-file`, `git commit -F`), never inline. The [merge guard](../patstack/references/coordination.md#merge) reads the whole shell command, so text that mentions the gate's merge next to `gh pr` gets the command refused; the guard stays strict on purpose. To change a filed body, use `gh api -X PATCH repos/OWNER/NAME/pulls/N -F body=@file` and read it back: `gh pr edit` can fail on GitHub's Projects classic sunset and leave the old text.
 
-Keep the no-CI line when the repo has no CI: it is a risk, not N/A, and the gate reads it. A change set adds its one-line merge order here too.
+CI is not a line in the body: once the head is pushed, run `tools/local_ci.py` on the PR, which posts the `Patstack-CI` record the gate reads ([CI](../patstack/references/coordination.md#merge)); a repo without a CI script gets one in this PR. A change set adds its one-line merge order here.
 
 ## Evidence comment
 

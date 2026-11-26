@@ -12,7 +12,7 @@ One ticket can need changes in several repositories, for example an auth API, an
 
 ## Tooling
 
-`python3 tools/changeset.py TKT-… owner/producer owner/consumer-a owner/consumer-b` lists the set's PRs across the repos (given in declared merge order), with state, CI summary and merge times, and exits 1 when a later repo merged before an earlier one, or when an earlier repo merged again (for example a producer fix-forward) after a later one had merged: "multi-PR ordering unresolved" means the consumer must be re-verified against the latest producer. Repos merged in the same step can be grouped with a comma: `owner/auth-api owner/admin,owner/web`. It needs an authenticated `gh` and reads only. `--json` prints the machine-readable report.
+`python3 tools/changeset.py TKT-… owner/producer owner/consumer-a owner/consumer-b` lists the set's PRs across the repos (given in declared merge order), with state, GitHub check summary (CI itself is the `Patstack-CI` record on each PR) and merge times, and exits 1 when a later repo merged before an earlier one, or when an earlier repo merged again (for example a producer fix-forward) after a later one had merged: "multi-PR ordering unresolved" means the consumer must be re-verified against the latest producer. Repos merged in the same step can be grouped with a comma: `owner/auth-api owner/admin,owner/web`. It needs an authenticated `gh` and reads only. `--json` prints the machine-readable report.
 
 ## Review
 

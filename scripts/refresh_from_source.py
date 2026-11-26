@@ -21,7 +21,7 @@ import sys
 
 PACKAGE = Path(__file__).resolve().parent.parent
 
-WORKFLOW_VERSION = "1.5.0"
+WORKFLOW_VERSION = "1.6.0"
 PACKAGE_RESOURCE_ROOTS = ("skills", "tools/ticket-ref")
 # Single published source files outside those roots (the setup check lives beside the package tooling).
 PACKAGE_RESOURCE_FILES = ("scripts/setup_doctor.py", "scripts/test_setup_doctor.py",

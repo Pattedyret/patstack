@@ -309,7 +309,6 @@ def check_privacy():
 # A strict YAML subset (block mappings and sequences, flow lists, quoted and block scalars):
 # enough for the CI templates, with no third-party parser. Anything outside it is an error.
 YAML_KEY = re.compile(r"""(?P<key>[A-Za-z0-9_.$/-]+|"[^"]*"|'[^']*'):(?:[ ]+(?P<value>.*))?$""")
-ACTION_PIN = re.compile(r"[\w.-]+/[\w.-]+(?:/[\w./-]+)?@v\d+")
 
 
 def _yaml_comment(line):
@@ -425,31 +424,6 @@ def parse_yaml(text):
     return value
 
 
-def ci_template_issues(data):
-    """Least-privilege, pinned-action shape of a CI template (examples/ci/)."""
-    problems = []
-    if not isinstance(data, dict) or not {"name", "on", "permissions", "jobs"} <= set(data):
-        return ["needs name, on, permissions and jobs"]
-    if data["permissions"] != {"contents": "read"}:
-        problems.append("top-level permissions must be exactly contents: read")
-    jobs = data["jobs"] if isinstance(data["jobs"], dict) else {}
-    if not jobs:
-        problems.append("no jobs")
-    for name, job in jobs.items():
-        steps = job.get("steps") if isinstance(job, dict) else None
-        if not isinstance(steps, list) or not steps:
-            problems.append(f"job {name} has no steps")
-            continue
-        if "permissions" in job and job["permissions"] != {"contents": "read"}:
-            problems.append(f"job {name} widens permissions")
-        uses = [step.get("uses") for step in steps if isinstance(step, dict) and step.get("uses")]
-        if not uses or not str(uses[0]).startswith("actions/checkout@"):
-            problems.append(f"job {name} must start with actions/checkout")
-        problems += [f"job {name}: action {u!r} is not pinned to a major version (@vN)"
-                     for u in uses if not ACTION_PIN.fullmatch(str(u))]
-    return problems
-
-
 def check_formats():
     for name in BINARY_ASSETS:
         if not (ROOT / name).is_file():
@@ -462,13 +436,9 @@ def check_formats():
                 fail(f"json: {rel(path)}: {error}")
         elif path.suffix in (".yml", ".yaml"):
             try:
-                data = parse_yaml(path.read_text(encoding="utf-8"))
+                parse_yaml(path.read_text(encoding="utf-8"))
             except ValueError as error:
                 fail(f"yaml: {rel(path)}: {error}")
-                continue
-            if rel(path).startswith("examples/ci/"):
-                for problem in ci_template_issues(data):
-                    fail(f"ci template: {rel(path)}: {problem}")
         elif path.suffix == ".svg":
             try:
                 root = ET.parse(path).getroot()

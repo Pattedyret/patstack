@@ -28,20 +28,23 @@ The rule (skills/patstack/references/coordination.md#merge), read from GitHub fo
   reviewer record on it says `recheck=independent`. A reviewer appends that field when a finding concerns
   security or another trust boundary. The commit list must end at the head (the CLI returns at most 100
   commits). Full Stop and R3 keep a fresh review of the exact head;
-- every check on the head passed (success, neutral or skipped). With no checks at all, the body
-  must say "no CI configured; proof is local only".
-- a repo whose owner or OWNER/NAME the tier map lists under `local_ci` runs its CI in the agent instead:
-  GitHub checks are ignored, and the latest local CI record for the head must pass on the base branch's
-  current commit. tools/local_ci.py posts it as a comment whose whole body is this one line, full SHAs,
+- CI ran in the agent, on the task's own PR: the latest local CI record for the head must pass on the base
+  branch's current commit. tools/local_ci.py posts it as a comment whose whole body is this one line, full SHAs,
     Patstack-CI: result=pass head=<sha> runner=<provider/model> base=<sha>
   Only comments by accounts with write, maintain or admin permission on the repo count. A new commit on the
-  base needs a new run. The rule switches on per repo once its base branch holds scripts/ci-local.sh or
-  scripts/ci_local.py, so a listed repo without a script keeps the rule below until one lands; when
-  GitHub cannot say, the script counts as present. An unreadable or invalid tier map keeps the GitHub checks rule, where a passing
-  record for the current head and base also stands in for a repo with no checks.
+  head or the base needs a new run. This holds for every repository, and no statement in the body stands
+  in for the record. A repository without scripts/ci-local.sh or scripts/ci_local.py gets one in the same PR;
+- GitHub checks that others run on the head must also have passed (success, neutral or skipped); pending or
+  failed ones block. They are not read for a repo whose owner or OWNER/NAME the tier map lists under
+  `local_ci`: such a repo runs no GitHub Actions at all. An unreadable or invalid tier map keeps reading them.
+
+The gate merges at once or not at all. It asks GitHub's REST merge endpoint (PUT pulls/N/merge with the
+expected head sha), which merges synchronously and can neither queue a PR nor arm auto-merge; the CLI's
+merge command can do both, so the gate never calls it. A base branch with a merge queue is refused before
+GitHub is asked. Nothing the gate starts can merge later, on a base local CI never tested.
 
 In Full Stop a human merges: `check` reports whether the rule holds, and `merge` refuses a Full Stop PR
-without calling GitHub, so the lead stops at the ready PR. `merge` re-reads the PR, then merges with `gh pr merge --match-head-commit <head>`, so a push
+without calling GitHub, so the lead stops at the ready PR. `merge` re-reads the PR, then merges exactly that head (the endpoint's `sha` field), so a push
 after the check makes GitHub refuse the merge. Agents post under their person's GitHub account, so records
 are self-asserted: the gate proves a record exists for the head at the required depth with a declared
 independent provider or reviewer prompt, not which session wrote it. Standard library only; it runs `gh` and nothing else.
@@ -56,7 +59,6 @@ from urllib.parse import quote
 LEVELS = {"R1": 1, "R2": 2, "R3": 3}
 MINIMUM = {"Full Send": "R1", "Full Stop": "R2"}
 PASSED = {"SUCCESS", "NEUTRAL", "SKIPPED"}
-NO_CI = "no CI configured; proof is local only"
 MAX_BODY_WORDS = 200
 FIELDS = "number,state,isDraft,mergeable,headRefOid,baseRefName,body,comments,commits,statusCheckRollup"
 RECORD_KEYS = {"level", "verdict", "head", "reviewer", "session"}
@@ -70,7 +72,6 @@ HEADER_WORDS = ("mode:", "patstack-author:", "patstack-level:")
 RECORD_COMMENT = re.compile(r"Patstack-Review:[ \t]+(\S.*?)[ \t]*")
 CI_COMMENT = re.compile(r"Patstack-CI:[ \t]+(\S.*?)[ \t]*")
 CI_KEYS = {"result", "head", "runner", "base"}
-CI_SCRIPTS = ("scripts/ci-local.sh", "scripts/ci_local.py")  # what tools/local_ci.py runs
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 WRITE_PERMISSIONS = {"admin", "maintain", "write"}  # repo permissions that can push
 TOKEN = re.compile(r"^(\w+)=(\S+)$")
@@ -309,9 +310,9 @@ def checks_state(rollup):
     return "passed", []
 
 
-def evaluate(pr, local_ci=False):
-    """Return (ready, reasons, summary) for a `gh pr view --json` object.
-    local_ci=True (a repo the tier map lists under local_ci) replaces GitHub checks with the local CI record."""
+def evaluate(pr, actions_free=False):
+    """Return (ready, reasons, summary) for a `gh pr view --json` object with its baseTip (see fetch).
+    actions_free=True (a repo the tier map lists under local_ci) leaves GitHub checks unread."""
     reasons = []
     head = pr.get("headRefOid") or ""
     body = pr.get("body") or ""
@@ -355,19 +356,18 @@ def evaluate(pr, local_ci=False):
             detail += "; the R1 repair record does not stand in for R2: " + "; ".join(repair_problems)
         reasons.append("%s needs at least %s before merge: %s" % (mode, needed, detail))
 
-    if local_ci:
-        problem = local_ci_problem(pr, head)
-        state = "local " + ("pass" if not problem else "not passed")
-        if problem:
-            reasons.append(problem)
-    else:
-        state, names = checks_state(pr.get("statusCheckRollup"))
-        if state == "failed":
-            reasons.append("checks failed on the head: " + ", ".join(names))
-        elif state == "pending":
-            reasons.append("checks still running on the head: " + ", ".join(names))
-        elif state == "none" and NO_CI.lower() not in body.lower() and local_ci_problem(pr, head):
-            reasons.append('no checks on the head; a repo without CI must say "%s" in the body' % NO_CI)
+    problem = local_ci_problem(pr, head)
+    state = "local " + ("pass" if not problem else "not passed")
+    if problem:
+        reasons.append(problem)
+    if not actions_free:
+        hosted, names = checks_state(pr.get("statusCheckRollup"))
+        if hosted == "failed":
+            reasons.append("GitHub checks failed on the head: " + ", ".join(names))
+        elif hosted == "pending":
+            reasons.append("GitHub checks still running on the head: " + ", ".join(names))
+        if hosted != "none":
+            state += ", GitHub " + hosted
 
     summary = {"pr": pr.get("number"), "head": head, "mode": mode, "minimum": needed,
                "review": "R%d" % depth if depth else None, "repair_of": repair_of, "author": author or None,
@@ -375,8 +375,9 @@ def evaluate(pr, local_ci=False):
     return not reasons, reasons, summary
 
 
-def uses_local_ci(repo):
-    """True only when the tier map lists the repo or its owner under local_ci; any error keeps GitHub checks."""
+def actions_free(repo):
+    """True only when the tier map lists the repo or its owner under local_ci: it runs no GitHub Actions,
+    so its GitHub checks are not read. Any error keeps reading them."""
     try:
         import project_tier
         data, problem = project_tier.load_tiers()
@@ -390,19 +391,6 @@ def gh(args):
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout).strip() or "gh failed")
     return result.stdout
-
-
-def base_has_ci_script(repo, base):
-    """Whether the base commit holds a local CI script. Only GitHub's 404 for every script means no;
-    any other answer or error counts as yes, so a lookup problem never relaxes the rule."""
-    for script in CI_SCRIPTS:
-        try:
-            gh(["api", "repos/%s/contents/%s?ref=%s" % (repo, script, base), "--silent"])
-            return True
-        except (RuntimeError, OSError) as exc:
-            if "HTTP 404" not in str(exc):
-                return True
-    return False
 
 
 def branch_tip(repo, branch):
@@ -470,8 +458,7 @@ def main(argv=None):
     except (RuntimeError, ValueError, OSError) as exc:
         print("ERROR: could not read PR: %s" % exc, file=sys.stderr)
         return 2
-    local = uses_local_ci(args.repo) and base_has_ci_script(args.repo, pr["baseTip"])
-    ready, reasons, summary = evaluate(pr, local)
+    ready, reasons, summary = evaluate(pr, actions_free(args.repo))
     report(ready, reasons, summary, args.json)
     if not ready:
         return 1
@@ -481,32 +468,68 @@ def main(argv=None):
         print("HANDOFF: Full Stop: a human merges this PR. Stop at the ready PR and hand it to the owner; "
               "the gate does not merge Full Stop")
         return 1
-    if local and args.method == "rebase":
+    if args.method == "rebase":
         print("BLOCKED: local CI tested the merge of the head into the base; a rebase lands other commits. "
               "Use --method merge or squash")
         return 1
     try:
-        if local and branch_tip(args.repo, pr["baseRefName"]) != pr["baseTip"]:
+        queued = has_merge_queue(args.repo, pr["baseRefName"])
+    except (RuntimeError, OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        print("ERROR: could not read whether %s uses a merge queue: %s" % (pr["baseRefName"], exc), file=sys.stderr)
+        return 2
+    if queued:
+        print("BLOCKED: %s uses a merge queue. The gate merges directly or not at all: a queued merge lands later, "
+              "on a base local CI did not test. Hand the ready PR to a human" % pr["baseRefName"])
+        return 1
+    try:
+        if branch_tip(args.repo, pr["baseRefName"]) != pr["baseTip"]:
             print("BLOCKED: %s moved while the gate checked it; run local CI again" % pr["baseRefName"])
             return 1
-        gh(["pr", "merge", str(args.pr), "-R", args.repo, "--" + args.method,
-            "--match-head-commit", summary["head"]])
+        answer = gh(merge_request(args.repo, args.pr, summary["head"], args.method))
     except (RuntimeError, OSError, ValueError) as exc:
-        print("ERROR: GitHub refused the merge: %s" % exc, file=sys.stderr)
+        print("ERROR: could not confirm whether GitHub merged PR #%s: %s. The request merges at once or not at "
+              "all, so nothing is queued; read the PR's state before trying again" % (args.pr, exc), file=sys.stderr)
         return 2
+    try:
+        done = json.loads(answer)
+        merged = done.get("merged") is True and FULL_SHA.match(done.get("sha") or "") and done["sha"]
+    except (ValueError, AttributeError, TypeError):
+        merged = None
+    if not merged:
+        print("WARNING: GitHub answered the merge request for PR #%s without a merge commit. Nothing is queued; "
+              "read the PR's state before anything else" % args.pr, file=sys.stderr)
+        return 3
     print("MERGED: PR #%s at %s" % (args.pr, summary["head"]))
-    if local:
-        return landed_on_tested_base(args.repo, args.pr, pr["baseTip"], pr["baseRefName"])
-    return 0
+    return landed_on_tested_base(args.repo, merged, pr["baseTip"], pr["baseRefName"])
 
 
-def landed_on_tested_base(repo, number, tested, branch):
-    """0 when the merge landed on the base local CI tested; 3, loudly, when the base moved in between.
+def merge_request(repo, number, head, method):
+    """The gh arguments for GitHub's synchronous merge of exactly this head. Unlike `gh pr merge`, this
+    endpoint cannot add the PR to a merge queue or enable auto-merge: it merges now or fails."""
+    return ["api", "repos/%s/pulls/%d/merge" % (repo, number), "-X", "PUT",
+            "-f", "sha=" + head, "-f", "merge_method=" + method]
+
+
+QUEUE_QUERY = "query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){mergeQueue(branch:$b){id}}}"
+
+
+def has_merge_queue(repo, branch):
+    """Whether the base branch merges through a merge queue. Raises when GitHub does not answer clearly."""
+    owner, _, name = repo.partition("/")
+    answer = json.loads(gh(["api", "graphql", "-f", "query=" + QUEUE_QUERY, "-f", "o=" + owner, "-f", "n=" + name,
+                            "-f", "b=" + branch]))
+    repository = answer["data"]["repository"]
+    if not isinstance(repository, dict) or "mergeQueue" not in repository:
+        raise ValueError("GitHub did not return the repository")
+    return repository["mergeQueue"] is not None
+
+
+def landed_on_tested_base(repo, merged, tested, branch):
+    """0 when the merge commit landed on the base local CI tested; 3, loudly, when the base moved in between.
     GitHub cannot merge on the condition that the base is unchanged, so this race is caught, not prevented."""
     try:
-        merged = json.loads(gh(["pr", "view", str(number), "-R", repo, "--json", "mergeCommit"]))["mergeCommit"]["oid"]
         parent = gh(["api", "repos/%s/commits/%s" % (repo, merged), "--jq", ".parents[0].sha"]).strip()
-    except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
+    except (RuntimeError, OSError, ValueError) as exc:
         print("WARNING: could not confirm the merge landed on the tested base %s: %s" % (tested[:12], exc), file=sys.stderr)
         return 3
     if parent != tested:

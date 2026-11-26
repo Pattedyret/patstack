@@ -88,6 +88,47 @@ class TaskWorkspaces(Scratch):
                     self.assertIn(f'"{bench.VENDOR}"', patterns, task.parent.name)
 
 
+class InterpreterPaths(unittest.TestCase):
+    """The sandbox shows the grader's Python where it was started from, not only where it really lives."""
+
+    def layout(self):
+        top = Path(tempfile.mkdtemp(prefix="bench-python-")).resolve()
+        self.addCleanup(shutil.rmtree, top, True)
+        real = top / "cpython-3.13.13"
+        (real / "bin").mkdir(parents=True)
+        (real / "bin/python3.13").write_text("")
+        (top / "cpython-3.13").symlink_to(real, target_is_directory=True)
+        (top / "other").mkdir()
+        return top, real
+
+    def test_linked_install_root_is_exposed_when_prefix_names_the_real_folder(self):
+        top, real = self.layout()  # uv on 3.13: started through the link, prefix is the real folder
+        with mock.patch.object(sys, "executable", str(top / "cpython-3.13/bin/python3.13")), \
+                mock.patch.object(sys, "prefix", str(real)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        # Exactly these, so any over-exposure fails: without the linked root there is no standard library.
+        self.assertEqual(paths, {top / "cpython-3.13", top / "cpython-3.13/bin", real, real / "bin"})
+
+    def test_a_venv_on_a_linked_install_exposes_the_linked_root(self):
+        top, real = self.layout()  # a venv whose python links into the linked folder, as `uv venv` makes it
+        venv = top / "venv"
+        (venv / "bin").mkdir(parents=True)
+        (venv / "bin/python").symlink_to(top / "cpython-3.13/bin/python3.13")
+        with mock.patch.object(sys, "executable", str(venv / "bin/python")), \
+                mock.patch.object(sys, "prefix", str(venv)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        self.assertEqual(paths, {venv, venv / "bin", real, top / "cpython-3.13"})
+
+    def test_an_unrelated_executable_root_is_never_exposed(self):
+        top, real = self.layout()
+        (top / "other/bin").mkdir()
+        with mock.patch.object(sys, "executable", str(top / "other/bin/python3")), \
+                mock.patch.object(sys, "prefix", str(real)), mock.patch.object(sys, "base_prefix", str(real)):
+            paths = bench.isolation.interpreter_paths()
+        self.assertNotIn(top / "other", paths)
+        self.assertIn(top / "other/bin", paths)  # the executable's own folder, as before
+
+
 @unittest.skipUnless(bench.isolation.available(), "bubblewrap not installed")
 class GraderSandbox(Scratch):
     def test_workspace_code_cannot_read_home_reach_the_network_or_see_secrets(self):
@@ -124,8 +165,7 @@ class GraderSandbox(Scratch):
         self.assertEqual(result.returncode, 0, result.stderr)
         got = json.loads(result.stdout)
         home = Path.home().resolve()
-        interpreter = {Path(p).resolve() for p in (sys.prefix, sys.base_prefix, Path(sys.executable).parent)} | \
-                      {Path(os.path.abspath(p)) for p in (sys.prefix, sys.base_prefix, Path(sys.executable).parent)}
+        interpreter = bench.isolation.interpreter_paths()
         mount_points = {p.relative_to(home).parts[0] for p in interpreter if home in p.parents}
         if isinstance(got["home"], list):  # only the read-only mount points of the grader's own Python may show
             self.assertLessEqual(set(got["home"]), mount_points, got["home"])

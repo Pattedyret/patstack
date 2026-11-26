@@ -21,14 +21,14 @@ A structured bug report (environment, area, severity, steps) is a complete spec;
 
 Ask about: target environment when not established, anything user-visible or deployed (copy, behavior), money (paid tiers, new services), creating repos or infrastructure, launch timing, product rules (who may do what, what counts as correct), significant new visual direction.
 
-Own without asking: implementation approach, an established test persona, tooling, parallelism, file layout, number of agents.
+Own without asking: implementation approach, an established test persona, tooling, parallelism, file layout, number of agents, and quality. Good UI and UX, thorough testing, performance on every system the product runs on and privacy are a [standing bar](../patstack/references/quality.md#the-standing-bar) taken from the task; never ask whether they are wanted or how good they should be.
 
 ## Ask in batched rounds
 
 - Directional or product questions: prose, with your recommendation stated.
 - Bounded operational picks between known alternatives: two to four concrete options, recommended one first. The recommendation must be a real call, not a hedge.
 - Batch the whole current frontier into one numbered list per round. Start the next round when the answers open new questions, a question depended on an earlier answer, or grilling the plan finds a hole; never hold a question back to save a round.
-- In a planning interview, cover what to build from every side before stopping: goal and who it is for, users and data in scope, main flow and edges (empty, error, no permission, many items), what the user sees and in what words, what counts as done, and priorities. Ask about each side the request and the product knowledge leave open.
+- A planning interview covers three things before stopping: everything in the product knowledge the work touches that you do not understand, cannot find or see the request conflict with; the goal (what it should achieve, for whom, how they will know it worked); and everything else that is unclear about what to build, such as users and data in scope, main flow and edges (empty, error, no permission, many items), what counts as done, and priorities. Ask about each one the request and the product knowledge leave open.
 - Ground every scope question in the real data: name each group with its count and say what each option includes and leaves out. A requester outside the product team cannot see what a technical term hides; spell it out in their words.
 - When the answers are in, restate the settled definitions as one short list alongside what you do next; it goes into the spec. It is a record, not a new approval round: ask again only about what is still unsettled.
 

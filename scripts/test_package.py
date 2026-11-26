@@ -429,31 +429,12 @@ class PublicationControls(unittest.TestCase):
 
 
 
-class CiTemplateControls(unittest.TestCase):
-    TEMPLATE = (ROOT_DIR / "examples/ci/node.yml").read_text(encoding="utf-8")
-
-    def test_templates_parse_and_pass(self):
-        for name in ("node.yml", "python.yml"):
-            data = check.parse_yaml((ROOT_DIR / "examples/ci" / name).read_text(encoding="utf-8"))
-            self.assertEqual(check.ci_template_issues(data), [], name)
-            self.assertEqual(data["permissions"], {"contents": "read"})
-            self.assertIn("npm ci" if name == "node.yml" else "uv sync --frozen", json.dumps(data))
-
+class YamlControls(unittest.TestCase):
     def test_malformed_yaml_is_rejected(self):
         for text in ("a: 1\n\tb: 2\n", "a: 1\na: 2\n", "a:\n  - x\n   y: 1\n", "a: b: c\n",
                      "a: [1, [2]]\n", "a: {b: 1}\n", "  a: 1\n", "a: 'open\n"):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 check.parse_yaml(text)
-
-    def test_wide_permissions_and_unpinned_actions_are_rejected(self):
-        for old, new, needle in (("  contents: read", "  contents: write", "permissions"),
-                                 ("actions/setup-node@v5", "actions/setup-node@main", "not pinned"),
-                                 ("actions/setup-node@v5", "someone/action@1a2b3c", "not pinned"),
-                                 ("      - uses: actions/checkout@v5\n        with:\n          persist-credentials: false\n", "", "checkout")):
-            with self.subTest(new=new):
-                self.assertIn(old, self.TEMPLATE)
-                issues = check.ci_template_issues(check.parse_yaml(self.TEMPLATE.replace(old, new, 1)))
-                self.assertTrue(any(needle in issue for issue in issues), issues)
 
 
 if __name__ == "__main__":

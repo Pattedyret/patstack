@@ -2,6 +2,33 @@
 
 Choose only the relevant dimensions below; detailed benchmark evidence is not required for an unrelated R1 cosmetic edit.
 
+## The standing bar
+
+Quality is part of every task and never a question to the owner. Nobody has to ask for a good interface, good tests or good performance, and the lead never asks whether they are wanted or how good they should be. The lead reads what the task touches, derives the targets as described below and proves them before readiness:
+
+- **UI and UX.** The approved design system and the comparable healthy flows of the product, on every supported viewport and input method, with loading, empty, error and no-permission states and a working keyboard and screen-reader path.
+- **Tests.** The behavior, its edges and the regression the change could cause are covered by executed tests that run in the repo's [CI script](../../create-test-recipes/SKILL.md#the-repos-ci-script). A fix has a test that was red before it.
+- **Performance on every system the product runs on.** List the systems from the project: browsers and viewports, phone, tablet and TV, operating system versions, the slowest supported device and network, the smallest production instance. Measure on the slowest supported one as well as the typical one. A fast result on the developer's machine proves nothing about a TV box or an old phone; a system that was not measured is named as not verified.
+- **Privacy (GDPR)** whenever personal data is touched, as [below](#privacy-gdpr).
+- **Security** at every trust boundary the change crosses.
+
+Proof effort still follows the change: a colour fix needs its affected check, not a benchmark. What does not scale down is the bar itself.
+
+### Privacy (GDPR)
+
+A change touches personal data when it reads, writes, shows, logs, exports or sends anything about an identifiable person: name, contact details, identifiers, photos, messages, location, and the special categories of art. 9 such as health. Then these checks run, whatever the size of the change:
+
+| Check | Proof |
+|---|---|
+| Data map | Which personal data the change touches, its category and purpose, where it is stored and where it flows (services, third parties, regions). Written in the PR when special categories or children's data are involved. |
+| Minimisation | Responses, queries, events and exports carry only the fields the purpose needs: an executed assertion on the exact field list of each changed response. |
+| Access | Executed positive and negative tests per role, tenant and object: the right persona reads it, the wrong one is refused. |
+| No leak | Synthetic marker values, then a search for them in logs, analytics, error reports, URLs, caches and outbound requests. |
+| Deletion, export and retention | New tables, fields and files are covered by the product's delete and export paths and its retention rule, shown by running them on a test subject. |
+| Test data | Synthetic fixtures only. No copied personal data in tests, fixtures, screenshots, PRs or evidence. |
+
+A new purpose or a new recipient of personal data (a processor, a third-party SDK, a model provider) is a product decision and goes to the owner with the data map; it is the one privacy question that is asked. Special categories and children's data take at least R2. The checks show that the tested boundaries hold. They are not a legal assessment and do not replace a DPIA where the law requires one.
+
 ## Scores and verifiable evidence
 
 Scores communicate judgment. Required acceptance checks and unresolved blocking findings decide readiness. Two high scores cannot offset a failed permission test or missing mandatory behavior.
@@ -58,8 +85,9 @@ Use one applicable quality bar for new features, improvements and fixes. New fea
 | Feature works? Y/N | Acceptance assertions, negative cases and real interaction | Verify the requested outcome on the integrated result as well as individual slices. Report functional success separately from quality acceptance. |
 | Good UI | Screenshots, approved design-system/reference comparison, responsive states and a fixed visual rubric | New and changed UI must meet the same approved bar. Use matched before/after views for improvements. Label ratings as agent judgments, not objective measurements. |
 | Good UX | Task completion, errors, steps, accessibility, loading/empty/error states and rubric | New and changed flows must meet the same interaction expectations. Separate observed metrics from model opinion. Human usability is not proven without human evidence. |
-| Performance: fast enough / faster when required | Raw timings, sample count, median/tail latency as appropriate, build/environment and protocol | New features meet agreed budgets or comparable-flow targets. Improvements use the same workload, dataset, device/network controls and method before/after. Show variation and regressions alongside gains. |
+| Performance: fast enough / faster when required, on each supported system | Raw timings, sample count, median/tail latency as appropriate, build/environment, device or instance class and protocol | New features meet agreed budgets or comparable-flow targets. Improvements use the same workload, dataset, device/network controls and method before/after. Show variation and regressions alongside gains. |
 | Data | Expected records, field values, permissions and network/API behavior | Check exact results and counterexamples, not only counts or sums. Screenshots alone cannot establish data correctness. |
+| Privacy (GDPR) | The executed [privacy checks](#privacy-gdpr) when personal data is touched | N/A only with the reason that no personal data is read, written, shown, logged or sent. |
 | Security/context/scale | Executed tests/scans or explicit source-based analysis | Label measured results separately from reasoning. “Production-ready” and “scales” need relevant evidence, not a generic model score. |
 
 Benchmark and quality results should carry task/criterion ID, run ID, spec/protocol version, repo and before/after SHAs, build/environment, fixture identity, browser/device/viewport where relevant, actual tool/model, command or steps, raw artifact paths, units, sample count, score rubric where used, result and limitations.

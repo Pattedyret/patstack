@@ -20,19 +20,34 @@ def record(level="R1", verdict="approve", head=HEAD, reviewer="anthropic/claude-
     return line + (" lens=%s" % lens if lens else "")
 
 
-def pr(body="Mode: Full Send — copy only; R1; a revert undoes it.", comments=(), checks=None, **extra):
+CI_PASS = "Patstack-CI: result=pass head=%s runner=anthropic/claude-opus-5-5 base=%s" % (HEAD, BASE)
+
+
+def pr(body="Mode: Full Send — copy only; R1; a revert undoes it.", comments=(), ci=True, **extra):
+    """A PR object as fetch() returns it. ci=True adds a passing local CI record, older than the test's own comments."""
+    passed = [{"body": CI_PASS, "createdAt": "2026-11-02T09:00:00Z", "canWrite": True}] if ci else []
     base = {"number": 7, "state": "OPEN", "isDraft": False, "mergeable": "MERGEABLE", "headRefOid": HEAD,
-            "baseRefName": "main", "baseTip": BASE, "body": body, "comments": list(comments),
-            "statusCheckRollup": checks if checks is not None else
-            [{"__typename": "CheckRun", "name": "test", "status": "COMPLETED", "conclusion": "SUCCESS"}]}
+            "baseRefName": "main", "baseTip": BASE, "body": body, "comments": passed + list(comments)}
     base.update(extra)
     return base
 
 
+NO_QUEUE = json.dumps({"data": {"repository": {"mergeQueue": None}}})
+MERGE = ["api", "repos/o/r/pulls/7/merge", "-X", "PUT", "-f", "sha=" + HEAD, "-f", "merge_method=merge"]
+MERGED = json.dumps({"sha": "c" * 40, "merged": True, "message": "Pull Request successfully merged"})
+
+
+def merging(args):
+    """Whether a faked gh call would merge, queue or arm anything: the REST merge or any `gh pr merge`."""
+    return args[:2] == ["pr", "merge"] or (args[0] == "api" and args[1].endswith("/merge"))
+
+
 def ref_answer(args):
-    """GitHub's answer for a branch lookup in the fakes below, or None for any other call."""
+    """GitHub's answer for a branch or merge queue lookup in the fakes below, or None for any other call."""
     if args[0] == "api" and "/git/ref/heads/" in args[1]:
         return json.dumps({"ref": "refs/heads/main", "object": {"sha": BASE}})
+    if args[:2] == ["api", "graphql"]:
+        return NO_QUEUE
     return None
 
 
@@ -46,7 +61,7 @@ class GateTests(unittest.TestCase):
     def reasons(self, p):
         return " | ".join(mg.evaluate(p)[1])
 
-    def test_full_send_with_r1_on_head_and_green_checks_is_ready(self):
+    def test_full_send_with_r1_on_head_and_passing_local_ci_is_ready(self):
         self.assertTrue(self.ready(pr(comments=[comment(record())])))
 
     def test_body_at_the_word_limit_merges(self):
@@ -342,14 +357,6 @@ class GateTests(unittest.TestCase):
         body = "Mode: Full Stop — x; R2.\n\nPatstack-Author: anthropic/claude-opus-5-5"
         self.assertIn("Patstack-Author", self.reasons(pr(body=body, comments=[comment(record("R2", reviewer="openai/gpt-6.1-sol"))])))
 
-    def test_failed_and_pending_checks_block(self):
-        failed = [{"__typename": "CheckRun", "name": "lint", "status": "COMPLETED", "conclusion": "FAILURE"}]
-        pending = [{"__typename": "CheckRun", "name": "build", "status": "IN_PROGRESS", "conclusion": None}]
-        status = [{"__typename": "StatusContext", "context": "ci/legacy", "state": "PENDING"}]
-        self.assertIn("checks failed", self.reasons(pr(checks=failed, comments=[comment(record())])))
-        self.assertIn("still running", self.reasons(pr(checks=pending, comments=[comment(record())])))
-        self.assertIn("still running", self.reasons(pr(checks=status, comments=[comment(record())])))
-
     def ci_line(self, result="pass", head=HEAD, runner="anthropic/claude-opus-5-5", base=BASE):
         return "Patstack-CI: result=%s head=%s runner=%s base=%s" % (result, head, runner, base)
 
@@ -357,14 +364,62 @@ class GateTests(unittest.TestCase):
         return dict(comment(line, at), canWrite=can_write)
 
     def local(self, *ci, **extra):
-        return mg.evaluate(pr(comments=[comment(record())] + list(ci), **extra), local_ci=True)
+        return mg.evaluate(pr(comments=[comment(record())] + list(ci), ci=False, **extra))
 
-    def test_local_ci_pass_record_replaces_github_checks(self):
-        failed = [{"__typename": "CheckRun", "name": "unit", "status": "COMPLETED", "conclusion": "FAILURE"}]
-        for checks in (failed, []):
-            ready, reasons, summary = self.local(self.ci(self.ci_line()), checks=checks)
-            self.assertTrue(ready, reasons)
-            self.assertEqual(summary["checks"], "local pass")
+    FAILED = [{"__typename": "CheckRun", "name": "unit", "status": "COMPLETED", "conclusion": "FAILURE"}]
+    GREEN = [{"__typename": "CheckRun", "name": "unit", "status": "COMPLETED", "conclusion": "SUCCESS"}]
+
+    def test_every_repo_needs_the_local_ci_record(self):
+        # a green GitHub check is not a record, and neither is the old statement in the body
+        self.assertIn("no local CI record", " | ".join(self.local(statusCheckRollup=self.GREEN)[1]))
+        body = "Mode: Full Send — tooling; R1.\nno CI configured; proof is local only"
+        self.assertIn("no local CI record", " | ".join(self.local(body=body)[1]))
+        ready, reasons, summary = self.local(self.ci(self.ci_line()), statusCheckRollup=self.GREEN)
+        self.assertTrue(ready, reasons)
+        self.assertEqual(summary["checks"], "local pass, GitHub passed")
+        self.assertEqual(self.local(self.ci(self.ci_line()))[2]["checks"], "local pass")  # no GitHub checks at all
+
+    def test_github_checks_others_run_still_have_to_pass(self):
+        pending = [{"__typename": "CheckRun", "name": "build", "status": "IN_PROGRESS", "conclusion": None}]
+        status = [{"__typename": "StatusContext", "context": "ci/legacy", "state": "PENDING"}]
+        ok = self.ci(self.ci_line())
+        self.assertIn("checks failed", " | ".join(self.local(ok, statusCheckRollup=self.FAILED)[1]))
+        self.assertIn("still running", " | ".join(self.local(ok, statusCheckRollup=pending)[1]))
+        self.assertIn("still running", " | ".join(self.local(ok, statusCheckRollup=status)[1]))
+        quiet = [{"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "SKIPPED"},
+                 {"__typename": "CheckRun", "name": "b", "status": "COMPLETED", "conclusion": "NEUTRAL"},
+                 {"__typename": "StatusContext", "context": "c", "state": "SUCCESS"}]
+        self.assertTrue(self.local(ok, statusCheckRollup=quiet)[0])
+
+    def test_a_repo_without_github_actions_has_its_github_checks_left_unread(self):
+        p = pr(comments=[comment(record())], statusCheckRollup=self.FAILED)
+        ready, reasons, summary = mg.evaluate(p, actions_free=True)
+        self.assertTrue(ready, reasons)
+        self.assertEqual(summary["checks"], "local pass")
+        # the local record is still required there
+        bare = pr(comments=[comment(record())], ci=False, statusCheckRollup=self.GREEN)
+        self.assertIn("no local CI record", " | ".join(mg.evaluate(bare, actions_free=True)[1]))
+
+    def test_only_the_tier_maps_list_makes_a_repo_actions_free(self):
+        data = {"owners": {}, "local_ci": ["example-consulting", "other/one-repo"]}
+        with mock.patch("project_tier.load_tiers", return_value=(data, None)):
+            self.assertTrue(mg.actions_free("Example-Consulting/anything"))
+            self.assertTrue(mg.actions_free("other/one-repo"))
+            self.assertFalse(mg.actions_free("other/second-repo"))
+        with mock.patch("project_tier.load_tiers", return_value=({}, "invalid tier map")):
+            self.assertFalse(mg.actions_free("example-consulting/anything"))
+        with mock.patch("project_tier.load_tiers", side_effect=OSError("boom")):
+            self.assertFalse(mg.actions_free("example-consulting/anything"))
+
+    def test_main_reads_github_checks_unless_the_map_lists_the_repo(self):
+        red = pr(comments=[comment(record())], statusCheckRollup=self.FAILED)
+
+        def fake(args):
+            return ref_answer(args) or json.dumps(red)
+        for listed, code in ((False, 1), (True, 0)):
+            with mock.patch.object(mg, "gh", fake), mock.patch.object(mg, "actions_free", lambda repo: listed), \
+                    mock.patch("sys.stdout", io.StringIO()):
+                self.assertEqual(mg.main(["check", "--repo", "o/r", "--pr", "7"]), code)
 
     def test_local_ci_record_must_match_head_and_current_base_exactly(self):
         cases = [("no local CI record", []),
@@ -391,7 +446,7 @@ class GateTests(unittest.TestCase):
 
         def fake(args):
             if args[:2] == ["pr", "view"]:
-                return json.dumps(pr(comments=comments))
+                return json.dumps(pr(comments=comments, ci=False))
             if args[1].endswith("/git/ref/heads/main"):
                 return json.dumps({"ref": "refs/heads/main", "object": {"sha": BASE}})
             lookups.append(args[1])
@@ -424,54 +479,22 @@ class GateTests(unittest.TestCase):
             self.ci(self.ci_line("fail"), "2026-11-02T11:00:00Z"), self.ci(self.ci_line("pass"), "2026-11-02T12:00:00Z"))[0])
 
     def test_local_ci_keeps_every_other_rule(self):
-        reasons = mg.evaluate(pr(comments=[self.ci(self.ci_line())]), local_ci=True)[1]
+        reasons = mg.evaluate(pr(comments=[self.ci(self.ci_line())], ci=False))[1]
         self.assertIn("no approving review record", " | ".join(reasons))
 
-    def test_without_checks_a_passing_record_stands_in_for_the_no_ci_line(self):
-        self.assertIn("without CI", self.reasons(pr(checks=[], comments=[comment(record())])))
-        self.assertTrue(self.ready(pr(checks=[], comments=[comment(record()), self.ci(self.ci_line())])))
-        stale = self.ci(self.ci_line(base="e" * 40))
-        self.assertIn("without CI", self.reasons(pr(checks=[], comments=[comment(record()), stale])))
-
-    def test_local_ci_switches_on_only_when_the_base_holds_a_script(self):
-        def gh_with(contents_error):
-            def fake(args):
-                if args[0] == "api" and "/contents/" in args[1]:
-                    if contents_error:
-                        raise RuntimeError(contents_error)
-                    return ""
-                return json.dumps({"ref": "refs/heads/main", "object": {"sha": BASE}})
-            return fake
-        with mock.patch.object(mg, "gh", gh_with("gh: Not Found (HTTP 404)")):
-            self.assertFalse(mg.base_has_ci_script("o/r", BASE))
-        with mock.patch.object(mg, "gh", gh_with(None)):
-            self.assertTrue(mg.base_has_ci_script("o/r", BASE))
-        for error in ("gh: Bad credentials (HTTP 401)", "error connecting to api.github.com"):
-            with mock.patch.object(mg, "gh", gh_with(error)):
-                self.assertTrue(mg.base_has_ci_script("o/r", BASE))  # unknown is strict
-
-    def test_main_keeps_the_github_rule_for_a_listed_repo_without_a_script(self):
-        no_script = pr(checks=[], comments=[comment(record())], body="Mode: Full Send — x; R1.\nno CI configured; proof is local only")
-
-        def fake(args):
-            if args[:2] == ["pr", "view"]:
-                return json.dumps(no_script)
-            if "/contents/" in args[1]:
-                raise RuntimeError("gh: Not Found (HTTP 404)")
-            return json.dumps({"ref": "refs/heads/main", "object": {"sha": BASE}})
-        with mock.patch.object(mg, "gh", fake), mock.patch.object(mg, "uses_local_ci", lambda repo: True), \
-                mock.patch("sys.stdout", io.StringIO()):
-            self.assertEqual(mg.main(["check", "--repo", "o/r", "--pr", "7"]), 0)
-
     def merge_run(self, tips, parent):
-        ready = pr(checks=[], comments=[comment(record()), self.ci(self.ci_line())])
+        ready = pr(comments=[comment(record())])
         calls = []
         tips = list(tips)
 
         def fake(args):
             calls.append(args)
             if args[:2] == ["pr", "view"]:
-                return json.dumps({"mergeCommit": {"oid": "c" * 40}} if "mergeCommit" in args else ready)
+                return json.dumps(ready)
+            if args[:2] == ["api", "graphql"]:
+                return NO_QUEUE
+            if merging(args):
+                return MERGED
             if "/git/ref/heads/" in args[1]:
                 return json.dumps({"ref": "refs/heads/main", "object": {"sha": tips.pop(0)}})
             if "/contents/" in args[1] or "/permission" in args[1]:
@@ -480,13 +503,13 @@ class GateTests(unittest.TestCase):
                 return parent
             return ""
         err = io.StringIO()
-        with mock.patch.object(mg, "gh", fake), mock.patch.object(mg, "uses_local_ci", lambda repo: True), \
+        with mock.patch.object(mg, "gh", fake), \
                 mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", err):
             code = mg.main(["merge", "--repo", "o/r", "--pr", "7"])
         return code, calls, err.getvalue()
 
-    def test_local_ci_repos_never_rebase(self):
-        ready = pr(checks=[], comments=[comment(record()), self.ci(self.ci_line())])
+    def test_the_gate_never_rebases(self):
+        ready = pr(comments=[comment(record())])
         calls = []
 
         def fake(args):
@@ -496,43 +519,21 @@ class GateTests(unittest.TestCase):
             if "/git/ref/heads/" in args[1]:
                 return json.dumps({"ref": "refs/heads/main", "object": {"sha": BASE}})
             return "write"
-        with mock.patch.object(mg, "gh", fake), mock.patch.object(mg, "uses_local_ci", lambda repo: True), \
+        with mock.patch.object(mg, "gh", fake), \
                 mock.patch("sys.stdout", io.StringIO()):
             self.assertEqual(mg.main(["merge", "--repo", "o/r", "--pr", "7", "--method", "rebase"]), 1)
-        self.assertFalse(any(c[:2] == ["pr", "merge"] for c in calls))
+        self.assertFalse(any(merging(c) for c in calls))
 
     def test_merge_refuses_when_the_base_moves_during_the_check(self):
         code, calls, _ = self.merge_run([BASE, "e" * 40], BASE)
         self.assertEqual(code, 1)
-        self.assertFalse(any(c[:2] == ["pr", "merge"] for c in calls))
+        self.assertFalse(any(merging(c) for c in calls))
 
     def test_merge_reports_a_base_that_moved_at_the_last_moment(self):
         code, _, err = self.merge_run([BASE, BASE], "e" * 40)
         self.assertEqual(code, 3)
         self.assertIn("merged tree is untested", err)
         self.assertEqual(self.merge_run([BASE, BASE], BASE)[0], 0)
-
-    def test_github_checks_rule_applies_unless_the_map_lists_the_repo(self):
-        data = {"owners": {}, "local_ci": ["example-consulting", "other/one-repo"]}
-        with mock.patch("project_tier.load_tiers", return_value=(data, None)):
-            self.assertTrue(mg.uses_local_ci("Example-Consulting/anything"))
-            self.assertTrue(mg.uses_local_ci("other/one-repo"))
-            self.assertFalse(mg.uses_local_ci("other/second-repo"))
-        with mock.patch("project_tier.load_tiers", return_value=({}, "invalid tier map")):
-            self.assertFalse(mg.uses_local_ci("example-consulting/anything"))
-        with mock.patch("project_tier.load_tiers", side_effect=OSError("boom")):
-            self.assertFalse(mg.uses_local_ci("example-consulting/anything"))
-
-    def test_skipped_and_neutral_checks_pass(self):
-        checks = [{"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "SKIPPED"},
-                  {"__typename": "CheckRun", "name": "b", "status": "COMPLETED", "conclusion": "NEUTRAL"},
-                  {"__typename": "StatusContext", "context": "c", "state": "SUCCESS"}]
-        self.assertTrue(self.ready(pr(checks=checks, comments=[comment(record())])))
-
-    def test_no_checks_needs_the_no_ci_statement(self):
-        self.assertIn("without CI", self.reasons(pr(checks=[], comments=[comment(record())])))
-        body = "Mode: Full Send — tooling; R1.\nNo CI configured; proof is local only."
-        self.assertTrue(self.ready(pr(body=body, checks=[], comments=[comment(record())])))
 
     def test_draft_closed_conflicting_and_unknown_block(self):
         c = [comment(record())]
@@ -552,10 +553,72 @@ class GateTests(unittest.TestCase):
             calls.append(args)
             if args[:2] == ["pr", "view"]:
                 return json.dumps(pr(comments=[comment(record())]))
+            if merging(args):
+                return MERGED
+            if "/commits/" in args[1]:
+                return BASE
             return ref_answer(args) or ""
         with mock.patch.object(mg, "gh", fake), mock.patch("sys.stdout", io.StringIO()):
             self.assertEqual(mg.main(["merge", "--repo", "o/r", "--pr", "7"]), 0)
-        self.assertEqual(calls[-1], ["pr", "merge", "7", "-R", "o/r", "--merge", "--match-head-commit", HEAD])
+            self.assertEqual(mg.main(["merge", "--repo", "o/r", "--pr", "7", "--method", "squash"]), 0)
+        self.assertEqual([c for c in calls if merging(c)], [MERGE, MERGE[:-1] + ["merge_method=squash"]])
+
+    def test_the_gate_never_uses_the_cli_merge_that_can_queue_or_arm_auto_merge(self):
+        self.assertEqual(mg.merge_request("o/r", 7, HEAD, "merge"), MERGE)
+        with open(mg.__file__, encoding="utf-8") as handle:
+            source = handle.read()
+        code = source.split('"""', 2)[2]  # everything after the module docstring
+        self.assertNotIn('"pr", "merge"', code)
+        self.assertNotIn("--auto", code)
+
+    def queue_run(self, queue_answer, merge_answer=MERGED):
+        """main(merge) on a ready PR with the given merge queue and merge answers; returns (exit code, gh calls, stderr)."""
+        calls = []
+
+        def fake(args):
+            calls.append(args)
+            if args[:2] == ["api", "graphql"]:
+                if isinstance(queue_answer, Exception):
+                    raise queue_answer
+                return queue_answer
+            if merging(args):
+                if isinstance(merge_answer, Exception):
+                    raise merge_answer
+                return merge_answer
+            if args[:2] == ["pr", "view"]:
+                return json.dumps(pr(comments=[comment(record())]))
+            if "/commits/" in args[1]:
+                return BASE
+            return ref_answer(args) or ""
+        err = io.StringIO()
+        with mock.patch.object(mg, "gh", fake), mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", err):
+            code = mg.main(["merge", "--repo", "o/r", "--pr", "7"])
+        return code, calls, err.getvalue()
+
+    def test_a_merge_queue_is_refused_before_github_is_asked_to_merge(self):
+        queue = json.dumps({"data": {"repository": {"mergeQueue": {"id": "MQ_1"}}}})
+        unclear = [RuntimeError("gh: Bad credentials (HTTP 401)"), "", "{}", json.dumps({"data": {"repository": None}}),
+                   json.dumps({"data": {"repository": {}}})]
+        for answer, code in [(queue, 1)] + [(a, 2) for a in unclear]:
+            got, calls, _ = self.queue_run(answer)
+            self.assertEqual(got, code, answer)
+            self.assertFalse(any(merging(c) for c in calls), answer)  # GitHub is never asked to merge
+        self.assertEqual([c for c in self.queue_run(queue)[1] if c[:2] == ["api", "graphql"]][0][-1], "b=main")
+
+    def test_every_failure_of_the_merge_request_leaves_one_synchronous_call_and_nothing_armed(self):
+        refused = [RuntimeError("gh: Pull Request is not mergeable (HTTP 405)"),      # a queue enabled after the pre-check
+                   RuntimeError("gh: Head branch was modified (HTTP 409)"),           # a push after the check
+                   OSError("connection reset")]                                       # the answer was lost
+        unclear = ["", "not json", "[]", json.dumps({"merged": False, "message": "queued"}),
+                   json.dumps({"merged": True}), json.dumps({"merged": True, "sha": "abc"})]
+        for answer, code in [(a, 2) for a in refused] + [(a, 3) for a in unclear]:
+            got, calls, err = self.queue_run(NO_QUEUE, merge_answer=answer)
+            self.assertEqual(got, code, answer)
+            self.assertEqual([c for c in calls if merging(c)], [MERGE], answer)       # one request, no retry, no CLI merge
+            self.assertEqual(calls[-1], MERGE, answer)                                # nothing is called after it
+            self.assertIn("othing is queued", err)
+            self.assertNotIn("did not merge", err)  # a lost answer does not show that nothing merged
+        self.assertEqual(self.queue_run(NO_QUEUE)[0], 0)
 
     def test_full_stop_is_ready_on_check_but_a_human_merges(self):
         calls = []
@@ -577,7 +640,7 @@ class GateTests(unittest.TestCase):
 
         def fake(args):
             calls.append(args)
-            return ref_answer(args) or json.dumps(pr())
+            return ref_answer(args) or json.dumps(pr(ci=False))
         with mock.patch.object(mg, "gh", fake), mock.patch("sys.stdout", io.StringIO()):
             self.assertEqual(mg.main(["merge", "--repo", "o/r", "--pr", "7"]), 1)
         self.assertTrue(all(args[:2] == ["pr", "view"] or args[:2] == ["api", "repos/o/r/git/ref/heads/main"] for args in calls))  # reads only, never a merge

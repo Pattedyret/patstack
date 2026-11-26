@@ -19,7 +19,7 @@ Keep separate claims for local, PR/CI, deployed and real authenticated UI. Each 
 
 ## 1. Bind the target
 
-Record repo/worktree, head/base, build and environment. For deployed proof, read the release identity before and after the run; a mixed-release observation invalidates it. Re-read the live PR head/base and required checks before any readiness claim; evidence for a superseded head is stale. Remote state comes from the remote: [fetch before judging](../patstack/references/project-context.md#fetch-before-judging) or use `gh`; a verdict from a stale clone, such as "no CI", is not evidence.
+Record repo/worktree, head/base, build and environment. For deployed proof, read the release identity before and after the run; a mixed-release observation invalidates it. Re-read the live PR head/base and required checks before any readiness claim; evidence for a superseded head is stale. Remote state comes from the remote: [fetch before judging](../patstack/references/project-context.md#fetch-before-judging) or use `gh`; a verdict from a stale clone, such as "no workflow files left", is not evidence.
 
 ## 2. Choose the checks
 
@@ -27,9 +27,10 @@ Record repo/worktree, head/base, build and environment. For deployed proof, read
 |---|---|
 | Tiny UI edit | Requested appearance; affected contrast/focus/hover/disabled, responsive and interaction states; required repo checks. No benchmark or quality matrix. |
 | Bug fix | The reported case (red before, green after), relevant counterexamples, affected regressions. |
-| New feature / improvement | **Feature works? Y/N** and **Meets the project quality standard? Y/N**, each applicable dimension (UI, UX, performance, data, security) with target, evidence, result and limitation. N/A needs a concrete reason. |
+| New feature / improvement | **Feature works? Y/N** and **Meets the project quality standard? Y/N**, each applicable dimension (UI, UX, performance on each supported system, data, security, privacy) with target, evidence, result and limitation. N/A needs a concrete reason. |
+| Any change that touches personal data | The [privacy checks](../patstack/references/quality.md#privacy-gdpr), whatever the size of the change: a one-line change to a log line can leak. |
 
-Targets come from the spec. Missing targets are derived before acceptance from project evidence, comparable healthy flows and primary standards; read [quality](../patstack/references/quality.md) for the order of evidence, example targets and the API scorecard. Do not retune a target after seeing the result.
+Targets come from the spec and the [standing bar](../patstack/references/quality.md#the-standing-bar): quality is proven on every task and never waits for the owner to ask. Missing targets are derived before acceptance from project evidence, comparable healthy flows and primary standards; read [quality](../patstack/references/quality.md) for the order of evidence, example targets and the API scorecard. Do not retune a target after seeing the result.
 
 Use existing project tests and verification recipes. For a genuinely missing or stale recipe use [create-test-recipes](../create-test-recipes/SKILL.md). For login or a test persona follow [access](../patstack/references/access.md) and the project pack's persona table when it has one: matching origin/environment, approved least-privilege persona, secret-safe autofill/broker path; never print, persist or screenshot credentials, tokens, cookies or signed URLs. Host choice for browser/native proof follows [project context](../patstack/references/project-context.md).
 
@@ -47,8 +48,8 @@ Inside T3, the browser panel is the default route for web UI proof ([native brow
 
 Before changing a shared test target, check the active work and actual release, coordinate who deploys/tests which candidate, and prefer an isolated preview when concurrent work would invalidate proof. Check release identity before and after testing; foreign or stale-release evidence is inconclusive. Keep the coordination period short, preserve other sessions' work and use only task-owned fixtures. Real environment/data approval still applies; never silently evict another deployment. Keep the target/build and evidence on the existing task reference.
 
-Tiny edits and bounded critical fixes skip integration-candidate ceremony but still check current head, required CI and the target release.
+Tiny edits and bounded critical fixes skip integration-candidate ceremony but still check current head, local CI and the target release.
 
 ## 5. Report
 
-Show a compact evidence card: functional Y/N, each applicable dimension's target → result, evidence links (raw artifacts, run IDs, SHAs, environment), labels and limitations. A failure goes to [implement's repair](../implement/SKILL.md#repair) with its layer (PR or live), failed criterion and exact candidate/release. A stale or foreign release is inconclusive, not a code failure. When the remote repo has no CI (checked after a fetch or with `gh`, not from a local clone), the card states **"no CI configured; proof is local only"** as a risk, never N/A or a pass. Production is never touched without explicit authority; say whether it was.
+Show a compact evidence card: functional Y/N, each applicable dimension's target → result, evidence links (raw artifacts, run IDs, SHAs, environment), labels and limitations. A failure goes to [implement's repair](../implement/SKILL.md#repair) with its layer (PR or live), failed criterion and exact candidate/release. A stale or foreign release is inconclusive, not a code failure. CI is the repo's own script, run in the agent on the PR head with `tools/local_ci.py` ([CI](../patstack/references/coordination.md#merge)); the card names its `Patstack-CI` record. A repo without the script gets one in the task's PR, never a note that CI is missing. Production is never touched without explicit authority; say whether it was.

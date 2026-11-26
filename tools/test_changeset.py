@@ -82,7 +82,7 @@ class ChangeSetTests(unittest.TestCase):
         self.assertIn("is not merged", report["violations"][0])
         self.assertFalse(report["complete"])
 
-    def test_open_set_in_order_reports_state_checks_and_missing_ci(self):
+    def test_open_set_in_order_reports_state_and_checks(self):
         data = {"o/api": [pr(1, "[TKT-42] API", "MERGED", "2026-10-01T10:00:00Z")],
                 "o/admin": [pr(3, "[TKT-42] Admin", rollup=[{"status": "IN_PROGRESS", "conclusion": None}])],
                 "o/mobile": [pr(4, "[TKT-42] Mobile", rollup=[]), pr(5, "[TKT-42] Mobile again", rollup=[])],
@@ -94,7 +94,7 @@ class ChangeSetTests(unittest.TestCase):
         self.assertEqual(report["repos"][1]["prs"][0]["checks"], "pending")
         notes = " ".join(report["notes"])
         self.assertIn("o/mobile: 2 open PRs", notes)
-        self.assertIn("o/mobile: no CI checks reported; proof is local only", notes)
+        self.assertNotIn("no CI", notes)  # CI is the local record on each PR, not a hosted check
         self.assertFalse(report["complete"])
 
     def test_producer_merging_again_after_a_consumer_is_unresolved(self):

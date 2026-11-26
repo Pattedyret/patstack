@@ -45,7 +45,7 @@ In T3 Code, the existing skills follow the live injected tool contract for deleg
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** This team copy retains workflow version **1.5.0**, **20 skills** and **68 manifest-covered resources**. Validate this checkout and your own client setup separately. See [Status and limits](docs/status-and-limits.md). Run `scripts/setup_doctor.py` by hand to check a host; the one recommended hook is the [merge guard](docs/setup.md#6-merge-guard-hook).
+> **Status:** This team copy retains workflow version **1.6.0**, **20 skills** and **68 manifest-covered resources**. Validate this checkout and your own client setup separately. See [Status and limits](docs/status-and-limits.md). Run `scripts/setup_doctor.py` by hand to check a host; the one recommended hook is the [merge guard](docs/setup.md#6-merge-guard-hook).
 
 ---
 

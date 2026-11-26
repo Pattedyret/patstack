@@ -13,7 +13,7 @@ the PR's repository. The base branch's current commit is read from GitHub, fetch
 checked, and the head is combined with exactly that commit, so CI proves what will land.
 The result is posted as a PR comment whose whole body is one line, with full SHAs,
   Patstack-CI: result=pass|fail head=<sha> runner=<provider/model> base=<sha>
-which tools/merge_gate.py reads for repositories the tier map lists under `local_ci`; a new
+which tools/merge_gate.py reads for every repository; a new
 commit on the base means a new run. --base and --script are refused with --pr. Without
 --pr they allow an unrecorded run, and nothing is posted.
 

@@ -1,6 +1,6 @@
 # Status and limits — Patstack
 
-This independently maintained copy retains workflow version **1.5.0**. Labels: **EXECUTED** means code or assertions ran and passed; **OBSERVED** means real behavior was seen; **NOT DONE** means it has not happened.
+This independently maintained copy retains workflow version **1.6.0**. Labels: **EXECUTED** means code or assertions ran and passed; **OBSERVED** means real behavior was seen; **NOT DONE** means it has not happened.
 
 ## Activation
 
