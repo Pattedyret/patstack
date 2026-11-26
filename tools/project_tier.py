@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
-"""Report a project's tier, which decides how the DevStack mode is chosen.
+"""Report a project's tier, which decides how the Patstack mode is chosen.
 
   python3 tools/project_tier.py [--path DIR] [--json]
 
 The tier says who a failure reaches:
 
   CRITICAL      customer-facing products for consulting work or other customers
-  FRIENDS       real people, but internal use for the owner and friends
-  INTERNAL      only the owner
+  INTERNAL      any internal tool for your own team, including shared team tooling
   UNCLASSIFIED  anything not positively classified; treated exactly as CRITICAL
 
-CRITICAL and UNCLASSIFIED projects evaluate Full Send or Full Stop at intake. FRIENDS and
-INTERNAL projects are always Full Send. The map is the owner's private file, by default
-~/.config/devstack/project-tiers.json, overridden by DEVSTACK_PROJECT_TIERS
-(examples/project-tiers.example.json shows the shape):
+CRITICAL and UNCLASSIFIED projects evaluate Full Send or Full Stop at intake.
+INTERNAL projects are always Full Send. The map is PATSTACK_PROJECT_TIERS when set, else your
+private ~/.config/patstack/project-tiers.json when it exists, else the one tier map a bundled
+project pack ships (project-packs/<name>/project-tiers.json; more than one fails closed).
+examples/project-tiers.example.json shows the shape:
 
   owners  GitHub owner -> CRITICAL. Only CRITICAL: an owner default never lowers a tier.
   repos   OWNER/NAME for GitHub, or HOST[:PORT]/PATH for another forge -> any tier.
   local   path relative to the home directory, for a project with no remotes -> any tier.
+  local_ci  optional list of GitHub owners or OWNER/NAME whose CI runs in the agent
+            (tools/local_ci.py runs scripts/ci-local.sh), not on GitHub: tools/merge_gate.py
+            ignores their GitHub checks and needs a passing local CI record. It changes no tier.
 
-The tier comes from the checkout, never from a name passed in. A project is FRIENDS or
+The tier comes from the checkout, never from a name passed in. A project is
 INTERNAL only if every effective fetch and push URL of every remote is positively
 classified by its exact `repos` entry. Each URL gets its entry or `owners` default, else
 UNCLASSIFIED, and the project takes the strictest result, so a customer remote cannot hide
@@ -36,17 +39,68 @@ import subprocess
 import sys
 from urllib.parse import urlsplit
 
-TIERS = ("CRITICAL", "FRIENDS", "INTERNAL")
+TIERS = ("CRITICAL", "INTERNAL")
 UNCLASSIFIED = "UNCLASSIFIED"
-ALWAYS_FULL_SEND = ("FRIENDS", "INTERNAL")
-STRICTNESS = {"INTERNAL": 0, "FRIENDS": 1, UNCLASSIFIED: 2, "CRITICAL": 3}
+ALWAYS_FULL_SEND = ("INTERNAL",)
+STRICTNESS = {"INTERNAL": 0, UNCLASSIFIED: 1, "CRITICAL": 2}
 GITHUB_HOSTS = ("github.com", "www.github.com", "ssh.github.com")
+GITHUB_NAME = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:/[A-Za-z0-9._-]+)?")  # use fullmatch
 SCP_LIKE = re.compile(r"^(?:[^@/:\s]+@)?([\w-]+(?:\.[\w-]+)+):(?!/)(.+)$")
 
 
+ROOT = Path(__file__).resolve().parent.parent
+
+
 def map_path():
-    override = os.environ.get("DEVSTACK_PROJECT_TIERS")
-    return Path(override) if override else Path.home() / ".config/devstack/project-tiers.json"
+    """The override, else the private map (which may not exist)."""
+    override = os.environ.get("PATSTACK_PROJECT_TIERS")
+    return Path(override) if override else Path.home() / ".config/patstack/project-tiers.json"
+
+
+def pack_map(root):
+    """(path or None, problem): the one tier map the bundled project packs ship.
+
+    Only a plain project-packs/<name>/project-tiers.json counts, hidden folders included. A
+    symlinked pack folder or map, an unreadable entry, or more than one map is a problem, so the
+    caller fails closed: packs never combine, and nothing about them can lower a tier."""
+    packs = Path(root) / "project-packs"
+    try:
+        folders = sorted(packs.iterdir())
+    except FileNotFoundError:
+        return None, None
+    except OSError as error:
+        return None, f"unreadable project packs {packs}: {error}"
+    found = []
+    for folder in folders:
+        candidate = folder / "project-tiers.json"
+        try:
+            if folder.is_symlink():
+                return None, f"pack folder {folder} is a symlink; tier maps must be plain files"
+            if not folder.is_dir():
+                continue
+            os.lstat(candidate)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            return None, f"unreadable pack tier map {candidate}: {error}"
+        if candidate.is_symlink() or not candidate.is_file():
+            return None, f"pack tier map {candidate} is not a plain file"
+        found.append(candidate)
+    if len(found) > 1:
+        return None, "more than one bundled pack tier map; put the tiers you want in a private map"
+    return (found[0] if found else None), None
+
+
+def load_tiers(root=ROOT):
+    """The override or private map when there is one, else the single bundled pack map."""
+    path = map_path()
+    # a private map that exists in any form, even a broken link, is the user's choice: never fall back
+    if os.environ.get("PATSTACK_PROJECT_TIERS") or path.exists() or path.is_symlink():
+        return load_map(path)
+    pack, problem = pack_map(root)
+    if problem:
+        return {}, problem
+    return load_map(pack or path)
 
 
 def normalized(key):
@@ -69,9 +123,12 @@ def validate(data):
     """The reason this map cannot be trusted, or None."""
     if not isinstance(data, dict):
         return "the map is not an object"
-    unknown = set(data) - {"owners", "repos", "local"}
+    unknown = set(data) - {"owners", "repos", "local", "local_ci"}
     if unknown:
         return f"unknown sections {sorted(unknown)}"
+    local = data.get("local_ci", [])
+    if not isinstance(local, list) or not all(isinstance(x, str) and GITHUB_NAME.fullmatch(x) for x in local):
+        return "local_ci is not a list of GitHub owners or OWNER/NAME"
     allowed = {"owners": ("CRITICAL",), "repos": TIERS, "local": TIERS}
     for name, values in allowed.items():
         problem = section_problem(name, data.get(name, {}), values)
@@ -80,10 +137,18 @@ def validate(data):
     return None
 
 
+def unique_keys(pairs):
+    """A JSON object, refusing a key given twice: the later one would silently win."""
+    keys = [key for key, _ in pairs]
+    if len(set(keys)) != len(keys):
+        raise ValueError("a key appears twice in one object")
+    return dict(pairs)
+
+
 def load_map(path):
     """The map, or an empty one with a warning: a bad file must not lower a tier."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_keys)
     except FileNotFoundError:
         return {}, f"no tier map at {path}"
     except (OSError, ValueError) as error:
@@ -183,6 +248,13 @@ def remote_tier(data, name):
     return None
 
 
+def local_ci(data, repo):
+    """True when the map lists this GitHub OWNER/NAME, or its owner, under local_ci."""
+    name = (repo or "").lower()
+    owner = name.partition("/")[0]
+    return any(entry.lower() in (name, owner) for entry in data.get("local_ci", []))
+
+
 def local_tier(data, top):
     """The tier of a project with no remotes, by its path below the home directory."""
     try:
@@ -208,7 +280,7 @@ def classify(data, top, remotes):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Report a project's DevStack tier.")
+    parser = argparse.ArgumentParser(description="Report a project's Patstack tier.")
     parser.add_argument("--path", default=".", help="project directory (default: current)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -217,7 +289,7 @@ def main(argv=None):
             stream.reconfigure(errors="backslashreplace")
 
     try:
-        data, warning = load_map(map_path())
+        data, warning = load_tiers()
         top, remotes = discover(args.path)
         tier, project, source = classify(data, top, remotes)
     except Exception as error:  # intake needs an answer, and the safe answer is always available

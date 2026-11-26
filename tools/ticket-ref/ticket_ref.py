@@ -12,7 +12,7 @@ OWNER = re.compile(r'[a-z0-9][a-z0-9-]{1,39}')
 
 
 def registry_path():
-    return Path(os.environ.get('DEVSTACK_TICKET_SLOTS', Path(__file__).with_name('slots.json')))
+    return Path(os.environ.get('PATSTACK_TICKET_SLOTS', Path(__file__).with_name('slots.json')))
 
 
 def load_slots(path):
@@ -61,8 +61,8 @@ def existing_slot(path):
 
 
 def database_path():
-    return Path(os.environ.get('DEVSTACK_TICKET_DB',
-                Path.home() / '.local/state/devstack/tickets.sqlite3')).expanduser()
+    return Path(os.environ.get('PATSTACK_TICKET_DB',
+                Path.home() / '.local/state/patstack/tickets.sqlite3')).expanduser()
 
 
 def connect(path):

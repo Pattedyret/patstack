@@ -1,6 +1,7 @@
 """worktrees.py on temporary repositories with a local bare remote; nothing outside the temp folder."""
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -126,7 +127,7 @@ class WorktreeTests(unittest.TestCase):
         locked = self.add("app-wt-tkt45-locked", "tkt-45/locked")
         git(self.repo, "worktree", "lock", str(locked))
         gone = self.add("app-wt-tkt46-gone", "tkt-46/gone")
-        subprocess.run(["rm", "-rf", str(gone)], check=True)
+        shutil.rmtree(gone)
         items, _ = self.run_tool("--apply")
         self.assertIn("locked", items[locked.name]["keep_reasons"])
         self.assertFalse(items[gone.name]["removable"])

@@ -1,0 +1,3 @@
+# Kept out of ripgrep searches (Claude Code Grep, rg, ugrep with --ignore-files) so test-login
+# passwords never land in an agent transcript by accident. Packs log in through their own tools.
+project-packs/*/PERSONA-LOGON.txt

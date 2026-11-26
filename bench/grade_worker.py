@@ -18,7 +18,6 @@ import json
 import os
 from pathlib import Path
 import shutil
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -66,18 +65,6 @@ def audit_copies(ws, findings):
         tempfile._rmtree = rmtree
 
 
-def kpi_record(ws, vendor):
-    store = ws / vendor / "kpis.sqlite3"
-    if store.is_symlink() or not store.is_file():
-        return None
-    try:
-        with sqlite3.connect(f"file:{store}?mode=ro", uri=True) as con:
-            rows = [json.loads(r[0]) for r in con.execute("SELECT body FROM snapshots ORDER BY id, revision")]
-    except (sqlite3.Error, ValueError):
-        return None
-    return rows[-1] if rows else {}
-
-
 def leaked(ws, canaries):
     if not canaries:
         return []
@@ -118,14 +105,13 @@ def main():
     audit_copies(ws, copies)
     links_before = escaping_links(ws)
     # The review diff is taken before any graded code runs, so it shows the agent's work, not the grader's.
-    diff = workspace_diff(ws, request.get("vendor", ".devstack"), int(request["diff_limit"])) if request.get("diff_limit") else None
+    diff = workspace_diff(ws, request.get("vendor", ".patstack"), int(request["diff_limit"])) if request.get("diff_limit") else None
     try:
         result = module.grade(ws, request["transcript"])
         error = None
     except Exception as exc:  # a crash while grading agent-written code scores as a failed attempt
         result, error = None, f"{exc.__class__.__name__}: {exc}"[-500:]
     verdict = {"task": task_id, "result": result, "error": error,
-               "kpi": kpi_record(ws, request.get("vendor", ".devstack")),
                "leaked": leaked(ws, request.get("canaries", [])),
                "links": sorted(set(links_before + escaping_links(ws))), "copy_links": copies}
     if diff is not None:

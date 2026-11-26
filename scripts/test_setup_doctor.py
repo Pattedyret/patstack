@@ -1,128 +1,173 @@
-"""setup_doctor tests in a temporary home; never touch live clients or the live KPI store."""
+"""setup_doctor tests in a temporary home; never touch live clients."""
 import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
-
-FWD = lambda path: str(path).replace("\\", "/")  # the installer writes forward-slash commands on Windows
 from unittest import mock
+
+FWD = lambda path: str(path).replace("\\", "/")
+HOST = "windows" if os.name == "nt" else "devbox"
 
 spec = importlib.util.spec_from_file_location("setup_doctor", Path(__file__).with_name("setup_doctor.py"))
 d = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(d)
 
-KPI_SOURCE = Path(__file__).resolve().parent.parent / "monitoring/devstack/kpi_monitor.py"
-# Owner-specific shell hooks some users wire themselves; DevStack ships none of them.
+# Owner-specific shell hooks some users wire themselves; Patstack ships none of them.
 USER_HOOKS = ("block-destructive.py", "read-size-guard.sh", "supabase-deploy-gate.sh", "bash-batch-nudge.sh")
 
 
-def io_capture(call):
-    import contextlib
-    import io
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        call()
-    return buffer.getvalue()
+class CodexTrustHashTests(unittest.TestCase):
+    """Hashes Codex 0.167 itself wrote to config.toml when a person chose 'Trust all and continue'."""
+
+    def test_matches_hashes_codex_recorded(self):
+        guard = {"type": "command", "command": "python3 /opt/patstack/tools/merge_guard.py"}
+        self.assertEqual(d.codex_hook_hash("pre_tool_use", "Bash", guard),  # algorithm verified against Codex CLI 0.167
+                         "sha256:3ce1f59d6a431667228513bc4865182bfed31e46d202c0ead43f74135c33bc0f")
+        # A changed field changes the hash, so a stale trust entry is caught.
+        self.assertNotEqual(d.codex_hook_hash("pre_tool_use", "Bash", dict(guard, timeout=30)),
+                            d.codex_hook_hash("pre_tool_use", "Bash", guard))
+        self.assertEqual(d.codex_hook_hash("pre_tool_use", "Bash", dict(guard, timeout=600)),
+                         d.codex_hook_hash("pre_tool_use", "Bash", guard))  # 600 is the default
+        # Codex: unwrap_or(600).max(1), so a present 0 is 1, not the default.
+        self.assertEqual(d.codex_hook_hash("pre_tool_use", "Bash", dict(guard, timeout=0)),
+                         d.codex_hook_hash("pre_tool_use", "Bash", dict(guard, timeout=1)))
+        self.assertIsNone(d.codex_hook_hash("pre_tool_use", "Bash", dict(guard, timeout="30")))
+
+    def test_no_toml_reader_means_unknown_never_ok(self):
+        import builtins
+        real_import = builtins.__import__
+        text = '[hooks.state."/h/.codex/hooks.json:pre_tool_use:0:0"]\ntrusted_hash = "x"\nenabled = false # off\n'
+        with unittest.mock.patch.object(builtins, "__import__",
+                                        lambda name, *a, **k: (_ for _ in ()).throw(ImportError) if name == "tomllib"
+                                        else real_import(name, *a, **k)):
+            self.assertIsNone(d.codex_hook_states(text))  # Python 3.9/3.10: unknown, so WARN
+        if sys.version_info >= (3, 11):
+            self.assertEqual(d.codex_hook_states(text), {"/h/.codex/hooks.json:pre_tool_use:0:0":
+                                                         {"trusted_hash": "x", "enabled": False}})
+            self.assertIsNone(d.codex_hook_states(text + "broken = [\n"))
 
 
 class DoctorTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.home = Path(self.tmp.name)
-        self.root = self.home / "devstack"
-        (self.root / "skills/devstack").mkdir(parents=True)
-        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n")
-        (self.root / "monitoring/devstack").mkdir(parents=True)
+        self.root = self.home / "patstack"
+        (self.root / "skills/patstack").mkdir(parents=True)
+        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n")
         (self.root / "scripts").mkdir()
+        (self.root / "tools").mkdir()
+        (self.root / "tools/merge_guard.py").write_text("")
         shutil.copy(Path(__file__).with_name("setup_doctor.py"), self.root / "scripts/setup_doctor.py")
         shutil.copy(Path(__file__).with_name("skill_mirrors.py"), self.root / "scripts/skill_mirrors.py")
-        shutil.copy(KPI_SOURCE, self.root / "monitoring/devstack/kpi_monitor.py")
-        (self.root / "AGENTS.md").write_text("Read devstack. KPI: monitoring/devstack/README.md\n")
+        (self.root / "AGENTS.md").write_text("Read patstack.\n")
         for client in (".claude", ".codex", ".agents"):
             (self.home / client).mkdir()
-        os.symlink(self.root / "skills", self.home / ".claude/skills")
-        os.symlink(self.root / "skills", self.home / ".agents/skills")
-        os.symlink(self.root / "AGENTS.md", self.home / ".claude/CLAUDE.md")
-        os.symlink(self.root / "AGENTS.md", self.home / ".codex/AGENTS.md")
+        if os.name == "nt":
+            self.windows_mirrors()
+            for relative in (".claude/CLAUDE.md", ".codex/AGENTS.md"):
+                shutil.copyfile(self.root / "AGENTS.md", self.home / relative)
+        else:
+            os.symlink(self.root / "skills", self.home / ".claude/skills")
+            os.symlink(self.root / "skills", self.home / ".agents/skills")
+            os.symlink(self.root / "AGENTS.md", self.home / ".claude/CLAUDE.md")
+            os.symlink(self.root / "AGENTS.md", self.home / ".codex/AGENTS.md")
         (self.home / ".claude.json").write_text("{}")  # Claude Code's own state: the client is in use
+        (self.home / ".codex/config.toml").write_text("")  # Codex's own state
         (self.home / ".local/bin").mkdir(parents=True)
-        (self.home / ".local/bin/ticket-ref").write_text("#!/bin/sh\n")
+        (self.home / ".local/bin" / ("ticket-ref.cmd" if os.name == "nt" else "ticket-ref")).write_text("fixture\n")
         self.hooks = self.home / ".claude/hooks"
         self.hooks.mkdir()
         for name in USER_HOOKS:
             (self.hooks / name).write_text("#!/bin/sh\n")
-        self.db = self.home / "kpis.sqlite3"
         self.write_claude()
-        self.write_codex(trusted=True)
+        self.write_codex()
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def kpi(self, runtime):
-        return f"{FWD(sys.executable)} {FWD(self.root)}/monitoring/devstack/kpi_monitor.py audit-hook --host devbox --runtime {runtime} --event Stop"
+    def guard(self):
+        return f"{FWD(sys.executable)} {FWD(self.root)}/tools/merge_guard.py"
 
-    def status(self, runtime):
-        return f"{FWD(sys.executable)} {FWD(self.root)}/scripts/setup_doctor.py --host devbox --hook {runtime}"
-
-    def write_claude(self, extra=None, kpi_runtime="claude"):
+    def write_claude(self, extra=None, guard=True):
         pre = [{"type": "command", "command": str(self.hooks / n)} for n in USER_HOOKS[:3]]
-        hooks = {
-            "PreToolUse": [{"matcher": "Bash", "hooks": pre}],
-            "PostToolUse": [{"hooks": [{"type": "command", "command": str(self.hooks / USER_HOOKS[3])}]}],
-            "Stop": [{"hooks": [{"type": "command", "command": self.kpi(kpi_runtime)}]}],
-            "SessionStart": [{"hooks": [{"type": "command", "command": self.status("claude")}]}],
-            "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "command", "command": self.kpi("claude").replace("Stop", "PostToolUseFailure")}]}],
-        }
-        hooks["PostToolUse"].append({"matcher": "*", "hooks": [{"type": "command", "command": self.kpi("claude").replace("Stop", "PostToolUse")}]})
+        if guard:
+            pre.append({"type": "command", "command": self.guard()})
+        hooks = {"PreToolUse": [{"matcher": "Bash", "hooks": pre}],
+                 "PostToolUse": [{"hooks": [{"type": "command", "command": str(self.hooks / USER_HOOKS[3])}]}]}
         if extra:
             hooks.setdefault("SessionStart", []).append({"hooks": [{"type": "command", "command": extra}]})
         (self.home / ".claude/settings.json").write_text(json.dumps({"hooks": hooks}))
 
-    def write_codex(self, trusted):
+    def write_codex(self, guard=True, trusted=True, state=None):
         hooks_file = self.home / ".codex/hooks.json"
-        hooks_file.write_text(json.dumps({"hooks": {
-            "SessionStart": [{"hooks": [{"type": "command", "command": self.status("codex")}]}],
-            "Stop": [{"hooks": [{"type": "command", "command": self.kpi("codex")}]}],
-            "PostToolUse": [{"matcher": ".*", "hooks": [{"type": "command", "command": self.kpi("codex").replace("Stop", "PostToolUse")}]}]}}))
-        trust = "".join(f'[hooks.state.{json.dumps(f"{hooks_file}:{key}")}]\ntrusted_hash = "sha256:abc"\n'
-                        for key in ("session_start:0:0", "stop:0:0", "post_tool_use:0:0")) if trusted else ""
-        (self.home / ".codex/config.toml").write_text(trust)
+        hook = {"type": "command", "command": self.guard()}
+        groups = [{"matcher": "Bash", "hooks": [hook]}] if guard else []
+        hooks_file.write_text(json.dumps({"hooks": {"PreToolUse": groups}}))
+        if state is None:
+            state = f'trusted_hash = "{d.codex_hook_hash("pre_tool_use", "Bash", hook)}"\n' if trusted else None
+        key = json.dumps(f"{hooks_file}:pre_tool_use:0:0")
+        trust = f'[hooks.state.{key}]\n{state}' if state else ""
+        (self.home / ".codex/config.toml").write_text('model = "x"\n\n[hooks.state]\n\n' + trust)
 
-    def receipt(self, runtime):
-        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "audit-hook", "--host", "devbox",
-                        "--runtime", runtime, "--event", "Stop"], input='{"session_id": "s1"}', text=True, check=True,
-                       capture_output=True)
-
-    def statuses(self, check=None):
-        report = d.run(self.root, self.home, "devbox", self.db)
+    def statuses(self, check=None, host=HOST):
+        report = d.run(self.root, self.home, host)
         return report, {(r["check"], r["status"]) for r in report.rows if check is None or r["check"] == check}
 
-    def test_healthy_setup_has_no_fail_and_counts_receipts(self):
-        self.receipt("claude")
-        self.receipt("codex")
+    def test_healthy_setup_has_no_fail_or_warn(self):
         report, rows = self.statuses()
         self.assertFalse(report.failed, report.rows)
-        self.assertIn(("claude receipts", "OK"), rows)
-        self.assertIn(("codex receipts", "OK"), rows)
-        self.assertIn(("codex trust", "INFO"), rows)  # present but unverifiable, never claimed OK
-        self.assertNotIn(("codex trust", "OK"), rows)
-        self.assertIn(("claude status hook", "OK"), rows)
-        self.assertIn(("codex status hook", "OK"), rows)
-        self.assertNotIn(("claude tool hook", "WARN"), rows)
-        self.assertNotIn(("codex tool hook", "WARN"), rows)
+        self.assertFalse([r for r in report.rows if r["status"] == "WARN"], report.rows)
+        self.assertIn(("claude merge guard", "OK"), rows)
+        self.assertIn(("codex merge guard", "OK"), rows)
+
+    def test_codex_merge_guard_must_be_wired_and_trusted(self):
+        # Codex runs a hook only after the person trusts it; an untrusted one is skipped silently.
+        self.write_codex(trusted=False)
+        _, rows = self.statuses("codex merge guard")
+        self.assertEqual(rows, {("codex merge guard", "WARN")})
+        report, _ = self.statuses()
+        self.assertIn("Trust all and continue", " ".join(r["detail"] for r in report.rows))
+        self.write_codex(guard=False)
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
+        (self.home / ".codex/hooks.json").unlink()
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
+        # Codex trusts only the exact current hook and never runs a disabled one.
+        for state, advice in (('trusted_hash = ""\n', "changed"), ('trusted_hash = "sha256:obsolete"\n', "changed"),
+                              ("trusted_hash = false\n", "not trusted"), ("enabled = false\n", "turned off")):
+            self.write_codex(state=state)
+            report, rows = self.statuses("codex merge guard")
+            self.assertEqual(rows, {("codex merge guard", "WARN")}, state)
+            self.assertIn(advice, " ".join(r["detail"] for r in report.rows if r["check"] == "codex merge guard"))
+        good = d.codex_hook_hash("pre_tool_use", "Bash", {"type": "command", "command": self.guard()})
+        self.write_codex(state=f'trusted_hash = "{good}"\nenabled = false\n')
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
+        (self.home / ".codex/config.toml").write_text("[hooks.state\n")  # unreadable TOML
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
+        # A correct hash with enabled = false and a trailing comment is still off.
+        self.write_codex(state=f'trusted_hash = "{good}"\nenabled = false # intentionally off\n')
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
+        # Trust recorded for another hook position does not count.
+        self.write_codex()
+        toml = self.home / ".codex/config.toml"
+        toml.write_text(toml.read_text().replace(":pre_tool_use:0:0", ":pre_tool_use:1:0"))
+        self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
 
     def test_template_pack_and_bench_are_reported(self):
         _, rows = self.statuses()
         self.assertIn(("template .claude", "INFO"), rows)  # hand-written instructions still work
         self.assertIn(("project pack", "INFO"), rows)
         self.assertIn(("bench", "INFO"), rows)
-        (self.root / "AGENTS.md").write_text(d.TEMPLATE_MARKER + "\nRead devstack. KPI: monitoring/devstack/README.md\n")
+        (self.root / "AGENTS.md").write_text(d.TEMPLATE_MARKER + "\nRead patstack.\n")
+        if os.name == "nt":
+            for relative in (".claude/CLAUDE.md", ".codex/AGENTS.md"):
+                shutil.copyfile(self.root / "AGENTS.md", self.home / relative)
         (self.root / "project-packs/sample").mkdir(parents=True)
         (self.root / "project-packs/sample/INDEX.md").write_text("# Pack\n")
         (self.root / "bench").mkdir()
@@ -131,60 +176,129 @@ class DoctorTests(unittest.TestCase):
         for check in ("template .claude", "template .codex", "project pack", "bench"):
             self.assertIn((check, "OK"), rows)
         self.assertFalse(report.failed)
-        real = d.run(d.SELF_ROOT, self.home, "devbox", self.db)  # this checkout ships the pack and the bench
+        real = d.run(d.SELF_ROOT, self.home, "devbox")  # this checkout ships the pack and the bench
         found = {r["check"]: r["status"] for r in real.rows}
         self.assertEqual(found["bench"], "OK")
         self.assertEqual(found["project pack"], "OK" if list(d.SELF_ROOT.glob("project-packs/*/INDEX.md")) else "INFO")
 
-    def test_session_line_carries_no_kpi_targets(self):
-        report = d.Report()
-        report.add("OK", "claude receipts", "12 Stop receipts recorded on devbox")
-        report.add("WARN", "kpi targets", "🎯 targets 1/3 met · MISS median_minutes 5.5 (<=4)")
-        line = d.summary(report)
-        self.assertTrue(line.endswith("all checks OK"), line)  # targets belong in a finished task's report
-        self.assertNotIn("🎯", line)
-        self.assertNotIn("kpi targets", line)
-        self.assertIn("unless it starts with ⚠", json.loads(d.hook_output("claude", line))["hookSpecificOutput"]["additionalContext"])
-        report = d.Report()
-        report.add("INFO", "kpi targets", "none set; copy examples/kpi-targets.example.json to ~/.config/devstack/kpi-targets.json")
-        self.assertNotIn("🎯", d.summary(report))
+    def test_missing_merge_guard_warns(self):
+        self.write_claude(guard=False)
+        report, rows = self.statuses("claude merge guard")
+        self.assertFalse(report.failed)
+        self.assertEqual(rows, {("claude merge guard", "WARN")})
 
-    def test_missing_kpi_hook_fails(self):
-        self.write_claude(kpi_runtime="codex")  # wrong runtime is not a Claude KPI hook
-        report, rows = self.statuses("claude KPI hook")
-        self.assertTrue(report.failed)
-        self.assertEqual(rows, {("claude KPI hook", "FAIL")})
+    def test_merge_guard_must_run_for_bash_with_a_real_interpreter(self):
+        settings = self.home / ".claude/settings.json"
+        data = json.loads(settings.read_text())
+        guard = {"type": "command", "command": self.guard()}
+        cases = {"read only": [{"matcher": "Read", "hooks": [guard]}],
+                 "no interpreter": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"python-does-not-exist {FWD(self.root)}/tools/merge_guard.py"}]}],
+                 "guard file gone": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"{FWD(sys.executable)} {FWD(self.home)}/elsewhere/merge_guard.py"}]}],
+                 "not python": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"/usr/bin/true {FWD(self.root)}/tools/merge_guard.py"}]}],
+                 "python -c": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"{FWD(sys.executable)} -c pass {FWD(self.root)}/tools/merge_guard.py"}]}],
+                 "python -m": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"{FWD(sys.executable)} -m merge_guard {FWD(self.root)}/tools/merge_guard.py"}]}],
+                 "shell tail": [{"matcher": "Bash", "hooks": [{"type": "command", "command": f"{FWD(sys.executable)} {FWD(self.root)}/tools/merge_guard.py ; true"}]}]}
+        for name, groups in cases.items():
+            with self.subTest(name):
+                settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": groups}}))
+                _, rows = self.statuses("claude merge guard")
+                self.assertEqual(rows, {("claude merge guard", "WARN")})
+        flagged = {"type": "command", "command": f"{FWD(sys.executable)} -B -u {FWD(self.root)}/tools/merge_guard.py"}
+        settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": [{"matcher": "Bash", "hooks": [flagged]}]}}))
+        self.assertEqual(self.statuses("claude merge guard")[1], {("claude merge guard", "OK")})
+        for matcher in ("Read|Bash", "*", None, ".*"):
+            with self.subTest(matcher=matcher):
+                group = {"hooks": [guard]} if matcher is None else {"matcher": matcher, "hooks": [guard]}
+                settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": [group]}}))
+                _, rows = self.statuses("claude merge guard")
+                self.assertEqual(rows, {("claude merge guard", "OK")})
+
+    @unittest.skipIf(os.name == "nt", "POSIX shell stand-in")
+    def test_a_placeholder_interpreter_that_cannot_run_is_not_a_guard(self):
+        fake = self.home / "bin/python3"
+        fake.parent.mkdir()
+        fake.write_text("#!/bin/sh\nexit 9\n")  # like the Windows Store placeholder, which exits 9009
+        fake.chmod(0o755)
+        settings = self.home / ".claude/settings.json"
+        data = json.loads(settings.read_text())
+        hook = {"type": "command", "command": f"{fake} {FWD(self.root)}/tools/merge_guard.py"}
+        settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}))
+        self.assertEqual(self.statuses("claude merge guard")[1], {("claude merge guard", "WARN")})
+
+    def test_the_probe_starts_python_with_the_hooks_own_flags(self):
+        settings = self.home / ".claude/settings.json"
+        data = json.loads(settings.read_text())
+        hook = {"type": "command", "command": f"{FWD(sys.executable)} -E {FWD(self.root)}/tools/merge_guard.py"}
+        settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": [{"matcher": "Bash", "hooks": [hook]}]}}))
+        with mock.patch.dict(os.environ, {"PYTHONHOME": str(self.home / "no-such-python-home")}):
+            self.assertEqual(self.statuses("claude merge guard")[1], {("claude merge guard", "OK")})  # -E ignores it
+
+    def test_a_byte_order_mark_warns_but_still_reads(self):
+        settings = self.home / ".claude/settings.json"
+        settings.write_bytes(b"\xef\xbb\xbf" + settings.read_bytes())
+        report, rows = self.statuses()
+        self.assertIn(("claude settings", "WARN"), rows)
+        self.assertIn(("claude merge guard", "OK"), rows)
+        self.assertFalse(report.failed)
+
+    def test_quoted_windows_style_guard_command_is_recognised(self):
+        settings = self.home / ".claude/settings.json"
+        data = json.loads(settings.read_text())
+        quoted = {"type": "command", "command": f'"{sys.executable}" "{self.root / "tools/merge_guard.py"}"'}
+        settings.write_text(json.dumps({"hooks": {**data["hooks"], "PreToolUse": [{"matcher": "Bash", "hooks": [quoted]}]}}))
+        windows_split = lambda command: shlex.split(command, posix=False)  # what split() does on Windows: quotes stay
+        with mock.patch.object(d, "split", windows_split):
+            self.assertEqual(self.statuses("claude merge guard")[1], {("claude merge guard", "OK")})
 
     def test_broken_hook_path_fails(self):
         self.write_claude(extra=str(self.hooks / "gone.sh"))
         report, _ = self.statuses()
         self.assertTrue(any(r["status"] == "FAIL" and "gone.sh" in r["detail"] for r in report.rows))
 
-    def test_untrusted_codex_hook_warns(self):
-        self.write_codex(trusted=False)
+    def test_retired_hooks_warn_in_both_clients(self):
+        (self.hooks / "agent-work-session-ticket.py").write_text("")
+        kpi = self.root / "monitoring/patstack/kpi_monitor.py"
+        kpi.parent.mkdir(parents=True)
+        kpi.write_text("")
+        self.write_claude(extra=f"{FWD(sys.executable)} {FWD(kpi)} audit-hook --host devbox --runtime claude --event Stop")
+        settings = self.home / ".claude/settings.json"
+        data = json.loads(settings.read_text())
+        data["hooks"]["Stop"] = [{"hooks": [{"type": "command", "command": str(self.hooks / "agent-work-session-ticket.py")}]}]
+        settings.write_text(json.dumps(data))
+        doctor = f"{FWD(sys.executable)} {FWD(self.root)}/scripts/setup_doctor.py --host devbox --hook codex"
+        (self.home / ".codex/hooks.json").write_text(json.dumps({"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": doctor}]}]}}))
         report, _ = self.statuses()
-        trust = [r["detail"] for r in report.rows if r["check"] == "codex trust"]
-        self.assertEqual(len(trust), 3)  # status, KPI and tool-count hooks
-        self.assertTrue(all("not trusted" in x for x in trust), trust)
+        warns = [r["detail"] for r in report.rows if r["status"] == "WARN"]
+        for name in ("agent-work-session-ticket.py", "kpi_monitor.py", "setup_doctor.py --host devbox --hook"):
+            self.assertTrue(any(name in w for w in warns), (name, warns))
+        self.assertFalse(report.failed)
 
-    def test_trust_without_tomllib_matches_tomllib(self):
-        for trusted in (True, False):
-            self.write_codex(trusted=trusted)
-            rows = lambda: [(r["status"], r["detail"]) for r in d.run(self.root, self.home, "devbox", self.db).rows
-                            if r["check"] == "codex trust"]
-            with mock.patch.object(d, "tomllib", None):
-                fallback = rows()
-            self.assertEqual(len(fallback), 3, fallback)
-            self.assertEqual({s for s, _ in fallback}, {"INFO" if trusted else "WARN"})
-            if d.tomllib is not None:
-                self.assertEqual(fallback, rows())
+    def test_owner_safety_hooks_are_not_judged(self):
+        settings = self.home / ".claude/settings.json"
+        settings.write_text(settings.read_text().replace("read-size-guard.sh", "block-destructive.py"))
+        report, _ = self.statuses()
+        self.assertFalse([r for r in report.rows if r["status"] in ("WARN", "FAIL")], report.rows)
+
+    def test_disable_all_hooks_fails(self):
+        settings = self.home / ".claude/settings.json"
+        settings.write_text(json.dumps({**json.loads(settings.read_text()), "disableAllHooks": True}))
+        report, rows = self.statuses("claude hooks")
+        self.assertTrue(report.failed)
+        self.assertEqual(rows, {("claude hooks", "FAIL")})
+
+    def test_codex_hooks_file_is_checked_when_present(self):
+        (self.home / ".codex/hooks.json").write_text(json.dumps({"hooks": {"Stop": [{"hooks": [{"type": "command", "command": str(self.hooks / "gone.sh")}]}]}}))
+        report, _ = self.statuses()
+        self.assertTrue(any(r["check"] == "codex hook" and r["status"] == "FAIL" for r in report.rows))
+        (self.home / ".codex/hooks.json").write_text("{not json")
+        _, rows = self.statuses("codex hooks")
+        self.assertEqual(rows, {("codex hooks", "FAIL")})
 
     def client_rows(self, clients=None, which=lambda name: None):
-        report = d.run(self.root, self.home, "devbox", self.db, clients=clients, which=which)
+        report = d.run(self.root, self.home, HOST, clients=clients, which=which)
         return report, report.rows
 
     def test_claude_only_install_has_no_codex_fail_or_warn(self):
-        # A Claude-only user who ran the installer for both clients: Codex files exist, Codex itself never ran.
         (self.home / ".codex/config.toml").unlink()
         shutil.rmtree(self.home / ".agents")
         report, rows = self.client_rows()
@@ -192,7 +306,6 @@ class DoctorTests(unittest.TestCase):
         codex = [r for r in rows if "codex" in r["check"] or r["check"] == "skills .agents"]
         self.assertTrue(codex)
         self.assertEqual({"INFO"}, {r["status"] for r in codex}, codex)
-        self.assertIn(("claude KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
 
     def test_codex_only_install_has_no_claude_fail_or_warn(self):
         (self.home / ".claude.json").unlink()
@@ -202,13 +315,11 @@ class DoctorTests(unittest.TestCase):
         claude = [r for r in rows if "claude" in r["check"]]
         self.assertTrue(claude)
         self.assertEqual({"INFO"}, {r["status"] for r in claude}, claude)
-        self.assertIn(("codex KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
 
     def test_both_clients_are_checked_when_both_are_in_use(self):
         report, rows = self.client_rows()
         found = {(r["check"], r["status"]) for r in rows}
-        for check in ("skills .claude", "skills .agents", "instructions .claude", "instructions .codex",
-                      "claude KPI hook", "codex KPI hook"):
+        for check in ("skills .claude", "skills .agents", "instructions .claude", "instructions .codex", "claude merge guard"):
             self.assertIn((check, "OK"), found)
         self.assertFalse(report.failed)
 
@@ -227,327 +338,241 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(["codex"], d.detect_clients(self.home, which=lambda name: "/bin/x" if name == "codex" else None))
         report, rows = self.client_rows()  # nothing found: both are checked rather than silently skipped
         self.assertIn(("clients", "INFO"), {(r["check"], r["status"]) for r in rows})
-        self.assertIn(("codex KPI hook", "OK"), {(r["check"], r["status"]) for r in rows})
+        self.assertIn(("claude merge guard", "OK"), {(r["check"], r["status"]) for r in rows})
 
-    def test_session_hook_always_checks_its_own_client(self):
-        (self.home / ".codex/config.toml").unlink()
-        shutil.rmtree(self.home / ".agents")
-        (self.home / ".claude.json").unlink()
-        with mock.patch.object(d, "detect_clients", return_value=[]):
-            out = io_capture(lambda: d.hook_main(["--host", "devbox", "--hook", "claude", "--home", str(self.home),
-                                                  "--root", str(self.root), "--db", str(self.db)]))
-        line = json.loads(out)["systemMessage"]
-        self.assertNotIn("FAIL", line)
-        self.assertNotIn("codex", line)
-
-    def test_unfired_hook_warns(self):
-        self.receipt("claude")
-        _, rows = self.statuses()
-        self.assertIn(("codex receipts", "WARN"), rows)
-        self.assertIn(("claude receipts", "OK"), rows)
-
-    def test_retired_hook_warns_and_owner_safety_hooks_are_info_only(self):
-        (self.hooks / "agent-work-session-ticket.py").write_text("")
-        self.write_claude(extra=str(self.hooks / "agent-work-session-ticket.py"))
-        (self.home / ".claude/settings.json").write_text((self.home / ".claude/settings.json").read_text()
-                                                       .replace("read-size-guard.sh", "other.sh"))
-        report, _ = self.statuses()
-        details = [r["detail"] for r in report.rows if r["status"] == "WARN"]
-        self.assertTrue(any("agent-work-session-ticket.py" in x for x in details))
-        # DevStack ships no safety hooks, so a missing owner-specific one is never a WARN.
-        self.assertFalse([r for r in report.rows if r["check"] == "claude safety hook" and r["status"] != "INFO"])
-        self.assertIn(("claude safety hook", "INFO"), {(r["check"], r["status"]) for r in report.rows})
-
-    def test_closed_outcome_without_verified_success_warns(self):
-        snapshot = {"id": "t1", "revision": 1, "workflow": "bugfix", "topic": "x", "mode": "full_send",
-                    "status": "completed", "started_at": "2026-10-01T10:00:00+00:00",
-                    "updated_at": "2026-10-01T11:00:00+00:00", "ended_at": "2026-10-01T11:00:00+00:00"}
-        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "record"], input=json.dumps(snapshot),
-                       text=True, check=True, capture_output=True)
-        _, rows = self.statuses("kpi outcomes")
-        self.assertEqual(rows, {("kpi outcomes", "WARN")})
-        snapshot.update(revision=2, verified_success=True)
-        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "record"], input=json.dumps(snapshot),
-                       text=True, check=True, capture_output=True)
-        _, rows = self.statuses("kpi outcomes")
-        self.assertEqual(rows, {("kpi outcomes", "OK")})
-
-    def test_unticketed_once_requests_do_not_keep_the_outcome_warning(self):
-        task_kpi = KPI_SOURCE.with_name("task_kpi.py")
-        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "once", "--id", "req-a", "--workflow",
-                        "discussion", "--topic", "devstack", "--host", "devbox",
-                        "--started-at", "2026-10-01T10:00:00+00:00"], check=True, capture_output=True)
-        old = {"id": "req-old", "revision": 1, "workflow": "research", "topic": "x", "mode": "other",  # pre-marker store
-               "status": "completed", "started_at": "2026-10-01T10:00:00+00:00",
-               "updated_at": "2026-10-01T11:00:00+00:00", "ended_at": "2026-10-01T11:00:00+00:00"}
-        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "record"], input=json.dumps(old),
-                       text=True, check=True, capture_output=True)
-        _, rows = self.statuses("kpi outcomes")
-        self.assertEqual(rows, {("kpi outcomes", "OK")})
-        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "start", "--id", "TKT-7", "--workflow",
-                        "research", "--topic", "devstack", "--mode", "full_send", "--host", "devbox"], check=True,
-                       capture_output=True)
-        subprocess.run([sys.executable, str(task_kpi), "--db", str(self.db), "finish", "--id", "TKT-7", "--status",
-                        "completed", "--verified", "unknown", "--handoff", "none", "--pack", "none"], check=True, capture_output=True)
-        report, _ = self.statuses("kpi outcomes")
-        warned = [r["detail"] for r in report.rows if r["check"] == "kpi outcomes" and r["status"] == "WARN"]
-        self.assertEqual(1, len(warned))
-        self.assertTrue(warned[0].startswith("1 completed"))
-
+    @unittest.skipIf(os.name == "nt", "POSIX linked installation; Windows uses mirrors")
     def test_per_skill_links_are_accepted(self):
         os.unlink(self.home / ".claude/skills")
         (self.home / ".claude/skills").mkdir()
-        os.symlink(self.root / "skills/devstack", self.home / ".claude/skills/devstack")  # published layout
+        os.symlink(self.root / "skills/patstack", self.home / ".claude/skills/patstack")  # published layout
         _, rows = self.statuses("skills .claude")
         self.assertEqual(rows, {("skills .claude", "OK")})
 
     def test_default_root_is_the_tree_containing_the_script(self):
         out = subprocess.run([sys.executable, str(self.root / "scripts/setup_doctor.py"), "--host", "devbox",
-                              "--home", str(self.home), "--db", str(self.db), "--json"], capture_output=True, text=True)
+                              "--home", str(self.home), "--json"], capture_output=True, text=True)
         source = [r for r in json.loads(out.stdout) if r["check"] == "source"][0]
         self.assertEqual((source["status"], Path(source["detail"]).resolve()), ("OK", self.root.resolve()))
 
     def test_every_skill_must_resolve(self):
         (self.root / "skills/review").mkdir()
         (self.root / "skills/review/SKILL.md").write_text("# Review\n")
-        os.unlink(self.home / ".claude/skills")
-        (self.home / ".claude/skills").mkdir()
-        os.symlink(self.root / "skills/devstack", self.home / ".claude/skills/devstack")  # review not linked
+        if os.name != "nt":
+            os.unlink(self.home / ".claude/skills")
+            (self.home / ".claude/skills").mkdir()
+            os.symlink(self.root / "skills/patstack", self.home / ".claude/skills/patstack")  # review not linked
         report, rows = self.statuses("skills .claude")
         self.assertTrue(report.failed)
         self.assertEqual(rows, {("skills .claude", "FAIL")})
         self.assertIn("review", [r["detail"] for r in report.rows if r["check"] == "skills .claude"][0])
 
     def windows_mirrors(self):
-        sys.path.insert(0, str(self.root / "scripts"))
         import skill_mirrors
         for client in (".claude/skills", ".agents/skills"):
-            os.unlink(self.home / client)
-            (self.home / client).mkdir()
+            path = self.home / client
+            if path.is_symlink():
+                path.unlink()
+            elif path.exists():
+                shutil.rmtree(path)
+            path.mkdir()
         skill_mirrors.apply((self.root / "skills").resolve(), self.home, self.home / "mirror-backup")
         return skill_mirrors
 
     def windows_rows(self):
-        report = d.run(self.root, self.home, "windows", self.db)
+        report = d.run(self.root, self.home, "windows")
         return {(r["check"], r["status"]) for r in report.rows if r["check"].startswith("skills ")}
 
     def test_windows_mirrors_are_checked_for_freshness(self):
         self.windows_mirrors()
         self.assertEqual(self.windows_rows(), {("skills .claude", "OK"), ("skills .agents", "OK")})
-        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack v2\n")  # source changes, mirrors do not
+        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack v2\n")  # source changes, mirrors do not
         self.assertEqual(self.windows_rows(), {("skills .claude", "WARN"), ("skills .agents", "WARN")})
-        os.remove(self.home / ".agents/skills/devstack/SKILL.md")
+        os.remove(self.home / ".agents/skills/patstack/SKILL.md")
         self.assertIn(("skills .agents", "FAIL"), self.windows_rows())
 
     def test_windows_unsupported_source_link_warns(self):
         mirrors = self.windows_mirrors()
-        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n[x](../devstack/SKILL.md 'unterminated\n")
+        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n[x](../patstack/SKILL.md 'unterminated\n")
         mirrors.apply((self.root / "skills").resolve(), self.home, self.home / "mirror-backup")
-        details = [r["detail"] for r in d.run(self.root, self.home, "windows", self.db).rows if r["check"] == "skills .claude"]
+        details = [r["detail"] for r in d.run(self.root, self.home, "windows").rows if r["check"] == "skills .claude"]
         self.assertTrue(details[0].startswith("1 source link(s) use syntax the mirror tool cannot rewrite"), details)
 
     def test_windows_mirror_with_broken_link_warns(self):
         mirrors = self.windows_mirrors()
-        (self.root / "skills/devstack/SKILL.md").write_text("# DevStack\n[gone](missing.md)\n")
+        (self.root / "skills/patstack/SKILL.md").write_text("# Patstack\n[gone](missing.md)\n")
         mirrors.apply((self.root / "skills").resolve(), self.home, self.home / "mirror-backup")  # fresh, but the link is dead
         self.assertEqual(self.windows_rows(), {("skills .claude", "WARN"), ("skills .agents", "WARN")})
 
     def test_wrong_skill_link_fails(self):
-        os.unlink(self.home / ".agents/skills")
-        (self.home / ".agents/skills").mkdir()
+        path = self.home / ".agents/skills"
+        if path.is_symlink():
+            path.unlink()
+        else:
+            shutil.rmtree(path)
+        path.mkdir()
         report, rows = self.statuses("skills .agents")
         self.assertTrue(report.failed)
         self.assertEqual(rows, {("skills .agents", "FAIL")})
 
+    BOARD = {"account": "team", "workspace": 7, "board": 10, "subitems_board": 20, "first_number": 30001,
+             "columns": {"ticket": "num", "status": "status", "person": "person"}, "statuses": {}}
+
+    def board_rows(self, env=None):
+        report = d.run(self.root, self.home, HOST, env=env or {})
+        return report, {(r["check"], r["status"]) for r in report.rows if r["check"] == "ticket board"}
+
+    def board_detail(self, env=None):
+        return next(r["detail"] for r in self.board_rows(env)[0].rows if r["check"] == "ticket board")
+
+    def test_ticket_board_row_follows_config_and_token(self):
+        self.assertEqual(self.board_rows()[1], set())                       # no board anywhere: no row
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        (pack / "monday.json").write_text(json.dumps(self.BOARD))
+        self.assertEqual(self.board_rows()[1], {("ticket board", "WARN")})  # no token yet
+        self.assertIn("no token", self.board_detail())
+        token = self.home / ".config/patstack/monday-token"
+        token.parent.mkdir(parents=True, exist_ok=True)
+        token.write_text("t.o.k")
+        if os.name != "nt":
+            token.chmod(0o644)
+            self.assertEqual(self.board_rows()[1], {("ticket board", "WARN")})  # readable by others
+            token.chmod(0o600)
+        report, rows = self.board_rows()
+        self.assertEqual(rows, {("ticket board", "OK")})
+        self.assertNotIn("t.o.k", json.dumps(report.rows))                  # the token is never shown
+
+    def test_a_broken_board_config_warns_even_with_a_good_token(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        token = self.home / ".config/patstack/monday-token"
+        token.parent.mkdir(parents=True, exist_ok=True)
+        token.write_text("t.o.k")
+        token.chmod(0o600)
+        for broken in ("{", "[]", "{}", json.dumps(dict(self.BOARD, workspace=True))):
+            with self.subTest(broken=broken):
+                (pack / "monday.json").write_text(broken)
+                self.assertEqual(self.board_rows()[1], {("ticket board", "WARN")})
+                self.assertIn("configuration is broken", self.board_detail())
+        (pack / "monday.json").unlink()
+        override = {"PATSTACK_MONDAY_CONFIG": str(self.home / "nowhere.json")}  # an override that points nowhere
+        self.assertIn("configuration is broken", self.board_detail(override))
+        (self.home / "bad.json").write_text("{")
+        self.assertIn("configuration is broken", self.board_detail({"PATSTACK_MONDAY_CONFIG": str(self.home / "bad.json")}))
+
+    @unittest.skipIf(os.name == "nt", "dangling symlinks require privileges on Windows; run on Linux")
+    def test_dangling_board_configs_warn(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        (self.home / ".config/patstack").mkdir(parents=True)
+        (pack / "monday.json").symlink_to(self.home / "gone.json")          # a dangling bundled config
+        self.assertIn("configuration is broken", self.board_detail())
+        (pack / "monday.json").unlink()
+        self.assertEqual(self.board_rows()[1], set())
+        private = self.home / ".config/patstack/monday.json"
+        private.symlink_to(self.home / "gone.json")                        # a dangling private config
+        self.assertIn("configuration is broken", self.board_detail())
+        private.unlink()
+
+    def test_a_token_that_cannot_be_used_warns(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        (pack / "monday.json").write_text(json.dumps(self.BOARD))
+        token = self.home / ".config/patstack/monday-token"
+        token.parent.mkdir(parents=True, exist_ok=True)
+        token.write_bytes(b"\xff\xfe")                                      # not UTF-8
+        self.assertIn("cannot be used", self.board_detail())
+        token.write_text("")                                                # empty
+        self.assertIn("cannot be used", self.board_detail())
+
+    @unittest.skipIf(os.name == "nt", "dangling symlinks require privileges on Windows; run on Linux")
+    def test_a_dangling_token_link_warns(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        (pack / "monday.json").write_text(json.dumps(self.BOARD))
+        token = self.home / ".config/patstack/monday-token"
+        token.parent.mkdir(parents=True, exist_ok=True)
+        token.symlink_to(self.home / "gone")
+        self.assertIn("link to nothing", self.board_detail())
+
+    @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0), "needs POSIX permissions as a normal user")
+    def test_folders_that_cannot_be_read_warn_and_never_crash(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        (pack / "monday.json").write_text(json.dumps(self.BOARD))
+        config = self.home / ".config/patstack"
+        config.mkdir(parents=True, exist_ok=True)
+        for locked in (config, pack, pack.parent):
+            with self.subTest(locked=locked.name):
+                locked.chmod(0)
+                try:
+                    report, rows = self.board_rows()
+                finally:
+                    locked.chmod(0o700)
+                self.assertEqual(rows, {("ticket board", "WARN")})
+                if locked == config:
+                    self.assertIn(("preferences", "WARN"), {(r["check"], r["status"]) for r in report.rows})
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "no FIFOs on Windows")
+    def test_fifos_where_files_belong_warn_without_blocking(self):
+        pack = self.root / "project-packs/sample"
+        pack.mkdir(parents=True)
+        config = self.home / ".config/patstack"
+        config.mkdir(parents=True, exist_ok=True)
+        started = time.monotonic()
+        os.mkfifo(pack / "monday.json")
+        self.assertIn("configuration is broken", self.board_detail())
+        (pack / "monday.json").unlink()
+        (pack / "monday.json").write_text(json.dumps(self.BOARD))
+        os.mkfifo(config / "monday-token")
+        self.assertIn("cannot be used", self.board_detail())
+        os.mkfifo(config / "preferences.json")
+        report = d.run(self.root, self.home, HOST, env={})
+        self.assertIn(("preferences", "WARN"), {(r["check"], r["status"]) for r in report.rows})
+        self.assertLess(time.monotonic() - started, 5)
+
+    def test_preferences_path_comes_from_the_given_environment(self):
+        elsewhere = self.home / "elsewhere.json"
+        elsewhere.write_text("{")                                          # an invalid file the real env points to
+        status = lambda env: {r["status"] for r in d.run(self.root, self.home, HOST, env=env).rows
+                              if r["check"] == "preferences"}
+        with mock.patch.dict(os.environ, {"PATSTACK_PREFERENCES": str(elsewhere)}):
+            self.assertEqual(status({}), {"INFO"})                         # env={} means: not that variable
+            self.assertEqual(status({"PATSTACK_PREFERENCES": str(elsewhere)}), {"WARN"})
+            self.assertEqual(status(None), {"WARN"})                       # no env given: this process's own
+
+    @unittest.skipIf(os.name == "nt", "dangling symlinks require privileges on Windows; run on Linux")
+    def test_a_dangling_preferences_link_is_unreadable_not_unset(self):
+        prefs = self.home / ".config/patstack/preferences.json"
+        prefs.parent.mkdir(parents=True, exist_ok=True)
+        prefs.symlink_to(self.home / "gone.json")
+        report = d.run(self.root, self.home, HOST, env={})
+        self.assertIn(("preferences", "WARN"), {(r["check"], r["status"]) for r in report.rows})
+
     def test_doctor_changes_no_configuration(self):
-        self.receipt("claude")
-        def snapshot():  # the KPI store and its SQLite sidecars are excluded by contract
-            return {p: p.stat().st_mtime_ns for p in self.home.rglob("*")
-                    if p.is_file() and not p.name.startswith(self.db.name)}
+        def snapshot():
+            return {p: p.stat().st_mtime_ns for p in self.home.rglob("*") if p.is_file()}
         before = snapshot()
         with mock.patch("builtins.print"):
-            self.assertIn(d.main(["--host", "devbox", "--home", str(self.home), "--db", str(self.db)]), (0, 1))
+            self.assertIn(d.main(["--host", "devbox", "--home", str(self.home)]), (0, 1))
         self.assertEqual(before, snapshot())
 
-    def hook(self, runtime, home=None):
-        out = subprocess.run([sys.executable, str(Path(__file__).with_name("setup_doctor.py")), "--host", "devbox",
-                              "--home", str(home or self.home), "--root", str(self.root), "--db", str(self.db),
-                              "--hook", runtime], capture_output=True, text=True)
-        self.assertEqual(out.returncode, 0, out.stderr)
-        return json.loads(out.stdout)
-
-    def test_session_hook_reports_status_for_claude_and_context_only_for_codex(self):
-        self.receipt("claude")
-        claude = self.hook("claude")
-        self.assertTrue(claude["systemMessage"].startswith("📈 DevStack monitoring on (1 claude receipts)"), claude)
-        self.assertIn("WARN codex receipts", claude["systemMessage"])
-        self.assertNotIn("codex trust", claude["systemMessage"])  # INFO rows stay out of the session line
-        self.assertIn("--host devbox", claude["systemMessage"])
-        self.assertIn(claude["systemMessage"], claude["hookSpecificOutput"]["additionalContext"])
-        codex = self.hook("codex")
-        self.assertNotIn("systemMessage", codex)
-        self.assertEqual(codex["hookSpecificOutput"]["hookEventName"], "SessionStart")
-
-    def test_session_hook_flags_broken_setup_and_never_fails(self):
-        (self.home / ".claude/settings.json").write_text("{not json")
-        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ DevStack setup broken"))
-        original, d.run = d.run, lambda *a: 1 / 0
-        try:
-            with mock.patch("sys.stdout") as out:
-                self.assertEqual(d.main(["--host", "devbox", "--home", str(self.home), "--hook", "claude"]), 0)
-        finally:
-            d.run = original
-        self.assertIn("could not run", json.loads(out.write.call_args.args[0])["systemMessage"])
-
-    def test_kpi_hook_on_wrong_event_fails(self):
-        settings = self.home / ".claude/settings.json"
-        data = json.loads(settings.read_text())
-        data["hooks"]["SessionStart"].append(data["hooks"].pop("Stop")[0])
-        settings.write_text(json.dumps(data))
-        _, rows = self.statuses("claude KPI hook")
-        self.assertEqual(rows, {("claude KPI hook", "FAIL")})
-
-    def test_disable_all_hooks_fails(self):
-        settings = self.home / ".claude/settings.json"
-        settings.write_text(json.dumps({**json.loads(settings.read_text()), "disableAllHooks": True}))
-        report, rows = self.statuses("claude hooks")
-        self.assertTrue(report.failed)
-        self.assertEqual(rows, {("claude hooks", "FAIL")})
-        self.assertNotIn("claude KPI hook", {r["check"] for r in report.rows})
-
-    def test_status_hook_mention_is_not_a_status_hook(self):
-        settings = self.home / ".claude/settings.json"
-        settings.write_text(settings.read_text().replace(self.status("claude"), "echo setup_doctor.py --hook claude"))
-        _, rows = self.statuses("claude status hook")
-        self.assertEqual(rows, {("claude status hook", "WARN")})
+    def test_retired_flags_are_refused(self):
+        for flag in ("--hook", "--db"):
+            out = subprocess.run([sys.executable, str(self.root / "scripts/setup_doctor.py"), "--host", "devbox", flag, "x"],
+                                 capture_output=True, text=True)
+            self.assertEqual(out.returncode, 2, flag)
 
     @unittest.skipUnless(hasattr(os, "mkfifo"), "no FIFOs on Windows")
     def test_fifo_settings_fails_without_blocking(self):
         settings = self.home / ".claude/settings.json"
         settings.unlink()
         os.mkfifo(settings)
+        started = time.monotonic()
         report, rows = self.statuses("claude settings")
         self.assertEqual(rows, {("claude settings", "FAIL")})
-        started = time.monotonic()
-        self.assertTrue(self.hook("claude")["systemMessage"].startswith("⚠ DevStack setup broken"))
         self.assertLess(time.monotonic() - started, 5)
 
-    def test_hook_mode_survives_bad_arguments_and_encoding(self):
-        bad = subprocess.run([sys.executable, str(Path(__file__).with_name("setup_doctor.py")), "--hook", "codex"],
-                             capture_output=True, text=True)
-        self.assertEqual(bad.returncode, 0)
-        self.assertIn("could not run", json.loads(bad.stdout)["hookSpecificOutput"]["additionalContext"])
-        env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
-        out = subprocess.run([sys.executable, str(Path(__file__).with_name("setup_doctor.py")), "--host", "devbox",
-                              "--home", str(self.home), "--root", str(self.root), "--db", str(self.db), "--hook", "claude"],
-                             capture_output=True, env=env)
-        self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertTrue(json.loads(out.stdout.decode("ascii"))["systemMessage"].startswith("📈"))
-
-    def test_hook_mode_times_out_slow_check(self):
-        original, d.run = d.run, lambda *a, **k: time.sleep(30)
-        started = time.monotonic()
-        try:
-            with mock.patch("sys.stdout") as out:
-                self.assertEqual(d.main(["--host", "devbox", "--home", str(self.home), "--hook", "codex"]), 0)
-        finally:
-            d.run = original
-        self.assertLess(time.monotonic() - started, 5)
-        self.assertIn("timed out", json.loads(out.write.call_args.args[0])["hookSpecificOutput"]["additionalContext"])
-
-    def test_failed_workflow_needs_no_verified_success(self):
-        snapshot = {"id": "t2", "revision": 1, "workflow": "bugfix", "topic": "x", "mode": "full_send",
-                    "status": "failed", "started_at": "2026-10-01T10:00:00+00:00",
-                    "updated_at": "2026-10-01T11:00:00+00:00", "ended_at": "2026-10-01T11:00:00+00:00"}
-        subprocess.run([sys.executable, str(KPI_SOURCE), "--db", str(self.db), "record"], input=json.dumps(snapshot),
-                       text=True, check=True, capture_output=True)
-        report, rows = self.statuses("kpi outcomes")
-        self.assertEqual(rows, {("kpi outcomes", "OK")})
-        self.assertIn("completed ones carry", [r["detail"] for r in report.rows if r["check"] == "kpi outcomes"][0])
-
-    def test_hook_help_still_emits_only_json(self):
-        out = subprocess.run([sys.executable, str(Path(__file__).with_name("setup_doctor.py")), "--hook", "claude",
-                              "--help"], capture_output=True, text=True)
-        self.assertEqual(out.returncode, 0)
-        self.assertEqual(len(out.stdout.splitlines()), 1, out.stdout)
-        json.loads(out.stdout)
-
-    def test_every_accepted_flag_really_runs_both_hooks(self):
-        doctor = self.root / "scripts/setup_doctor.py"
-        kpi = self.root / "monitoring/devstack/kpi_monitor.py"
-        for number, flag in enumerate(sorted(d.FLAGS)):
-            self.assertIsNotNone(d.status_runtime(f"{FWD(sys.executable)} {flag} {FWD(doctor)} --host devbox --hook claude", "devbox"))
-            out = subprocess.run([sys.executable, flag, str(doctor), "--host", "devbox", "--home", str(self.home),
-                                  "--db", str(self.db), "--hook", "claude"], capture_output=True, text=True)
-            line = json.loads(out.stdout)["systemMessage"]
-            self.assertTrue(line.startswith("📈 DevStack monitoring on"), (flag, line))  # not the "could not run" fallback
-            db = self.home / f"flag{number}.sqlite3"  # -s/-S collide on case-insensitive macOS file systems
-            subprocess.run([sys.executable, flag, str(kpi), "--db", str(db), "audit-hook", "--host", "devbox",
-                            "--runtime", "claude", "--event", "Stop"], input='{"session_id": "s1"}', text=True, check=True)
-            report = json.loads(subprocess.run([sys.executable, str(kpi), "--db", str(db), "report"],
-                                               capture_output=True, text=True, check=True).stdout)
-            self.assertEqual(report["audit_hook_coverage"][0]["receipts"], 1, flag)
-
-    def test_narrow_tool_matcher_is_not_a_counter(self):
-        settings = self.home / ".claude/settings.json"
-        data = json.loads(settings.read_text())
-        data["hooks"]["PostToolUseFailure"][0]["matcher"] = "Bash"
-        settings.write_text(json.dumps(data))
-        report, _ = self.statuses()
-        warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/devstack/install.py"])
-
-    def test_duplicate_tool_counters_warn(self):
-        settings = self.home / ".claude/settings.json"
-        data = json.loads(settings.read_text())
-        counter = data["hooks"]["PostToolUseFailure"][0]["hooks"][0]
-        data["hooks"]["PostToolUseFailure"].append({"matcher": "Bash", "hooks": [dict(counter)]})
-        settings.write_text(json.dumps(data))
-        report, _ = self.statuses()
-        warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["2 PostToolUseFailure counters would double-count; rerun monitoring/devstack/install.py"])
-
-    def test_missing_tool_counter_warns(self):
-        settings = self.home / ".claude/settings.json"
-        data = json.loads(settings.read_text())
-        del data["hooks"]["PostToolUseFailure"]
-        settings.write_text(json.dumps(data))
-        report, _ = self.statuses()
-        warns = [r["detail"] for r in report.rows if r["check"] == "claude tool hook" and r["status"] == "WARN"]
-        self.assertEqual(warns, ["PostToolUseFailure counter missing; run monitoring/devstack/install.py"])
-
-    def test_echo_kpi_command_is_not_a_kpi_hook(self):
-        settings = self.home / ".claude/settings.json"
-        settings.write_text(settings.read_text().replace(self.kpi("claude"), "echo " + self.kpi("claude").split(" ", 1)[1]))
-        _, rows = self.statuses("claude KPI hook")
-        self.assertEqual(rows, {("claude KPI hook", "FAIL")})
-
-    def test_only_the_installer_form_is_recognised(self):
-        py, kpi, doc = FWD(sys.executable), FWD(self.root / "monitoring/devstack/kpi_monitor.py"), FWD(self.root / "scripts/setup_doctor.py")
-        kpi_args, doc_args = "audit-hook --host devbox --runtime claude --event Stop", "--host devbox --hook claude"
-        self.assertEqual(d.kpi_runtime(f"{py} {kpi} {kpi_args}", "devbox"), "claude")
-        self.assertEqual(d.kpi_runtime(f"{py} -B -u {kpi} {kpi_args}", "devbox"), "claude")
-        self.assertEqual(d.status_runtime(f"{py} {doc} {doc_args}", "devbox"), "claude")
-        rejected = [  # each of these would not run the hook as installed
-            f"echo {kpi} {kpi_args}", f"{py} -c {kpi} {kpi_args}", f"{py} -m {kpi} {kpi_args}",
-            f"{py} -X utf8=2 {kpi} {kpi_args}", f"pyenv {kpi} {kpi_args}", f"/usr/bin/env python3 {kpi} {kpi_args}",
-            f"VAR=1 {py} {kpi} {kpi_args}", f"{py} {kpi} {kpi_args} --bogus", f"{py} {kpi} {kpi_args} --help",
-            f"{py} {kpi.replace('kpi_monitor.py', 'not_kpi_monitor.py')} {kpi_args}", f"{py} {kpi}.missing {kpi_args}",
-            f"{py} monitoring/devstack/kpi_monitor.py {kpi_args}", f"/no/such/python3 {kpi} {kpi_args}",
-            f"{py} {kpi} {kpi_args.replace('devbox', 'mac')}", f"{py} {kpi} {kpi_args.replace('Stop', 'SessionEnd')}",
-            f"{py} {kpi} {kpi_args.replace(' Stop', chr(10) + 'Stop')}", f"{py}  {kpi} {kpi_args}", f"{py}\t{kpi} {kpi_args}",
-            f"{py} {kpi} {kpi_args} ; true", f"{py} '{kpi}' {kpi_args}"]
-        fake = self.home / "python3"
-        if os.name == "nt":  # Windows has no execute bit; the check is POSIX-only
-            fake = None
-        if fake:
-            fake.write_text("#!/bin/sh\n")
-            fake.chmod(0o600)
-            rejected.append(f"{FWD(fake)} {kpi} {kpi_args}")
-        for command in rejected:
-            self.assertIsNone(d.kpi_runtime(command, "devbox"), command)
-        for command in (f"{py} {doc} {doc_args} --bogus", f"{py} {doc} --hook claude", f"echo {doc} {doc_args}"):
-            self.assertIsNone(d.status_runtime(command, "devbox"), command)
 
 if __name__ == "__main__":
     unittest.main()

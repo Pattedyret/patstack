@@ -5,8 +5,8 @@ A project pack may carry copies of skills owned in a separate upstream repositor
 ## Ownership rule
 
 - AGENT-SKILLS is read-only from here. The tool reads its fetched `origin/main` with `git cat-file`, never its working tree, and never writes, commits, pushes or opens PRs there. `--fetch` runs only `git fetch origin`.
-- A fix that belongs upstream is proposed in AGENT-SKILLS through that repository's own process by whoever is authorized there; it is not pushed from a DevStack task.
-- The pack copy is what DevStack ships. Every byte that enters it passes the same privacy guard as `scripts/check.py`.
+- A fix that belongs upstream is proposed in AGENT-SKILLS through that repository's own process by whoever is authorized there; it is not pushed from a Patstack task.
+- The pack copy is what Patstack ships. Every byte that enters it passes the same privacy guard as `scripts/check.py`.
 
 ## When to run
 
@@ -31,6 +31,8 @@ Exit codes: `0` in sync, `1` drift, conflicts or refused files, `2` usage or err
 ## How a file is classified
 
 Each file is compared three ways by content and git mode (`100644` or `100755`): its recorded base (`base_sha256` and `base_mode` of upstream at `base_rev`; `null` when upstream did not have it), the upstream ref and the pack (executable bit). A mode-only change counts like a content change, and `pull` applies the upstream mode.
+
+Windows does not expose POSIX executable bits, so `pack_sync` can report false mode drift or conflicts for upstream `100755` files such as shell scripts. Verify those mode differences on Linux or macOS before pulling or resolving them; native Windows validation does not prove mode parity.
 
 | State | Meaning |
 |---|---|
@@ -57,7 +59,7 @@ A `pull` whose selection contains any conflict, restructure or unsupported entry
 
 A restructure (for example `references/notes.md` becoming `references/notes.md/detail.md`, or the reverse) is recovered by hand: `diff` both paths, then delete or rename the old file or folder in the pack, run `pull` to bring in the new shape, and `resolve` any file whose pack-local edits you carried over by hand.
 
-`pull` and `adopt` refuse files that would fail the privacy guard (home or private paths, owner names, emails, hosts, tokens, registry IDs and the other `scripts/check.py` categories); `pack-sync.json` itself is guarded the same way. The report names the redacted finding and line; neutralize the pack copy (for example `<workspace>`, `$DEVSTACK/...`, "the owner") and then `resolve`. A refused file keeps its old base, so it stays visible as pending.
+`pull` and `adopt` refuse files that would fail the privacy guard (home or private paths, owner names, emails, hosts, tokens, registry IDs and the other `scripts/check.py` categories); `pack-sync.json` itself is guarded the same way. The report names the redacted finding and line; neutralize the pack copy (for example `<workspace>`, `$PATSTACK/...`, "the owner") and then `resolve`. A refused file keeps its old base, so it stays visible as pending.
 
 ## Write safety
 
@@ -73,7 +75,7 @@ The base was recorded on 2026-10-29 at AGENT-SKILLS `origin/main` `55f503c`. Eve
 
 - The pack copies of the shared intake, auth setup, new-app and workflow skills stem from the English upstream versions of mid-September 2026. Upstream has since rewritten them for its IDD governance and translated them to Norwegian, and deleted the auth templates and new-app scripts that the pack still ships. Adopting that rewrite is a separate, deliberate decision; take it with `diff`, a hand merge and `resolve`.
 - **Security fix, pack ahead:** the auth setup skill's `templates/server-proxy.js` builds every proxy target through the pack-only `templates/proxy-target.js` (with tests), so a crafted request path cannot leave the configured origin; the skill text tells existing apps to patch. Upstream's former template used the raw request path.
-- **Neutralization and DevStack adaptation:** script paths via `$DEVSTACK/...` instead of a per-user skills folder, the DevStack development-phase pointer at the end of most procedures, and the deploy skill pointing at the repository's own deploy documents instead of copied commands and project references.
+- **Neutralization and Patstack adaptation:** script paths via `$PATSTACK/...` instead of a per-user skills folder, the Patstack development-phase pointer at the end of most procedures, and the deploy skill pointing at the repository's own deploy documents instead of copied commands and project references.
 - The vault skill was identical. The workflow skill's upstream-only `references/release.md` belongs to the IDD router and is not linked from the pack copy.
 - Five upstream skills are listed as known candidates, not adopted, with the reason for each; two of them succeed pack procedures that upstream deleted.
 
@@ -81,8 +83,8 @@ The base was recorded on 2026-10-29 at AGENT-SKILLS `origin/main` `55f503c`. Eve
 
 On the owner's decision the pack took the upstream rewrites and successors, still at `origin/main` `55f503c`; `pack-sync.json` holds a note for every remaining difference.
 
-- **Pulled by hand-merge, then `resolve`:** the intake, auth setup, new-app and workflow skills (the September bokmål rewrites, plus the workflow's `references/release.md`) and the deploy skill. Each keeps three kinds of pack-local change: links to the DevStack router instead of upstream's IDD governance skill, with the IDD role names mapped to DevStack terms (lead, independent review); the auth setup skill's proxy template with its origin guard, tests and patch-and-rotate note for apps built from the old template; and the deploy skill's pointers to each repository's own deploy documents.
+- **Pulled by hand-merge, then `resolve`:** the intake, auth setup, new-app and workflow skills (the September bokmål rewrites, plus the workflow's `references/release.md`) and the deploy skill. Each keeps three kinds of pack-local change: links to the Patstack router instead of upstream's IDD governance skill, with the IDD role names mapped to Patstack terms (lead, independent review); the auth setup skill's proxy template with its origin guard, tests and patch-and-rotate note for apps built from the old template; and the deploy skill's pointers to each repository's own deploy documents.
 - **Retired with them:** the auth templates and new-app scripts that upstream deleted and the adopted texts no longer reference. The proxy template and its guard stay, because the adopted auth text points at them.
 - **Adopted:** the upstream verification skill and the selective sync skill for the hosted app builder, which succeed four retired pack procedures (named in the pack `INDEX.md`). The pack's own back-sync after a stage merge stays the active procedure.
-- **Not adopted, by decision:** upstream's IDD governance (DevStack is the workflow), its MCP interpretation rules (customer data) and its generic frontend design skill (DevStack uses the native capability). They are listed under `known_candidates`.
+- **Not adopted, by decision:** upstream's IDD governance (Patstack is the workflow), its MCP interpretation rules (customer data) and its generic frontend design skill (Patstack uses the native capability). They are listed under `known_candidates`.
 - Pack procedures that never existed upstream stay. So do the ones still linked from other pack documents.

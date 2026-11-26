@@ -40,8 +40,8 @@ NOISE = re.compile(r"\$'|[\"'\\^`]")
 WORD = re.compile(r"[^\s;&|()<>{}$=,]+")
 REASON = ("Merges go through the merge gate, which checks the mode line, the review records "
           "for the exact head and CI before it merges: "
-          "python3 <devstack>/tools/merge_gate.py merge --repo OWNER/NAME --pr N "
-          "(see skills/devstack/references/coordination.md#merge). This guard also refuses "
+          "python3 <patstack>/tools/merge_gate.py merge --repo OWNER/NAME --pr N "
+          "(see skills/patstack/references/coordination.md#merge). This guard also refuses "
           "text that only names `gh` with `pr merge`; rephrase it or split it into two commands.")
 
 
@@ -55,15 +55,41 @@ def refused(command):
     return "api" in words and any("graphql" in w or "merge" in w for w in words)
 
 
+UNREADABLE = ("BLOCKED: the merge guard could not read this hook input, so it refuses rather than let a "
+              "command through unchecked. Run the command again; if this repeats, check the hook setup "
+              "(docs/setup.md step 6).")
+
+
+def command_of(event):
+    """The shell command in a hook event, or "" when the event carries none (Read, Edit and the like).
+    A field that is present but malformed raises ValueError: absent is fine, wrong is refused."""
+    if not isinstance(event, dict):
+        raise ValueError("event is not an object")
+    if "tool_input" not in event:
+        return ""
+    tool_input = event["tool_input"]
+    if not isinstance(tool_input, dict):
+        raise ValueError("tool_input is not an object")
+    if "command" not in tool_input:
+        return ""
+    command = tool_input["command"]
+    if isinstance(command, str):
+        return command
+    if isinstance(command, list) and all(isinstance(part, str) for part in command):
+        return " ".join(command)
+    raise ValueError("command is not text")
+
+
 def main():
+    # Fail closed: whatever goes wrong while reading or judging the input (not JSON, wrong types, too deeply
+    # nested, an unreadable stream) is refused with exit 2, never waved through and never a bare crash.
     try:
-        event = json.load(sys.stdin)
-    except ValueError:
-        return 0
-    command = (event.get("tool_input") or {}).get("command") or ""
-    if isinstance(command, list):
-        command = " ".join(str(part) for part in command)
-    if refused(command):
+        event = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))  # utf-8-sig also accepts a byte-order mark
+        blocked = refused(command_of(event))
+    except Exception:
+        sys.stderr.write(UNREADABLE + "\n")
+        return 2
+    if blocked:
         sys.stderr.write("BLOCKED: " + REASON + "\n")
         return 2
     return 0

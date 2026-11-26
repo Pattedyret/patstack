@@ -7,7 +7,7 @@ description: Assess an old PR, long-lived branch or abandoned work for current r
 
 Relevance first. A conflict-free rebase is not proof the change is still useful.
 
-**Context.** Under a DevStack lead, this is the entry route for old work into the same task. Invoked directly, assess and report; reviving the change is development work and follows DevStack's entry. Modernize grants no permission to force-push, close a PR or change the product goal.
+**Context.** Under a Patstack lead, this is the entry route for old work into the same task. Invoked directly, assess and report; reviving the change is development work and follows Patstack's entry. Modernize grants no permission to force-push, close a PR or change the product goal.
 
 ## 1. Is the problem still real?
 

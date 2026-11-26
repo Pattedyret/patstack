@@ -14,16 +14,16 @@ import project_tier
 
 MAP = {
     "owners": {"Customer-Org": "CRITICAL"},
-    "repos": {"Customer-Org/own-tool": "INTERNAL", "someone/friends-app": "FRIENDS",
+    "repos": {"Customer-Org/own-tool": "INTERNAL", "Customer-Org/team-tool": "INTERNAL",
               "someone/own-app": "INTERNAL", "tools/widget": "INTERNAL",
-              "forge.example/group/sub/app": "FRIENDS", "git.deploy.example/own-app": "INTERNAL"},
+              "forge.example/group/sub/app": "INTERNAL", "git.deploy.example/own-app": "INTERNAL"},
     "local": {"code/scratch-bot": "INTERNAL"},
 }
 
 
 def run(map_file, path):
     out = io.StringIO()
-    with mock.patch.dict(os.environ, {"DEVSTACK_PROJECT_TIERS": str(map_file)}), \
+    with mock.patch.dict(os.environ, {"PATSTACK_PROJECT_TIERS": str(map_file)}), \
             contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
         code = project_tier.main(["--path", str(path), "--json"])
     return code, json.loads(out.getvalue())
@@ -60,6 +60,35 @@ class ValidateTest(unittest.TestCase):
     def test_valid_map_passes(self):
         self.assertIsNone(project_tier.validate(MAP))
 
+    def test_local_ci_takes_owners_and_repos_only(self):
+        self.assertIsNone(project_tier.validate({"local_ci": ["example-consulting", "other-owner/app"]}))
+        for bad in ({"local_ci": "example-consulting"}, {"local_ci": [""]}, {"local_ci": ["a/b/c"]},
+                    {"local_ci": ["/a"]}, {"local_ci": [3]}, {"local_ci": ["ok", "has space"]},
+                    {"local_ci": ["-dash-first"]}, {"local_ci": ["host.example/app"]},
+                    {"local_ci": ["example-consulting\n"]}):
+            self.assertIsNotNone(project_tier.validate(bad), bad)
+
+    def test_a_key_given_twice_makes_the_map_unreadable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "map.json"
+            path.write_text('{"local_ci": ["bad name"], "local_ci": ["example-consulting"]}')
+            data, problem = project_tier.load_map(path)
+            self.assertEqual(data, {})
+            self.assertIn("unreadable", problem)
+
+    def test_local_ci_matches_owner_or_exact_repo(self):
+        data = {"local_ci": ["Example-Consulting", "Other/app"]}
+        self.assertTrue(project_tier.local_ci(data, "EXAMPLE-consulting/x"))
+        self.assertTrue(project_tier.local_ci(data, "other/APP"))
+        self.assertFalse(project_tier.local_ci(data, "other/app2"))
+        self.assertFalse(project_tier.local_ci({}, "example-consulting/x"))
+
+    def test_friends_is_rejected_in_every_section(self):
+        for section, key in (("owners", "customer-org"), ("repos", "customer-org/team-tool"),
+                             ("local", "code/team-tool")):
+            with self.subTest(section=section):
+                self.assertIsNotNone(project_tier.validate({section: {key: "FRIENDS"}}))
+
     def test_case_on_another_forge_is_a_different_project(self):
         data = {"repos": {"forge.example/Team/app": "INTERNAL", "forge.example/team/app": "CRITICAL"}}
         self.assertIsNone(project_tier.validate(data))
@@ -89,7 +118,7 @@ class ClassifyTest(unittest.TestCase):
     def test_namespace_or_forge_cannot_borrow_a_github_entry(self):
         self.assertEqual(self.tier(origin="https://forge.example/customer-org/tools/widget.git"), "UNCLASSIFIED")
         self.assertEqual(self.tier(origin="https://forge.example/tools/widget.git"), "UNCLASSIFIED")
-        self.assertEqual(self.tier(origin="https://forge.example/group/sub/app.git"), "FRIENDS")
+        self.assertEqual(self.tier(origin="https://forge.example/group/sub/app.git"), "INTERNAL")
 
     def test_customer_upstream_wins_over_a_personal_fork(self):
         self.assertEqual(self.tier(origin="https://github.com/someone/own-app",
@@ -156,12 +185,21 @@ class CheckoutTest(unittest.TestCase):
         return path
 
     def test_modes_by_tier(self):
-        cases = {"https://github.com/someone/friends-app": "Full Send always",
+        cases = {"https://github.com/customer-org/team-tool": "Full Send always",
                  "https://github.com/someone/own-app": "Full Send always",
                  "https://github.com/customer-org/app": "evaluate Full Send or Full Stop at intake",
                  "https://github.com/stranger/app": "evaluate Full Send or Full Stop at intake"}
         for number, (url, mode) in enumerate(cases.items()):
             self.assertEqual(run(self.map, self.repo(f"r{number}", origin=url))[1]["mode"], mode, url)
+
+    def test_legacy_friends_map_fails_closed(self):
+        data = {**MAP, "repos": {**MAP["repos"], "someone/legacy-tool": "FRIENDS"}}
+        self.map.write_text(json.dumps(data), encoding="utf-8")
+        path = self.repo("legacy", origin="https://github.com/customer-org/team-tool")
+        code, result = run(self.map, path)
+        self.assertEqual((code, result["tier"]), (0, "UNCLASSIFIED"))
+        self.assertEqual(result["mode"], "evaluate Full Send or Full Stop at intake")
+        self.assertIn("invalid tier map", result["warning"])
 
     def test_real_fork_with_customer_upstream_is_critical(self):
         path = self.repo("fork", origin="https://github.com/someone/own-app",
@@ -219,16 +257,16 @@ class CheckoutTest(unittest.TestCase):
     def test_restrictive_output_encoding_still_prints_a_tier(self):
         path = self.home / "prosjekt-\u00e6"
         path.mkdir()
-        env = {**os.environ, "PYTHONIOENCODING": "ascii", "DEVSTACK_PROJECT_TIERS": str(self.map)}
+        env = {**os.environ, "PYTHONIOENCODING": "ascii", "PATSTACK_PROJECT_TIERS": str(self.map)}
         result = subprocess.run([sys.executable, project_tier.__file__, "--path", str(path)],
                                 capture_output=True, env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(b"Tier: UNCLASSIFIED", result.stdout)
 
     def test_subdirectory_resolves_its_project(self):
-        path = self.repo("sub", origin="https://github.com/someone/friends-app") / "deep"
+        path = self.repo("sub", origin="https://github.com/customer-org/team-tool") / "deep"
         path.mkdir()
-        self.assertEqual(run(self.map, path)[1]["tier"], "FRIENDS")
+        self.assertEqual(run(self.map, path)[1]["tier"], "INTERNAL")
 
     def test_local_entry_needs_the_exact_path(self):
         self.assertEqual(run(self.map, self.repo("code/scratch-bot"))[1]["tier"], "INTERNAL")
@@ -261,7 +299,7 @@ class CheckoutTest(unittest.TestCase):
                 self.assertEqual(run(self.map, path)[1]["tier"], "UNCLASSIFIED", effect)
 
     def test_missing_map_warns_and_stays_unclassified(self):
-        path = self.repo("a", origin="https://github.com/someone/friends-app")
+        path = self.repo("a", origin="https://github.com/customer-org/team-tool")
         code, result = run(self.home / "absent.json", path)
         self.assertEqual((code, result["tier"]), (0, "UNCLASSIFIED"))
         self.assertIn("no tier map", result["warning"])
@@ -273,6 +311,107 @@ class CheckoutTest(unittest.TestCase):
             code, result = run(self.map, path)
             self.assertEqual((code, result["tier"]), (0, "UNCLASSIFIED"), broken)
             self.assertTrue(result["warning"], broken)
+
+
+class MapChoiceTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.home = self.root / "home"
+        self.home.mkdir()
+        env = mock.patch.dict(os.environ, {}, clear=False)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("PATSTACK_PROJECT_TIERS", None)
+        home = mock.patch.object(Path, "home", return_value=self.home)
+        home.start()
+        self.addCleanup(home.stop)
+        self.addCleanup(self.tmp.cleanup)
+
+    def pack(self, name, data):
+        path = self.root / "patstack/project-packs" / name / "project-tiers.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps(data))
+
+    def load(self):
+        return project_tier.load_tiers(self.root / "patstack")
+
+    def assertFailsClosed(self, text):
+        data, warning = self.load()
+        self.assertEqual(data, {})
+        self.assertIn(text, warning)
+
+    def test_the_one_pack_map_applies_when_there_is_no_private_map(self):
+        self.pack("demo", {"owners": {"Team-Org": "CRITICAL"}, "repos": {"team-org/workflow": "INTERNAL"}})
+        data, warning = self.load()
+        self.assertIsNone(warning)
+        self.assertEqual(project_tier.remote_tier(data, "team-org/some-app"), "CRITICAL")
+        self.assertEqual(project_tier.remote_tier(data, "team-org/workflow"), "INTERNAL")  # its own exception stands
+
+    def test_private_map_replaces_the_pack_map(self):
+        self.pack("demo", {"owners": {"Team-Org": "CRITICAL"}})
+        private = self.home / ".config/patstack/project-tiers.json"
+        private.parent.mkdir(parents=True)
+        private.write_text(json.dumps({"repos": {"me/tool": "INTERNAL"}}))
+        data, _ = self.load()
+        self.assertIsNone(project_tier.remote_tier(data, "team-org/some-app"))
+        self.assertEqual(project_tier.remote_tier(data, "me/tool"), "INTERNAL")
+
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
+    def test_a_broken_private_link_never_falls_back_to_the_pack(self):
+        self.pack("demo", {"repos": {"team/app": "INTERNAL"}})
+        private = self.home / ".config/patstack/project-tiers.json"
+        private.parent.mkdir(parents=True)
+        private.symlink_to(self.root / "gone.json")
+        self.assertFailsClosed("no tier map")
+        (self.root / "gone.json").write_text('{"repos": {"me/tool": "INTERNAL"}}')
+        data, warning = self.load()  # a valid link is used as before
+        self.assertIsNone(warning)
+        self.assertEqual(project_tier.remote_tier(data, "me/tool"), "INTERNAL")
+
+    def test_two_pack_maps_fail_closed(self):
+        self.pack("a", {"repos": {"team/app": "INTERNAL"}})
+        self.pack("b", {"repos": {"team/app": "INTERNAL"}})  # even identical maps never combine
+        self.assertFailsClosed("more than one")
+
+    def test_a_hidden_pack_folder_counts(self):
+        self.pack("a", {"repos": {"team/app": "INTERNAL"}})
+        self.pack(".b", {"owners": {"Team": "CRITICAL"}})
+        self.assertFailsClosed("more than one")
+
+    @unittest.skipIf(os.name == "nt", "native symlink fixture; run on Linux")
+    def test_symlinked_pack_maps_and_folders_fail_closed(self):
+        self.pack("a", {"repos": {"team/app": "INTERNAL"}})
+        packs = self.root / "patstack/project-packs"
+        (packs / "b").mkdir()
+        (packs / "b/project-tiers.json").symlink_to(self.root / "gone.json")
+        self.assertFailsClosed("not a plain file")
+        (packs / "b/project-tiers.json").unlink()
+        (packs / "b").rmdir()
+        (packs / "c").symlink_to(self.root / "missing-folder")
+        self.assertFailsClosed("symlink")
+
+    def test_a_bad_pack_map_fails_closed(self):
+        self.pack("b", {"owners": {"Other": "INTERNAL"}})  # owners may only be CRITICAL
+        self.assertFailsClosed("invalid tier map")
+
+    @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0), "needs POSIX permissions as a normal user")
+    def test_an_unreadable_pack_is_never_skipped(self):
+        self.pack("a", {"repos": {"team/app": "INTERNAL"}})
+        folder = self.root / "patstack/project-packs/b"
+        folder.mkdir()
+        folder.chmod(0)
+        self.addCleanup(folder.chmod, 0o700)
+        self.assertFailsClosed("unreadable")
+
+    def test_no_pack_and_no_private_map_stays_unclassified(self):
+        data, warning = project_tier.load_tiers(self.root / "patstack")
+        self.assertEqual(data, {})
+        self.assertIn("no tier map", warning)
+
+    def test_every_bundled_pack_map_is_valid(self):
+        for path in sorted(project_tier.ROOT.glob("project-packs/*/project-tiers.json")):
+            self.assertIsNone(project_tier.load_map(path)[1], path)
 
 
 if __name__ == "__main__":

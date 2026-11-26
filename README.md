@@ -1,64 +1,65 @@
-# DevStack
+# Patstack
 
-DevStack is a reusable development workflow. Here, **the owner** means the person who requests and approves the work and makes decisions reserved for them; **the user** means the person using the workflow. Original author and upstream credits are retained in [NOTICE.md](NOTICE.md).
+Patstack is a reusable development workflow. Here, **the owner** means the person who requests and approves the work and makes decisions reserved for them; **the user** means the person using the workflow. Original author and upstream credits are retained in [NOTICE.md](NOTICE.md).
 
-**One lead agent owns a development task from request to proof.** DevStack coordinates 19 individually callable skills for Claude Code and Codex. It binds the real project, picks the smallest complete route, chooses review depth by risk, and requires proof of the agreed endpoint: a verified test release (Full Send) or an R2/R3-reviewed PR merged through the merge gate (Full Stop).
+**One lead agent owns a development task from request to proof.** Patstack coordinates 20 individually callable skills for Claude Code and Codex. It binds the real project, picks the smallest complete route, chooses review depth by risk, and requires proof of the agreed endpoint: a verified test release (Full Send) or an R2/R3-reviewed PR left ready for a human to merge (Full Stop).
 
-**Start here:** [START-HERE.md](START-HERE.md) takes you from a fresh clone to your first task in four steps.
+**Start here:** clone, open Claude Code or Codex in the checkout and run `/start-here`. It sets up everything on your machine and ends with a health check; [START-HERE.md](START-HERE.md) has the details.
 
-**New on the team?** Start with the [first-day onboarding guide](docs/onboarding.md): install, daily use, KPIs and a checklist. To let an agent do the setup, paste one of the [setup prompts](docs/setup-prompts.md).
+**New on the team?** Start with the [first-day onboarding guide](docs/onboarding.md): install, daily use, Retro and a checklist. To let an agent do the setup, paste one of the [setup prompts](docs/setup-prompts.md).
 
-![Illustrative DevStack feature route: shared reference, Plan, Build, Check, Deliver, repair and Learn](docs/assets/devstack-workflow.gif)
+![Illustrative Patstack feature route: shared reference, Plan, Build, Check, Deliver, repair and Learn](docs/assets/patstack-workflow.svg)
 
-*Illustrative workflow, not live task progress or measured results.* [Static diagram](docs/assets/devstack-workflow.svg) · [Interactive walkthrough with pause and reduced-motion support](docs/workflow.html)
+*Illustrative workflow, not live task progress or measured results.* [Interactive walkthrough with pause and reduced-motion support](docs/workflow.html)
 
 ## Skills
 
-Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Invoke a skill by name in your client's supported syntax or ask in plain language. DevStack coordinates them on the same task; calling a module does not create a second lead, ticket or permission grant.
+Each row is an actual `skills/<name>/SKILL.md` folder with its own workflow. Invoke a skill by name in your client's supported syntax or ask in plain language. Patstack coordinates them on the same task; calling a module does not create a second lead, ticket or permission grant.
 
 | Skill | Say | Does |
 |---|---|---|
-| [devstack](skills/devstack/SKILL.md) | “Fix this and carry it through” | Owns intake, routing, evidence, repair and delivery. |
+| [patstack](skills/patstack/SKILL.md) | “Fix this and carry it through” | Owns intake, routing, evidence, repair and delivery. |
 | [ponytail](skills/ponytail/SKILL.md) | “Use the smallest complete solution” | Reuses existing code, avoids speculative complexity and keeps required validation and proof. |
-| [to-spec](skills/to-spec/SKILL.md) | “Turn this idea into a spec” | Resolves the problem, scope, acceptance and proof before implementation. |
+| [to-spec](skills/to-spec/SKILL.md) | “Turn this idea into a spec” | Reads the product knowledge, interviews you until nothing about what to build is unclear, grills the plan, writes back what was settled, then writes the spec. |
 | [to-tickets](skills/to-tickets/SKILL.md) | “Split this spec into delivery slices” | Creates independently verifiable slices with dependencies and one shared spec. |
 | [implement](skills/implement/SKILL.md) | “Implement the agreed spec” | Builds the smallest complete change within the agreed scope. |
 | [review](skills/review/SKILL.md) | “Review this candidate” | Chooses R1/R2/R3 by risk and records actionable findings. |
 | [council](skills/council/SKILL.md) | “Run a council on this decision” | Uses independent judgments from the two configured model families (default: Opus and Sol) followed by cross-examination. |
 | [verify](skills/verify/SKILL.md) | “Prove this works” | Runs relevant checks and binds behavior and quality proof to the actual candidate or release. |
 | [full-send](skills/full-send/SKILL.md) | “Full Send” | Carries authorized work through the established test target and live proof. |
-| [full-stop](skills/full-stop/SKILL.md) | “Full Stop” | Keeps meaningful decisions hands-on, takes R2/R3 review and merges through the merge gate. |
+| [full-stop](skills/full-stop/SKILL.md) | “Full Stop” | Keeps meaningful decisions hands-on, takes R2/R3 review and stops at the ready PR for a human to merge. |
 | [file-pr](skills/file-pr/SKILL.md) | “File a PR” | Prepares the reviewable diff, problem-first PR and required native links. |
 | [babysit-pr](skills/babysit-pr/SKILL.md) | “Babysit this PR” | Uses native wakeups to handle checks, review and repair on the same task. |
 | [takeover](skills/takeover/SKILL.md) | “Take over this work” | Checks active work, accepted decisions and current evidence, preserving original credit. |
 | [modernize](skills/modernize/SKILL.md) | “Is this old PR still worth it?” | Rechecks relevance before updating old work. |
 | [retro](skills/retro/SKILL.md) | “Run the retro” | Audits outcomes and missing proof, then proposes or promotes checked technical improvements. |
-| [grilling](skills/grilling/SKILL.md) | “Grill me on this plan” | Asks one numbered batch of meaningful decision questions, each with a recommended answer. |
+| [grilling](skills/grilling/SKILL.md) | “Grill me on this plan” | Asks numbered rounds of meaningful decision questions, each with a recommended answer, until nothing is unclear, then attacks the plan for holes. |
 | [workflow-eval](skills/workflow-eval/SKILL.md) | “Evaluate this workflow” | Runs bounded, blinded comparisons of pinned versions on representative scenarios. |
 | [create-test-recipes](skills/create-test-recipes/SKILL.md) | “Make testing repeatable” | Creates project-local Launch / Doctor / Run / Evidence / Cleanup recipes. |
 | [reverse-engineer-anything](skills/reverse-engineer-anything/SKILL.md) | “Explain this shipped artifact” | Investigates artifacts and observed runtime behavior with REA. |
+| [start-here](skills/start-here/SKILL.md) | “Start here” / “Set me up” | Sets up Patstack on this machine end to end (skills, instructions, merge guard for both clients, ticket numbers, the bundled project pack), interviews you for your own preferences (language, involvement, effort, your available models ranked per job, review pair, notifications) with a short quiz, and ends with a health check. Also available as `/start-here` inside a fresh clone. |
 
-The [private KPI recorder](monitoring/devstack/README.md) is a separate standard-library Python package with a lifecycle audit hook, installer and tests. Native frontend-design, Computer Use, and optional app-owned Chirp/Xirp aliases remain external dependencies; their proprietary or owner-managed payloads are not copied here.
+Native frontend-design, Computer Use, and optional app-owned Chirp/Xirp aliases remain external dependencies; their proprietary or owner-managed payloads are not copied here.
 
-In T3 Code, the existing skills follow the live injected tool contract for delegation, PR linking, wakeups and other available capabilities. Each operation uses the actual runtime's supported transport. This adds no skill or permission; see [native tool routing](skills/devstack/references/coordination.md#t3-code-tools).
+In T3 Code, the existing skills follow the live injected tool contract for delegation, PR linking, wakeups and other available capabilities. Each operation uses the actual runtime's supported transport. This adds no skill or permission; see [native tool routing](skills/patstack/references/coordination.md#t3-code-tools).
 
 **Interactive walkthrough:** open [`docs/workflow.html`](docs/workflow.html) locally in a browser. It is self-contained, pausable, keyboard-operable and respects reduced-motion settings. GitHub shows HTML files as source, so clone or download the file to view it.
 
-> **Status:** This team copy retains workflow version **1.4.0**, **19 skills** and **69 manifest-covered resources**. The Mac, Linux devbox and Windows installation and discovery reports are **upstream rollout history**, not evidence that this copy is installed or activated on your hosts. Validate this checkout and your own client setup separately. See [Status and limits](docs/status-and-limits.md). Every session can show a one-line setup status, and private hooks count turns, tool calls and session time. See [setup step 6](docs/setup.md#6-session-status-kpi-hooks-and-outcomes).
+> **Status:** This team copy retains workflow version **1.5.0**, **20 skills** and **68 manifest-covered resources**. Validate this checkout and your own client setup separately. See [Status and limits](docs/status-and-limits.md). Run `scripts/setup_doctor.py` by hand to check a host; the one recommended hook is the [merge guard](docs/setup.md#6-merge-guard-hook).
 
 ---
 
 ## What you say, what happens
 
-DevStack triggers when a request designates development work. The modules above can also be called individually using the client's supported skill invocation. Phrases below are examples, not required keywords.
+Patstack triggers when a request designates development work. The modules above can also be called individually using the client's supported skill invocation. Phrases below are examples, not required keywords.
 
-| You say | DevStack does |
+| You say | Patstack does |
 |---|---|
 | "Make the save button use the brand colour" | **Tiny route.** Edits directly, checks R1 and the affected states, then ships through the PR and test target in Full Send. |
 | "Fix the redirect loop after login" | **Bounded fix.** Builds a red reproduction, makes the smallest fix, and adds R2 review when risk warrants. |
-| "Build CSV export for reports" | **New feature.** Writes a brief, derives quality targets, splits into slices only where useful, runs R2, delivers, and proves it live. |
+| "Build CSV export for reports" | **New feature.** Interviews you in rounds until the feature is clear and grills the plan, writes the spec, derives quality targets, splits into slices only where useful, runs R2, delivers, and proves it live. |
 | "Checkout is down" | **Critical route.** Writes a short recovery contract and chooses the fastest safe fix or mitigation. Runs the full retro after recovery. |
-| "Full Stop: change how sessions are shared" | **Full Stop.** The owner joins meaningful decisions. Review is R2, or R3 where warranted, and the lead merges through the merge gate. |
+| "Full Stop: change how sessions are shared" | **Full Stop.** The owner joins meaningful decisions. Review is R2, or R3 where warranted; the lead stops at the ready PR and a human merges. |
 | "Take over PR #123" | **Takeover.** Reads what exists and verifies it rather than trusting it. Resumes at the earliest valid phase and keeps original credit. |
 | "Is this old PR still worth it?" | **Modernize.** Checks the problem still exists before reviving it, or recommends closure with evidence. |
 | "File a PR" / "Babysit it" | **Delivery steps** inside the same task. These are not separate orchestrators. |
@@ -69,27 +70,27 @@ DevStack triggers when a request designates development work. The modules above 
 
 A ticket is a shared reference in the form `TKT-` followed by at least four digits. Reuse an existing reference when continuing work; a lead and its subagents normally use the same number in briefs, Issues, PRs and handoffs. A genuinely separate task may receive a new reference.
 
-The bundled `ticket-ref` tool allocates numbers offline from a private local SQLite store. Each issuing host uses a distinct numeric slot; the slot prevents allocation collisions and says nothing about who may work on a ticket. References carry no actor, role, model, lease, claim, workflow status, pickup or completion gate. Practical task briefs, review, tests, CI, live proof and real project authority still apply. See the [numbering contract](coordination/README.md).
+The bundled `ticket-ref` tool allocates numbers offline from a private local SQLite store. Each issuing host uses a distinct numeric slot; the slot prevents allocation collisions and says nothing about who may work on a ticket. References carry no workflow status or permission. Practical task briefs, review, tests, CI, live proof and real project authority still apply. See the [numbering contract](coordination/README.md).
 
 ## Two modes
 
 | | **Full Send** (default) | **Full Stop** |
 |---|---|---|
 | Who decides routine choices | The lead: it researches, picks the safest useful reversible option and records it | The lead for facts and routine details; the owner for meaningful product and approach decisions |
-| Endpoint | The lead merges its own PR through the merge gate after at least R1, then a verified test release with live proof | The lead merges through the merge gate after **R2 or R3**, with a Done/Verified/Unresolved/Next handoff |
-| When | Every development task, as autonomously as possible; sensitive work (auth, personal data, shared APIs) gets deeper review and proof, not a stop | The owner asks, or on a CRITICAL or unclassified project a revert cannot undo the change: production, destructive or irreversible data operations, a very large high-impact intake. FRIENDS and INTERNAL projects are always Full Send |
+| Endpoint | The lead merges its own PR through the merge gate after at least R1, then a verified test release with live proof | After **R2 or R3**, published on the PR, the lead stops at the ready PR with a Done/Verified/Unresolved/Next handoff; a human merges |
+| When | Every development task, as autonomously as possible; sensitive work (auth, personal data, shared APIs) gets deeper review and proof, not a stop | The owner asks, or on a CRITICAL or unclassified project a revert cannot undo the change: production, destructive or irreversible data operations, a very large high-impact intake. INTERNAL projects are always Full Send |
 | What does *not* switch modes | Uncertainty alone, two equivalent technical options, a sensitive but revertible change | A cosmetic edit in a sensitive repo |
 
-Size and urgency are separate choices from the mode; the mode sets the minimum review. Both modes merge only through the [merge gate](tools/merge_gate.py), which checks the review records and CI for the exact head. A Full Send grant covers the task's established test target and repair revisions. **Production always needs its own explicit authority.** [Full Send →](skills/full-send/SKILL.md) · [Full Stop →](skills/full-stop/SKILL.md)
+Size and urgency are separate choices from the mode; the mode sets the minimum review. Full Send merges only through the [merge gate](tools/merge_gate.py), which checks the review records and CI for the exact head; in Full Stop the gate confirms the same rule and a human merges. A Full Send grant covers the task's established test target and repair revisions. **Production always needs its own explicit authority.** [Full Send →](skills/full-send/SKILL.md) · [Full Stop →](skills/full-stop/SKILL.md)
 
 ## Phases
 
 | Phase | Done when |
 |---|---|
-| **Plan** | Brief, relevant quality targets and the proof method are enough to implement. Accepted specs are reused, not rebuilt. |
+| **Plan** | Most of the work on a feature: the product knowledge is read, the requester is interviewed until nothing about what to build is unclear, the plan has survived grilling, and brief, quality targets and proof method are enough to implement. Accepted specs are reused, not rebuilt. |
 | **Build** | The smallest complete candidate and its relevant tests exist. Work is parallelized only for ready, independent scopes with one owner each. |
 | **Check** | The current candidate has the required review level, CI, and acceptance and quality evidence. |
-| **Deliver** | Full Send: the intended test release works, with proof. Full Stop: the R2/R3-reviewed PR is merged through the merge gate and handed over. |
+| **Deliver** | Full Send: the intended test release works, with proof. Full Stop: the R2/R3-reviewed PR is ready and handed over, and a human merges it. |
 | **Learn** | Proportionate retro. Only justified, tested technical improvements are promoted. |
 
 ## Review levels
@@ -97,8 +98,8 @@ Size and urgency are separate choices from the mode; the mode sets the minimum r
 | Level | Who | Typical fit |
 |---|---|---|
 | **R1 Focused** | The author checks the diff and the targeted result. Labelled author review, never independent. | Trivial cosmetic, copy or mechanical edits |
-| **R2 Independent** | One fresh opposite-model reviewer (between the two configured model families; default: Opus work → Sol, Sol work → Opus) | Behavior fixes and features. **Minimum** for auth, credentials, shell with user input, untrusted files, authenticated APIs, production databases, destructive operations and important API contracts. |
-| **R3 Council** | Fresh sessions from **both configured model families** (default: Opus and Sol) judge independently first, then cross-examine | Broad auth/API changes, migrations, shared systems, unresolved material disagreement |
+| **R2 Independent** | One fresh opposite-model reviewer (between the two configured model families; default: Opus work → Sol, Sol work → Opus); with only one provider, a fresh session of it under a [reviewer lens](skills/review/references/lenses.md) | Behavior fixes and features. **Minimum** for auth, credentials, shell with user input, untrusted files, authenticated APIs, production databases, destructive operations and important API contracts. |
+| **R3 Council** | Fresh sessions from **both configured model families** (default: Opus and Sol), or with one provider two sessions under the two [lenses](skills/review/references/lenses.md), judge independently first, then cross-examine | Broad auth/API changes, migrations, shared systems, unresolved material disagreement |
 
 Depth follows behavior and blast radius, not filenames. A missing required reviewer is reported as missing. There is no silent downgrade. [Review rules →](skills/review/SKILL.md) · [Council →](skills/council/SKILL.md)
 
@@ -114,7 +115,7 @@ flowchart LR
   R -- 3 normal cycles or stagnation --> X[Deep diagnosis:<br/>new hypothesis, same clock]
   X --> B
   D -- Full Send --> L[Verified test release]
-  D -- Full Stop --> P[R2/R3 review, gated merge]
+  D -- Full Stop --> P[R2/R3 review, ready PR, human merge]
 ```
 
 Every failure records its layer, criterion, exact candidate or release, evidence and next action. Attempts and elapsed time carry across layers, PRs and models. Switching any of them does not reset the count. A merged PR is never reopened as a repair mechanism: fix-forward goes in a new linked PR on the same task. [Verify →](skills/verify/SKILL.md) · [Babysit PR →](skills/babysit-pr/SKILL.md)
@@ -123,7 +124,7 @@ Every failure records its layer, criterion, exact candidate or release, evidence
 
 Every feature gets two verdicts: **"Feature works? Y/N"** and **"Meets the quality standard? Y/N"**. Evidence that is required but missing is reported as *not verified*. It is never counted as a Yes. Targets are derived by the agent before implementation and frozen; they are not retuned after results arrive.
 
-| Task | Derived target and proof (examples from the [quality reference](skills/devstack/references/quality.md)) |
+| Task | Derived target and proof (examples from the [quality reference](skills/patstack/references/quality.md)) |
 |---|---|
 | New web page | Project budgets first. Where applicable, LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 at p75 as initial field targets. Lab runs are proxies, not field proof. |
 | New form or dialog | Existing components; keyboard completion; visible focus; contrast ≥ 4.5:1 for normal text; no horizontal overflow at supported widths |
@@ -131,7 +132,7 @@ Every feature gets two verdicts: **"Feature works? Y/N"** and **"Meets the quali
 | Data change | Exact records, fields and permissions. Counts or sums alone prove nothing. |
 | Tiny colour fix | Requested appearance and affected contrast, focus, hover and disabled states. No benchmark. |
 
-These are engineering examples to derive per project, not universal thresholds. DevStack's own documents contain **no measured benchmark results**.
+These are engineering examples to derive per project, not universal thresholds. Patstack's own documents contain **no measured benchmark results**.
 
 ## Continuing other work
 
@@ -143,33 +144,24 @@ Neither route grants force-push, merge, close or deploy rights.
 
 ## Specs live in GitHub, not in your repo
 
-The canonical task spec goes in the **parent GitHub Issue body**. Delivery slices are native sub-issues, and dependencies use native blocking relationships. Nothing per task is committed to the application repository. There are no spec files, no planning folders, and no `.gitignore` churn. The lead hands each worker the shared ticket reference, Issue reference and spec version. If a worker cannot read it, the lead sends the content itself, because a path the worker cannot open is not a handoff. [Project context →](skills/devstack/references/project-context.md)
+The canonical task spec goes in the **parent GitHub Issue body**. Delivery slices are native sub-issues, and dependencies use native blocking relationships. Nothing per task is committed to the application repository. There are no spec files, no planning folders, and no `.gitignore` churn. The lead hands each worker the shared ticket reference, Issue reference and spec version. If a worker cannot read it, the lead sends the content itself, because a path the worker cannot open is not a handoff. [Project context →](skills/patstack/references/project-context.md)
 
 ## Native, project and private layers
 
 | Layer | Lives in | Published here? |
 |---|---|---|
-| Coordinator and 18 callable workflow/capability modules | This repository's `skills/` | Yes, exactly 19 folders |
+| Coordinator and 19 callable workflow/capability modules | This repository's `skills/` | Yes, exactly 20 folders |
 | Optional Chirp/Xirp aliases | App-owned installation | No; optional where your host and app provide them |
-| Native client capabilities (Claude/Codex system skills, plugins, Computer Use, browser tools) | The client's own managed locations | **No**. They are owned and updated by the client. DevStack uses them when the actual runtime exposes them. |
+| Native client capabilities (Claude/Codex system skills, plugins, Computer Use, browser tools) | The client's own managed locations | **No**. They are owned and updated by the client. Patstack uses them when the actual runtime exposes them. |
 | Private project packs | Per-project `INDEX.md` routers, outside global skill discovery | **No** in the public distribution. See the [example project pack](examples/project-pack/README.md). |
-| Host capability profile | `~/.config/devstack/devices.local.json`, mode 0600, per host | **No**. Only the [template](examples/devices.example.json). |
-| Ticket-number store, historical registry, KPI database, telemetry, transcripts | Private local state on each host | **No**. The numbering tool and [contract](coordination/README.md) are included; private data is excluded. |
+| Host capability profile | `~/.config/patstack/devices.local.json`, mode 0600, per host | **No**. Only the [template](examples/devices.example.json). |
+| Ticket-number store, telemetry, transcripts | Private local state on each host | **No**. The numbering tool and [contract](coordination/README.md) are included; private data is excluded. |
 
 More in [docs/architecture.md](docs/architecture.md).
 
 ## Long runs and checkpoints
 
-The lead keeps one compact record on the existing ticket: goal and spec version, completed criteria with evidence, candidate head/base/release, active scopes and agent briefs, the next concrete action, and cumulative attempts and time. It checkpoints at milestones, before compaction or handoff, and at least every 15 minutes. While waiting on CI or review, it ends only the current turn, and the native PR watcher wakes it. If no durable wake mechanism exists, it reports that gap; it does not pretend an idle chat will restart. Phases show up in native plans and checkpoints. **A T3 progress bar or taskbar phase display is a possible future UI integration and is not implemented.** [Task state →](skills/devstack/references/task-state.md)
-
-## KPI monitoring
-
-```bash
-python3 monitoring/devstack/kpi_monitor.py record < examples/kpi-snapshot.example.json
-python3 monitoring/devstack/kpi_monitor.py report
-```
-
-Snapshots are allowlisted metadata only: IDs, mode, status, timestamps, counts and node outcomes. They never hold prompts, transcripts or credentials. Missing labels stay *unknown*, never zero. The lifecycle hook records audit receipts (hashed session identity and event counts) and **does not** infer outcomes. Retro reads the report and then checks the underlying evidence. [KPI contract →](monitoring/devstack/README.md)
+The lead keeps one compact record on the existing ticket: goal and spec version, completed criteria with evidence, candidate head/base/release, active scopes and agent briefs, the next concrete action, and cumulative attempts and time. It checkpoints at milestones, before compaction or handoff, and at least every 15 minutes. While waiting on CI or review, it ends only the current turn, and the native PR watcher wakes it. If no durable wake mechanism exists, it reports that gap; it does not pretend an idle chat will restart. The lead's native task list shows every step and the one in progress; the thread title carries only the ticket. **A T3 progress bar or taskbar phase display is a possible future UI integration and is not implemented.** [Task state →](skills/patstack/references/task-state.md)
 
 ## Private project packs
 
@@ -177,30 +169,29 @@ The workflow supports private project packs. A pack's `INDEX.md` declares applic
 
 ## Benchmark
 
-[`bench/`](bench/README.md) runs the same synthetic development tasks with and without DevStack (`baseline` and `devstack` arms), or against a changed copy (`candidate --candidate PATH`), and scores result, trap avoidance, honesty and safety the same way for every arm. Each run is sandboxed in a fresh temporary workspace with its own KPI store. `python3 bench/test_bench.py` checks the harness without calling a model; real runs use your Claude Code login. Small samples and judge noise limit what a run proves; see the [limits](bench/README.md#limits).
+[`bench/`](bench/README.md) runs the same synthetic development tasks with and without Patstack (`baseline` and `patstack` arms), or against a changed copy (`candidate --candidate PATH`), and scores result, trap avoidance, honesty and safety the same way for every arm. Each run is sandboxed in a fresh temporary workspace. `python3 bench/test_bench.py` checks the harness without calling a model; real runs use your Claude Code login. Small samples and judge noise limit what a run proves; see the [limits](bench/README.md#limits).
 
 ## Quick start
 
 ```bash
-git clone "https://github.com/OWNER/REPO.git" devstack && cd devstack   # this repository's GitHub path
-python3 scripts/check.py        # links, privacy scan, formats, KPI example, unit tests
+git clone "https://github.com/OWNER/REPO.git" patstack && cd patstack   # this repository's GitHub path
+python3 scripts/check.py        # links, privacy scan, formats, unit tests
 ```
 
-Then follow [docs/setup.md](docs/setup.md) to expose the skills to Claude Code or Codex, install the [global instructions template](examples/global-instructions/AGENTS.md) without overwriting your own, add your host profile and optionally wire the audit hook.
+Then follow [docs/setup.md](docs/setup.md) to expose the skills to Claude Code or Codex, install the [global instructions template](examples/global-instructions/AGENTS.md) without overwriting your own, add your host profile and the merge guard hook.
 
 ## Repository map
 
 ```
-skills/devstack/                 coordinator + progressive shared references
+skills/patstack/                 coordinator + progressive shared references
 skills/<module>/                18 individually callable workflows/capabilities
-monitoring/devstack/             KPI recorder, audit hook, installer, tests
 coordination/README.md           reference-only ticket numbering contract
 tools/ticket-ref/               offline numeric allocator and tests
 tools/pack_sync.py               three-way sync of pack skills from the team skills repository
 MODEL_RANKING.md                 optional model preferences (example)
-examples/                        global instructions, project pack, host profile and KPI snapshot templates
+examples/                        global instructions, project pack, host profile and bench target templates
 docs/                            setup, architecture, status, privacy, visuals
-bench/                           sandboxed with/without-DevStack benchmark, tasks and harness tests
+bench/                           sandboxed with/without-Patstack benchmark, tasks and harness tests
 project-packs/                   private project procedures, routed by INDEX.md (not globally discovered)
 scripts/refresh_from_source.py   regenerate local manifest; optional read-only upstream comparison
 scripts/check.py                 exact coverage, links, privacy, formats and tests
@@ -210,6 +201,6 @@ SOURCE-MANIFEST.json             repository SHA-256 per approved resource
 
 ## Credits and license
 
-DevStack draws on [Theo's tstack](https://github.com/t3dotgg/tstack), [Matt Pocock's skills](https://github.com/mattpocock/skills), [Poteto's pstack](https://github.com/cursor/plugins/tree/main/pstack), [Zeroshot's review loop](https://github.com/the-open-engine/zeroshot/blob/main/docs/guides/review-loop.md) and [Ponytail](https://github.com/DietrichGebert/ponytail). Recipe, Ponytail and REA material retain their MIT notices and provenance. See [`sources.md`](skills/devstack/references/sources.md) and [NOTICE.md](NOTICE.md).
+Patstack draws on [Theo's tstack](https://github.com/t3dotgg/tstack), [Matt Pocock's skills](https://github.com/mattpocock/skills), [Poteto's pstack](https://github.com/cursor/plugins/tree/main/pstack), [Zeroshot's review loop](https://github.com/the-open-engine/zeroshot/blob/main/docs/guides/review-loop.md) and [Ponytail](https://github.com/DietrichGebert/ponytail). Recipe, Ponytail and REA material retain their MIT notices and provenance. See [`sources.md`](skills/patstack/references/sources.md) and [NOTICE.md](NOTICE.md).
 
 **No license has been selected for this repository as a whole.** See [NOTICE.md](NOTICE.md).

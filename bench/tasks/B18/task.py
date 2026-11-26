@@ -657,7 +657,7 @@ def _legacy_restored_fails(ws):
     tmp = Path(tempfile.mkdtemp(prefix="b18-restore-"))
     try:
         root = tmp / "ws"
-        shutil.copytree(ws, root, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".devstack", ".claude", "data"))
+        shutil.copytree(ws, root, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".patstack", ".claude", "data"))
         (root / "app").mkdir(exist_ok=True)
         for name, body in APP_FILES.items():  # the shipped modules back; files the agent added stay
             (root / "app" / name).write_text(body, encoding="utf-8")

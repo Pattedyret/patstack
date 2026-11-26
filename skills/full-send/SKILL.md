@@ -1,13 +1,13 @@
 ---
 name: full-send
-description: Full Send mode for a designated development task - the lead owns routine decisions and continues hands-off through PR review, required CI/tests, the established authorized test deployment and real release verification. Use when the owner invokes Full Send, as the default DevStack mode, and always on FRIENDS and INTERNAL projects. Grants no production access on CRITICAL or unclassified projects.
+description: Full Send mode for a designated development task - the lead owns routine decisions and continues hands-off through PR review, required CI/tests, the established authorized test deployment and real release verification. Use when the owner invokes Full Send, as the default Patstack mode, and always on INTERNAL projects. Grants no production access on CRITICAL or unclassified projects.
 ---
 
 # Full Send
 
 Full Send decides the owner's involvement and the endpoint, not task size or review depth. A tiny edit in Full Send stays tiny; a risky change still gets R2/R3.
 
-**Context.** Runs under a DevStack lead with an owned task. Invoked directly for development with no owner yet, apply DevStack's entry (ownership, project binding) first and continue here.
+**Context.** Runs under a Patstack lead with an owned task. Invoked directly for development with no owner yet, apply Patstack's entry (ownership, project binding) first and continue here.
 
 ## Own the answer
 
@@ -23,15 +23,15 @@ Proceeding under uncertainty means a defensible action that is then checked. It 
 - Significant new visual direction: browser-viewable alternatives for the owner's approval.
 - Preference changes to the shared workflow involve the owner.
 - Production on CRITICAL and unclassified projects, destructive/out-of-scope actions in every tier and stricter project gates keep their actual permissions. Reuse approvals already given.
-- Full Send merges its own ready PR through the merge gate under the [merge rule](../devstack/references/coordination.md#merge) once at least R1 (R2 at trust boundaries) covers the head; a sensitive change gets deeper review and proof, not a stop. On a CRITICAL or unclassified project, a change that a revert cannot undo continues as Full Stop, with R2 or R3 before the merge.
-- Vault unlock/MFA that no available authorized mechanism can complete is an access dependency ([access](../devstack/references/access.md)), not a product question.
+- Full Send merges its own ready PR through the merge gate under the [merge rule](../patstack/references/coordination.md#merge) once at least R1 (R2 at trust boundaries) covers the head; a sensitive change gets deeper review and proof, not a stop. On a CRITICAL or unclassified project, a change that a revert cannot undo continues as Full Stop, with R2 or R3 before the merge.
+- Vault unlock/MFA that no available authorized mechanism can complete is an access dependency ([access](../patstack/references/access.md)), not a product question.
 - On a CRITICAL or unclassified project, a verified new high-impact dependency (sensitive auth/permissions, important shared API, broad customer impact) gets one human checkpoint for that decision. Ordinary uncertainty does not qualify. Continue unaffected work while it waits.
 
 ## Test-delivery authority
 
-The owner assigning a concrete task in Full Send (explicit or default) authorizes that task's established, unambiguous test target and its repair revisions. Record the real task grant, target and applicable head in the Issue/PR/brief, preserving the project's real approval mechanism and [coordination's delivery rules](../devstack/references/coordination.md#delivery-and-authority).
+The owner assigning a concrete task in Full Send (explicit or default) authorizes that task's established, unambiguous test target and its repair revisions. Record the real task grant, target and applicable head in the Issue/PR/brief, preserving the project's real approval mechanism and [coordination's delivery rules](../patstack/references/coordination.md#delivery-and-authority).
 
-Authority record: `DevStack 1.4.0 Full Send (explicit|default)` naming the actual mode basis, established target and retained project gates in the task record. This is evidence of the real grant, not an actor-role or ticket-registry approval. Quote the real assignment with its native reference; never relabel a default as an explicit stage instruction. Full Stop and ordinary research do not supply this grant. An auto-deploying merge is a deployment. Production needs explicit task-specific authority, except on FRIENDS and INTERNAL projects, where the owner's standing tier grant covers the project's own production ([tiers](../devstack/SKILL.md#choose-the-mode)).
+Authority record: `Patstack 1.5.0 Full Send (explicit|default)` naming the actual mode basis, established target and retained project gates in the task record. This is evidence of the real grant. Quote the real assignment with its native reference; never relabel a default as an explicit stage instruction. Full Stop and ordinary research do not supply this grant. An auto-deploying merge is a deployment. Production needs explicit task-specific authority, except on INTERNAL projects, where the owner's standing tier grant covers the project's own production ([tiers](../patstack/SKILL.md#choose-the-mode)).
 
 ## Endpoint
 

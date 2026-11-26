@@ -1,0 +1,8 @@
+{
+  "bench_arm": "patstack",
+  "bench": {
+    "kvalitet": ">=95",
+    "security_holes_pct": "<=0",
+    "median_minutes": "<=4"
+  }
+}

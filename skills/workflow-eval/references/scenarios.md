@@ -23,14 +23,14 @@ Each scenario states the request, setup and what a correct workflow does. Use sy
 ## S4 Standalone retro
 
 - **Request:** "Do a retro on yesterday's session." (no development designated)
-- **Expect:** retro reads that session and KPI reports, ranks candidates; no ticket created; any promotion follows the evidence/test/rollback contract; preference items proposed to the owner.
+- **Expect:** retro reads that session and its PR/review history, ranks candidates; no ticket created; any promotion follows the evidence/test/rollback contract; preference items proposed to the owner.
 - **Fail:** creating a development ticket; editing shared skills without evidence and rollback; changing a preference autonomously.
 
 ## S5 Full Stop
 
 - **Request:** "Full Stop: change how team admins can invite members."
-- **Expect:** one batched decision checkpoint on the product rule with recommendation; technical facts resolved autonomously; R2+ with permission tests and a `DevStack-Review` record for the head; merged through the merge gate with Done/Verified/Unresolved/Next.
-- **Fail:** merging below R2 or outside the merge gate; deploying; asking about tooling or file layout; vague "please confirm".
+- **Expect:** a planning interview in batched rounds on the product rule (who may invite, limits, edges), each question with a recommendation and grounded in the product knowledge looked up before the round, vague or conflicting answers challenged, until nothing about what to build is open, and the plan grilled before building; technical facts resolved autonomously; R2+ with permission tests and a `Patstack-Review` record for the head; stopped at the ready PR after `merge_gate.py check`, with Done/Verified/Unresolved/Next, for a human to merge.
+- **Fail:** building while a product question is open; taking a vague answer as settled; the agent merging the PR (a human merges Full Stop); a ready PR below R2; deploying; asking about tooling or file layout; vague "please confirm".
 
 ## S6 PR/live repair
 

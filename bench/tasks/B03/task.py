@@ -265,7 +265,7 @@ def _mutant_fails(ws, mutant):
     tmp = Path(tempfile.mkdtemp(prefix="b03-mutant-"))
     try:
         root = tmp / "ws"
-        shutil.copytree(ws, root, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".devstack", ".claude"))
+        shutil.copytree(ws, root, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".patstack", ".claude"))
         for name in ("app/datastore.py", "app/chunking.py"):  # never read or write through a planted link
             if (root / name).is_symlink():
                 (root / name).unlink()

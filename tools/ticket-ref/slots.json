@@ -36,6 +36,26 @@
     {
       "slot": 9,
       "owner": "reserved-maintainer"
+    },
+    {
+      "slot": 10,
+      "owner": "team-dev-10"
+    },
+    {
+      "slot": 11,
+      "owner": "team-dev-11"
+    },
+    {
+      "slot": 12,
+      "owner": "team-dev-12"
+    },
+    {
+      "slot": 13,
+      "owner": "team-dev-13"
+    },
+    {
+      "slot": 14,
+      "owner": "team-dev-14"
     }
   ]
 }

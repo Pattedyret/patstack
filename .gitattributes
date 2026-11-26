@@ -1,0 +1,9 @@
+# Keep LF in every checkout (Windows core.autocrlf would rewrite files, breaking the
+# manifest hashes, license checks and tests that scripts/check.py runs).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.sqlite3 binary

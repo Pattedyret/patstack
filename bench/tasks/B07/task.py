@@ -296,7 +296,7 @@ def _export(ws, rev, dest):
 
 
 def _copy_worktree(ws, dest):
-    shutil.copytree(ws, dest, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".devstack", ".claude"))
+    shutil.copytree(ws, dest, symlinks=True, ignore=shutil.ignore_patterns(".git", ".bench", "__pycache__", ".patstack", ".claude"))
     return dest
 
 

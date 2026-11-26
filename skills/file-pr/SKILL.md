@@ -5,7 +5,7 @@ description: File or update a concise problem-first pull request for the current
 
 # File PR
 
-**Context.** Under a DevStack lead, the PR belongs to the existing task; record its URL there. Invoked directly, open or update the PR the user asked for; that is a development delivery step, so apply DevStack's entry first if no task owns the work. Opening a PR publishes to GitHub: confirm the target repo/base is the intended one.
+**Context.** Under a Patstack lead, the PR belongs to the existing task; record its URL there. Invoked directly, open or update the PR the user asked for; that is a development delivery step, so apply Patstack's entry first if no task owns the work. Opening a PR publishes to GitHub: confirm the target repo/base is the intended one.
 
 ## Before filing
 
@@ -14,14 +14,14 @@ description: File or update a concise problem-first pull request for the current
 
 ## Body: written for a person
 
-Write for someone who reads it once and has not seen the task: what changed, whether it works, what is still open. Aim for 100 words; the [merge gate](../devstack/references/coordination.md#merge) refuses more than 200, header included. Use plain sentences. Leave out finding codes, repair history, test commands and messages to other agents.
+Write for someone who reads it once and has not seen the task: what changed, whether it works, what is still open. Aim for 100 words; the [merge gate](../patstack/references/coordination.md#merge) refuses more than 200, header included. Use plain sentences. Leave out finding codes, repair history, test commands and messages to other agents.
 
 The body starts with its header, which the merge gate reads and nothing else replaces: the mode line first, then the author line for R2/R3 and the level line when review is above the mode's floor, each once, plain text at column 0. Keep it current when the head changes, and choose one mode in the mode line.
 
 ```markdown
 Mode: Full Send|Full Stop — <project tier, risk, the review depth and proof it got, and whether a revert undoes it>
-DevStack-Author: <provider/model that wrote the change>
-DevStack-Level: R2|R3
+Patstack-Author: <provider/model that wrote the change>
+Patstack-Level: R2|R3
 
 What was wrong or missing and what changed, in two or three sentences. Link the Issue/spec.
 
@@ -32,7 +32,7 @@ Open risks: what is still unresolved, most serious first. Leave out when nothing
 no CI configured; proof is local only
 ```
 
-To change a filed body, use `gh api -X PATCH repos/OWNER/NAME/pulls/N -F body=@file` and read it back: `gh pr edit` can fail on GitHub's Projects classic sunset and leave the old text.
+Always pass PR bodies, comments and commit messages as files (`gh pr create --body-file`, `gh pr comment --body-file`, `git commit -F`), never inline. The [merge guard](../patstack/references/coordination.md#merge) reads the whole shell command, so text that mentions the gate's merge next to `gh pr` gets the command refused; the guard stays strict on purpose. To change a filed body, use `gh api -X PATCH repos/OWNER/NAME/pulls/N -F body=@file` and read it back: `gh pr edit` can fail on GitHub's Projects classic sunset and leave the old text.
 
 Keep the no-CI line when the repo has no CI: it is a risk, not N/A, and the gate reads it. A change set adds its one-line merge order here too.
 
@@ -41,7 +41,7 @@ Keep the no-CI line when the repo has no CI: it is a risk, not N/A, and the gate
 Everything else goes in one PR comment, updated when the head changes. Post it right after filing:
 
 - Evidence card: what ran (EXECUTED), what was seen (OBSERVED), what is reasoning (REASONED), for which head/environment. Feature works? Y/N. Quality standard? Y/N per applicable dimension (new features/improvements).
-- Review level (R1/R2/R3) with a one-line reason; reviewer model/session where independent. Each verdict is also a separate one-line `DevStack-Review:` comment for the head, which the merge gate reads.
+- Review level (R1/R2/R3) with a one-line reason; reviewer model/session where independent. Each verdict is also a separate one-line `Patstack-Review:` comment for the head, which the merge gate reads.
 - Blast radius, migrations, rollback route, retained human gates, and any data classification [review](../review/SKILL.md) requires.
 - Repair history and anything deliberately not done.
 

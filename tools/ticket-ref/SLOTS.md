@@ -15,6 +15,11 @@ Every machine that issues new `TKT-â€¦` references needs its own issuer slot (1â
 | 7 | `reserved-maintainer` | Reserved for the upstream maintainer's machines |
 | 8 | `reserved-maintainer` | Reserved for the upstream maintainer's machines |
 | 9 | `reserved-maintainer` | Reserved for the upstream maintainer's machines |
+| 10 | `team-dev-10` | Team developer machine |
+| 11 | `team-dev-11` | Team developer machine |
+| 12 | `team-dev-12` | Team developer machine |
+| 13 | `team-dev-13` | Team developer machine |
+| 14 | `team-dev-14` | Team developer machine |
 
 ## Claim a slot
 

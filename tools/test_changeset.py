@@ -40,6 +40,8 @@ class ChangeSetTests(unittest.TestCase):
         gh = root / "bin/gh"
         gh.write_text(FAKE_GH.format(python=sys.executable))
         gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
+        if os.name == "nt":
+            (root / "bin/gh.cmd").write_text(f'@echo off\n"{sys.executable}" "%~dp0gh" %*\n')
         self.data, self.log = root / "data.json", root / "log.jsonl"
         self.env = dict(os.environ, PATH=str(root / "bin") + os.pathsep + os.environ.get("PATH", ""),
                         FAKE_GH_DATA=str(self.data), FAKE_GH_LOG=str(self.log))

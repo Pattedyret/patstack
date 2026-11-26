@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Detach a DevStack checkout from this user's Claude Code and Codex configuration.
+"""Detach a Patstack checkout from this user's Claude Code and Codex configuration.
 
   python3 scripts/detach.py                         # dry run: what an uninstall of this checkout would change
-  python3 scripts/detach.py --apply                 # uninstall: skill links, unchanged mirror files, DevStack hooks
+  python3 scripts/detach.py --apply                 # uninstall: skill links, unchanged mirror files, Patstack hooks
   python3 scripts/detach.py --from OLD_PATH         # dry run after moving the checkout here from OLD_PATH
   python3 scripts/detach.py --from OLD_PATH --apply # drop OLD_PATH's links and hooks, repoint instructions here
   ... --follow-client-links                         # also inside a symlinked ~/.claude, ~/.codex or ~/.agents
@@ -12,7 +12,7 @@ What it touches, and nothing else:
 - on uninstall only, mirror files (native Windows copies) whose bytes equal what skill_mirrors.py
   writes for this checkout; edited or added files, symlinks and anything below a symlink stay;
 - hooks in ~/.claude/settings.json and ~/.codex/hooks.json whose command is exactly one of the forms
-  monitoring/devstack/install.py writes for CHECKOUT (interpreter, kpi_monitor.py or setup_doctor.py,
+  the retired KPI installer (monitoring/patstack/install.py) wrote for CHECKOUT (interpreter, kpi_monitor.py or setup_doctor.py,
   exact arguments); any other hook, also one that mentions the checkout, stays;
 - after a move, the old path in ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md when they are regular
   files. A symlinked instruction file is reported and never written through.
@@ -24,9 +24,9 @@ location instead, with the same exact-match, byte-identical and backup rules. Th
 re-validated right before every write or delete. Exit codes: 0 done, 1 stopped on an error, 3 pieces
 left behind a symlinked client folder.
 
-Paths are compared literally after normalisation (no globbing), so a sibling such as devstack1 next to
-devstack[1] never matches. Every change is backed up first under
-~/.local/state/devstack/detach-backups/<time>/ (a new folder per run, never overwritten); a failed
+Paths are compared literally after normalisation (no globbing), so a sibling such as patstack1 next to
+patstack[1] never matches. Every change is backed up first under
+~/.local/state/patstack/detach-backups/<time>/ (a new folder per run, never overwritten); a failed
 backup stops the run before that change. Files are rewritten through a temporary file and os.replace,
 keeping unknown JSON keys. A second run finds nothing to do. Standard library only, Python 3.9+.
 """
@@ -96,7 +96,7 @@ def hook_kind(command, checkout_roots, windows=WINDOWS):
     script, rest = argv[1], argv[2:]
     for root in checkout_roots:
         base = root.replace("\\", "/") if windows else root
-        if norm(script, windows) == norm(base + "/monitoring/devstack/kpi_monitor.py", windows):
+        if norm(script, windows) == norm(base + "/monitoring/patstack/kpi_monitor.py", windows):
             if (len(rest) == 7 and rest[0] == "audit-hook" and rest[1] == "--host" and rest[2] in HOSTS
                     and rest[3] == "--runtime" and rest[4] in RUNTIMES and rest[5] == "--event" and rest[6] in EVENTS):
                 return "kpi"
@@ -107,7 +107,7 @@ def hook_kind(command, checkout_roots, windows=WINDOWS):
 
 
 def strip_hooks(data, checkout_roots, windows=WINDOWS):
-    """A copy of DATA without DevStack hooks for the checkout, and how many were removed."""
+    """A copy of DATA without Patstack hooks for the checkout, and how many were removed."""
     data = copy.deepcopy(data)
     hooks = data.get("hooks")
     if not isinstance(hooks, dict):
@@ -170,7 +170,7 @@ def safe_mirror_file(mirror_root, relative):
 
 class Backup:
     def __init__(self, home):
-        self.base = Path(home) / ".local/state/devstack/detach-backups"
+        self.base = Path(home) / ".local/state/patstack/detach-backups"
         self.home = Path(home)
         self.folder = None
 
@@ -336,7 +336,7 @@ def plan_instructions(path, pattern, new, actions, kept, manual):
     if not pattern.search(text):
         return
     if new is None:
-        manual.append({"path": str(path), "todo": "still names this checkout; delete the DevStack sections or restore your .bak"})
+        manual.append({"path": str(path), "todo": "still names this checkout; delete the Patstack sections or restore your .bak"})
     else:
         replacement = str(new)
         content = pattern.sub(lambda m: replacement, text).encode("utf-8", errors="surrogateescape")
@@ -484,7 +484,7 @@ def run(home, checkout, new=None, source=None, apply=False, windows=WINDOWS, tra
     if not actions and not left:
         report["note"] = "nothing to change"
     elif not actions:
-        report["note"] = "DevStack pieces remain behind symlinked client folders; see left_in_place"
+        report["note"] = "Patstack pieces remain behind symlinked client folders; see left_in_place"
     elif not apply:
         report["note"] = "dry run: nothing changed; rerun with --apply"
     return report
@@ -512,7 +512,7 @@ def main(argv=None):
 
 
 def exit_code(report):
-    """0 done (or nothing to do), 1 stopped on an error, 3 DevStack pieces left behind symlinked client folders."""
+    """0 done (or nothing to do), 1 stopped on an error, 3 Patstack pieces left behind symlinked client folders."""
     if "error" in report:
         return 1
     return 3 if report["left_in_place"] else 0

@@ -8,8 +8,7 @@ Checks: local resources still match SOURCE-MANIFEST.json, relative Markdown
 links and anchors resolve, the privacy scan is clean (including the published
 project pack and the benchmark), JSON/SVG/YAML parse (CI templates stay least-privilege and pinned), the animated HTML is
 self-contained with reduced-motion and pause support, skill frontmatter is
-valid, the global-instructions template and project pack are present, the
-example KPI snapshot round-trips through the real recorder, and the KPI,
+valid, the global-instructions template and project pack are present, and the
 numbering, tool, package and benchmark unit tests pass. Standard library only; exits 1 on any
 failure. Network access is never used.
 """
@@ -21,7 +20,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 import xml.etree.ElementTree as ET
 
@@ -39,21 +37,13 @@ PACK_TEXT = {".ts", ".tsx", ".js", ".mjs", ".sh"}
 
 def pack_policies(root=None):
     root = ROOT if root is None else root
-    return {path.parent.relative_to(root).as_posix() + "/": json.loads(path.read_text())
+    return {path.parent.relative_to(root).as_posix() + "/": json.loads(path.read_text(encoding="utf-8"))
             for path in sorted((root / "project-packs").glob("*/publication.json"))
             if path.is_file() and not path.is_symlink()}
 
 
-# One reviewed, generated preview; all other binary paths remain rejected.
-BINARY_ASSETS = {
-    "docs/assets/devstack-workflow.gif": {
-        "sha256": "6681f220103b14bd8a9b9f6b945f5506af39005814b76565da181e6b87829f18",
-        "signature": b"GIF89a",
-        "size": 143274,
-        "width": 960,
-        "height": 550,
-    },
-}
+# No reviewed binary assets; every binary path is rejected.
+BINARY_ASSETS = {}
 
 # Personal instruction names are rejected everywhere except exact author-credit
 # lines in the notice. They are guarded by SHA-256 of a lowercase word prefix of
@@ -116,8 +106,8 @@ PRIVATE_WORD_HASHES = {
     "19ce2330fe21ed704dadecdeb7815c2beca3e4b4d0ef92baec3ef22eccd49f08",
 }
 # Optional extra plain-text terms, one per line, kept outside the package.
-LOCAL_DENYLIST = Path(os.environ.get("DEVSTACK_PRIVACY_DENYLIST",
-                                     Path.home() / ".config/devstack/privacy-denylist.txt"))
+LOCAL_DENYLIST = Path(os.environ.get("PATSTACK_PRIVACY_DENYLIST",
+                                     Path.home() / ".config/patstack/privacy-denylist.txt"))
 
 failures = []
 
@@ -158,7 +148,7 @@ def rel(path):
 
 
 def check_manifest():
-    manifest = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text())
+    manifest = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text(encoding="utf-8"))
     paths = [entry["path"] for entry in manifest["files"]]
     if len(paths) != len(set(paths)) or set(paths) != set(FILES):
         fail("manifest: paths must match the exact approved source file list")
@@ -258,7 +248,7 @@ def privacy_issues(name, data, policies=None):
     in_pack = policy is not None
     if (FORBIDDEN_NAMES.search(path.name) or FORBIDDEN_PARTS & set(path.parts)
             or ("project-packs" in path.parts and not in_pack)
-            or (path.name.startswith(".") and path.name not in {".gitignore"})):
+            or (path.name.startswith(".") and path.name not in {".gitignore", ".ignore", ".gitattributes"})):
         return [f"privacy: forbidden path {name}"]
     if path.suffix not in TEXT and not (in_pack and path.suffix in PACK_TEXT):
         return [f"privacy: unreviewed file type {name}"]
@@ -272,7 +262,7 @@ def privacy_issues(name, data, policies=None):
             problems.append(f"privacy: personal instruction name at {name}:{number}")
     local_terms = []
     if LOCAL_DENYLIST.is_file():
-        local_terms = [t.strip().lower() for t in LOCAL_DENYLIST.read_text().splitlines()
+        local_terms = [t.strip().lower() for t in LOCAL_DENYLIST.read_text(encoding="utf-8").splitlines()
                        if t.strip() and not t.startswith("#")]
     if name == "scripts/check.py" and "PATTERNS = {" in text and "failures = []" in text:
         text = text.split("PATTERNS = {", 1)[0] + text.split("failures = []", 1)[1]
@@ -467,7 +457,7 @@ def check_formats():
     for path in files():
         if path.suffix == ".json":
             try:
-                json.loads(path.read_text())
+                json.loads(path.read_text(encoding="utf-8"))
             except ValueError as error:
                 fail(f"json: {rel(path)}: {error}")
         elif path.suffix in (".yml", ".yaml"):
@@ -486,10 +476,10 @@ def check_formats():
                     fail(f"svg: {rel(path)} needs an <svg> root with an accessible <title>")
             except ET.ParseError as error:
                 fail(f"svg: {rel(path)}: {error}")
-            if re.search(r"<script|href=\"https?:", path.read_text()):
+            if re.search(r"<script|href=\"https?:", path.read_text(encoding="utf-8")):
                 fail(f"svg: {rel(path)} must be static and self-contained")
         elif path.suffix == ".html":
-            html = path.read_text()
+            html = path.read_text(encoding="utf-8")
             if re.search(r"<(?:script|link|img|iframe)[^>]+(?:src|href)=[\"']?https?:", html, re.I):
                 fail(f"html: {rel(path)} loads a remote resource")
             for needle in ("prefers-reduced-motion", "aria-pressed", "<meta name=\"viewport\""):
@@ -505,7 +495,7 @@ def check_skills():
         if not (ROOT / "skills" / name / "SKILL.md").is_file():
             fail(f"skill: missing actual entrypoint {name}/SKILL.md")
     for skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
-        head = skill.read_text().split("---")
+        head = skill.read_text(encoding="utf-8").split("---")
         meta = dict(re.findall(r"^(\w+):\s*(.+)$", head[1], re.M)) if len(head) > 2 else {}
         if meta.get("name") != skill.parent.name or not meta.get("description", "").strip():
             fail(f"skill: {rel(skill)} frontmatter needs name={skill.parent.name} and a description")
@@ -527,13 +517,13 @@ def check_provenance():
                 fail(f"provenance: {name} missing {required}")
         license_file = directory / license_name
         if license_file.is_file():
-            text = license_file.read_text()
+            text = license_file.read_text(encoding="utf-8")
             if "MIT License" not in text or "Copyright" not in text:
                 fail(f"provenance: {name} missing retained MIT notice")
             provenance_file = directory / ("source.json" if name == "create-test-recipes"
                                             else provenance_name)
             if provenance_file.is_file():
-                provenance = json.loads(provenance_file.read_text())
+                provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
                 expected = (next(entry["sha256"] for entry in provenance["files"]
                                  if entry["path"] == "pstack/LICENSE")
                             if name == "create-test-recipes"
@@ -546,38 +536,22 @@ def check_provenance():
             fail("provenance: expected all nine REA files; review any additions deliberately")
 
 
-def check_kpi_example():
-    monitor = ROOT / "monitoring/devstack/kpi_monitor.py"
-    snapshot = (ROOT / "examples/kpi-snapshot.example.json").read_text()
-    with tempfile.TemporaryDirectory() as scratch:
-        db = str(Path(scratch) / "kpis.sqlite3")
-        recorded = subprocess.run([sys.executable, str(monitor), "--db", db, "record"],
-                                  input=snapshot, capture_output=True, text=True)
-        report = subprocess.run([sys.executable, str(monitor), "--db", db, "report",
-                                 "--as-of", "2026-10-26T12:00:00+00:00"], capture_output=True, text=True)
-        card = subprocess.run([sys.executable, str(monitor), "--db", db, "scorecard", "--as-of", "2026-10-26T12:00:00+00:00",
-                               "--targets", str(ROOT / "examples/kpi-targets.example.json"), "--runs", scratch],
-                              capture_output=True, text=True)
-    if recorded.returncode or report.returncode:
-        fail(f"kpi example: record={recorded.returncode} report={report.returncode} {recorded.stderr}{report.stderr}")
-    if card.returncode or "🎯 targets" not in card.stdout:
-        fail(f"kpi targets example: scorecard={card.returncode} {card.stderr}")
+def test_environment():
+    """Keep runtime Git config out of offline fixtures, without changing the caller.
 
-
-def check_tests():
-    result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_kpi_monitor", "test_task_kpi"],
-                            cwd=ROOT / "monitoring/devstack", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
-    summary = (result.stderr.strip().splitlines() or ["no output"])[-3:]
-    if result.returncode:
-        fail("tests: " + " | ".join(summary))
-    return " ".join(line for line in summary if line.startswith("Ran"))
+    Windows deletes native empty env values when mock.patch.dict restores them;
+    inherited GIT_CONFIG_COUNT then refers to missing GIT_CONFIG_VALUE entries.
+    """
+    env = {key: value for key, value in os.environ.items()
+           if key != "GIT_CONFIG_COUNT" and not key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
 
 
 def check_ticket_tests():
     result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_ticket_ref"],
                             cwd=ROOT / "tools/ticket-ref", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                            env=test_environment())
     if result.returncode:
         fail("ticket numbering tests: " + result.stderr.strip())
     return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
@@ -586,29 +560,29 @@ def check_ticket_tests():
 def check_tool_tests():
     result = subprocess.run([sys.executable, "-m", "unittest", "-q", *sorted(p.stem for p in (ROOT / "tools").glob("test_*.py"))],
                             cwd=ROOT / "tools", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                            env=test_environment())
     if result.returncode:
         fail("tool tests: " + " | ".join(result.stderr.strip().splitlines()[-3:]))
     return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
 
 
 def check_script_tests():
-    """Tests for the setup tools: the setup check, skill mirrors, Codex hook trust, detach and the ticket launcher."""
-    modules = ["test_setup_doctor", "test_skill_mirrors", "test_codex_hook_trust", "test_detach", "test_ticket_launcher"]
+    """Tests for the setup tools: the setup check, skill mirrors, detach and the ticket launcher."""
+    modules = ["test_setup_doctor", "test_skill_mirrors", "test_detach", "test_ticket_launcher", "test_start_here", "test_preferences"]
     if any((ROOT / "scripts" / name).is_file() for name in ("export_public.py", "test_export_public.py")):
         modules.append("test_export_public")  # private-source tests also verify the public tree end to end
     result = subprocess.run([sys.executable, "-m", "unittest", "-q", *modules],
                             cwd=ROOT / "scripts", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                            env=test_environment())
     if result.returncode:
         fail("setup helper tests: " + " | ".join(result.stderr.strip().splitlines()[-3:]))
     return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
 
 
 def check_bench_tests():
-    result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_bench"],
+    result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_bench", "test_targets"],
                             cwd=ROOT / "bench", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                            env=test_environment())
     if result.returncode:
         fail("benchmark tests: " + " | ".join(result.stderr.strip().splitlines()[-3:]))
     return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
@@ -635,8 +609,8 @@ def check_pack_tests():
             fail(f"pack test: {rel(test)}: " + " | ".join(result.stdout.strip().splitlines()[-4:]))
         ran.append(test.name)
     for test in sorted(test for pack in pack_policies() for test in (ROOT / pack).rglob("test_*.py")):
-        result = subprocess.run([sys.executable, "-m", "unittest", "-q", test.stem], cwd=test.parent,
-                                capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+        result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-q", "-s", ".", "-p", test.name], cwd=test.parent,
+                                capture_output=True, text=True, env=test_environment())
         if result.returncode:
             fail(f"pack test: {rel(test)}: " + " | ".join(result.stderr.strip().splitlines()[-3:]))
         ran.append(test.name)
@@ -646,20 +620,19 @@ def check_pack_tests():
 def check_template():
     template = ROOT / "examples/global-instructions/AGENTS.md"
     text = template.read_text(encoding="utf-8") if template.is_file() else ""
-    if not text.startswith("<!-- devstack-global-instructions -->\n"):
+    if not text.startswith("<!-- patstack-global-instructions -->\n"):
         fail("template: examples/global-instructions/AGENTS.md must start with its install marker")
-    for needle in ("<DEVSTACK>/skills/devstack/SKILL.md", "<DEVSTACK>/monitoring/devstack/task_kpi.py",
-                   "<DEVSTACK>/examples/project-pack/README.md"):
+    for needle in ("<PATSTACK>/skills/patstack/SKILL.md", "<PATSTACK>/examples/project-pack/README.md"):
         if needle not in text:
             fail(f"template: missing {needle}")
-        elif not (ROOT / needle.replace("<DEVSTACK>/", "")).is_file():
+        elif not (ROOT / needle.replace("<PATSTACK>/", "")).is_file():
             fail(f"template: {needle} does not exist in this checkout")
 
 
 def check_package_tests():
     result = subprocess.run([sys.executable, "-m", "unittest", "-q", "test_package"],
                             cwd=ROOT / "scripts", capture_output=True, text=True,
-                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                            env=test_environment())
     if result.returncode:
         fail("package negative controls: " + result.stderr.strip())
     return " ".join(line for line in result.stderr.splitlines() if line.startswith("Ran"))
@@ -674,9 +647,8 @@ def main(argv=None):
         return 2
     ALLOW_MISSING_NODE = "--allow-missing-node" in argv
     for step in (check_manifest, check_links, check_privacy, check_tracked_caches, check_formats, check_skills,
-                 check_provenance, check_template, check_kpi_example):
+                 check_provenance, check_template):
         step()
-    ran = check_tests()
     ticket_ran = check_ticket_tests()
     tool_ran = check_tool_tests()
     package_ran = check_package_tests()
@@ -690,7 +662,7 @@ def main(argv=None):
     if incomplete:
         print("INCOMPLETE: " + "; ".join(incomplete) + ". Every other check passed; this is not a green result.")
         return 3
-    print(f"OK: exact manifest, links, privacy, formats, {len(SKILLS)} skills, template, KPI example; KPI tests: {ran}; "
+    print(f"OK: exact manifest, links, privacy, formats, {len(SKILLS)} skills, template; "
           f"numbering tests: {ticket_ran}; tool tests: {tool_ran}; package controls: {package_ran}; setup helper tests: {helper_ran}; bench tests: {bench_ran}; pack tests: {pack_ran}")
     return 0
 
