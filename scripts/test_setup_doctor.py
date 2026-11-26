@@ -54,6 +54,10 @@ class CodexTrustHashTests(unittest.TestCase):
             self.assertIsNone(d.codex_hook_states(text + "broken = [\n"))
 
 
+# Codex trust is read with tomllib (Python 3.11+); without it the doctor must say "trust unknown".
+TOML = sys.version_info >= (3, 11)
+
+
 class DoctorTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -120,12 +124,17 @@ class DoctorTests(unittest.TestCase):
         report = d.run(self.root, self.home, host)
         return report, {(r["check"], r["status"]) for r in report.rows if check is None or r["check"] == check}
 
+    def warns(self, report, statuses=("WARN",)):
+        """Rows with these statuses, minus the one a Python without tomllib must give: Codex trust unknown."""
+        return [r for r in report.rows if r["status"] in statuses
+                and (TOML or not (r["check"] == "codex merge guard" and r["detail"].startswith("trust unknown")))]
+
     def test_healthy_setup_has_no_fail_or_warn(self):
         report, rows = self.statuses()
         self.assertFalse(report.failed, report.rows)
-        self.assertFalse([r for r in report.rows if r["status"] == "WARN"], report.rows)
+        self.assertFalse(self.warns(report), report.rows)
         self.assertIn(("claude merge guard", "OK"), rows)
-        self.assertIn(("codex merge guard", "OK"), rows)
+        self.assertIn(("codex merge guard", "OK" if TOML else "WARN"), rows)
 
     def test_codex_merge_guard_must_be_wired_and_trusted(self):
         # Codex runs a hook only after the person trusts it; an untrusted one is skipped silently.
@@ -144,7 +153,8 @@ class DoctorTests(unittest.TestCase):
             self.write_codex(state=state)
             report, rows = self.statuses("codex merge guard")
             self.assertEqual(rows, {("codex merge guard", "WARN")}, state)
-            self.assertIn(advice, " ".join(r["detail"] for r in report.rows if r["check"] == "codex merge guard"))
+            detail = " ".join(r["detail"] for r in report.rows if r["check"] == "codex merge guard")
+            self.assertIn(advice if TOML else "trust unknown", detail)
         good = d.codex_hook_hash("pre_tool_use", "Bash", {"type": "command", "command": self.guard()})
         self.write_codex(state=f'trusted_hash = "{good}"\nenabled = false\n')
         self.assertEqual(self.statuses("codex merge guard")[1], {("codex merge guard", "WARN")})
@@ -277,7 +287,7 @@ class DoctorTests(unittest.TestCase):
         settings = self.home / ".claude/settings.json"
         settings.write_text(settings.read_text().replace("read-size-guard.sh", "block-destructive.py"))
         report, _ = self.statuses()
-        self.assertFalse([r for r in report.rows if r["status"] in ("WARN", "FAIL")], report.rows)
+        self.assertFalse(self.warns(report, ("WARN", "FAIL")), report.rows)
 
     def test_disable_all_hooks_fails(self):
         settings = self.home / ".claude/settings.json"

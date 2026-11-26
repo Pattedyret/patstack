@@ -234,7 +234,10 @@ class StartHereTests(unittest.TestCase):
             f'[hooks.state.{json.dumps(str(hooks_file) + ":pre_tool_use:0:0")}]\ntrusted_hash = "{current}"\n')
         self.rows = s.Rows()
         s.merge_guard(self.home, True, self.rows, {"claude", "codex"})
-        self.assertEqual(self.statuses("guard codex"), [("OK", "guard codex"), ("OK", "guard codex")])
+        if sys.version_info >= (3, 11):
+            self.assertEqual(self.statuses("guard codex"), [("OK", "guard codex"), ("OK", "guard codex")])
+        else:  # no tomllib: recorded trust cannot be read, so the person keeps being told
+            self.assertIn(("TODO", "guard codex"), self.statuses("guard codex"))
 
     @unittest.skipIf(os.name == "nt", "POSIX modes")
     def test_private_settings_and_their_backup_stay_private(self):

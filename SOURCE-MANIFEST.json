@@ -334,8 +334,8 @@
     },
     {
       "path": "scripts/test_setup_doctor.py",
-      "source_sha256": "2e92b931d37a0922a7cc348f9d8614508ed4b3bda7929e5e2fb84ece406ea22d",
-      "published_sha256": "2e92b931d37a0922a7cc348f9d8614508ed4b3bda7929e5e2fb84ece406ea22d",
+      "source_sha256": "90af7f714e46d9b094e8b2230065a8fdf834f81e7f133cf2241df978fc87b375",
+      "published_sha256": "90af7f714e46d9b094e8b2230065a8fdf834f81e7f133cf2241df978fc87b375",
       "sanitized": false
     },
     {
@@ -382,8 +382,8 @@
     },
     {
       "path": "scripts/test_start_here.py",
-      "source_sha256": "23237733e21af95b706717d281f4ea875c9388843c778c3c996a385802e4dce0",
-      "published_sha256": "23237733e21af95b706717d281f4ea875c9388843c778c3c996a385802e4dce0",
+      "source_sha256": "1588072c2240d21a7568d19e378b9b84267ed06a0e3e828e0f435590506202bd",
+      "published_sha256": "1588072c2240d21a7568d19e378b9b84267ed06a0e3e828e0f435590506202bd",
       "sanitized": false
     },
     {
